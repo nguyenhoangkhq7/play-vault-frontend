@@ -1,0 +1,94 @@
+@import "tailwindcss/preflight";
+@tailwind utilities;
+
+:root {
+  --background: 270 50% 15%;
+  --foreground: 210 40% 98%;
+
+  --card: 270 50% 20%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 270 50% 20%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 270 50% 60%;
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 270 30% 30%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 270 30% 25%;
+  --muted-foreground: 270 10% 70%;
+
+  --accent: 270 30% 30%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 270 30% 30%;
+  --input: 270 30% 30%;
+  --ring: 270 50% 60%;
+
+  --radius: 0.5rem;
+}
+
+body {
+  background: linear-gradient(to bottom right, #4c1d95, #7e22ce);
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+  font-family: "Inter", sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.8);
+}
+
+@layer utilities {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-default {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+
+  .btn-outline {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .card {
+    @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+  }
+
+  .card-header {
+    @apply flex flex-col space-y-1.5 p-6;
+  }
+
+  .card-title {
+    @apply text-2xl font-semibold leading-none tracking-tight;
+  }
+
+  .card-content {
+    @apply p-6 pt-0;
+  }
+}

@@ -19,6 +19,7 @@ import FeedbackManagement from './pages/FeedbackManagement.jsx';
 import GameManagement from './pages/GameManagement.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import { Toaster } from "@/components/ui/sonner";
 
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
@@ -50,31 +51,32 @@ function MainLayout() {
 function App() {
   return (
     <BrowserRouter>
+    <Toaster richColors position="top-right" />
       <Routes>
         {/* Main layout for all pages except login, register, forgot-password, and admin */}
         <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
+          {/* <Route path="/" element={<HomePage />} 
           <Route path="/products" element={<ProductPages />} />
           <Route path="/favorites" element={<Favorite />} />
-          <Route path="/bought" element={<Bought />} />
+          <Route path="/bought" element={<Bought />} /> */}
           <Route path="/cart" element={<CartPage />} />
-          <Route path="/profile" element={<UserProfiles />} />
-          <Route path="/game/:id" element={<GameDetail />} />
+          {/* <Route path="/profile" element={<UserProfiles />} />
+          <Route path="/game/:id" element={<GameDetail />} /> */}
         </Route>
 
         {/* Independent routes for login, register, and forgot-password */}
-        <Route path="/login" element={<Login />} />
+        {/* <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> */}
 
         {/* Admin routes nested under AdminLayout */}
-        <Route element={<AdminLayout />}>
+        {/* <Route element={<AdminLayout />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admindashboard" element={<AdminDashboard />} />
           <Route path="/admin/feedback" element={<FeedbackManagement />} />
           <Route path="/admin/games" element={<GameManagement />} />
           <Route path="/admin/users" element={<UserManagement />} />
-        </Route>
+        </Route> */}
       </Routes>
     </BrowserRouter>
   );

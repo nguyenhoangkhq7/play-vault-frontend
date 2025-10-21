@@ -20,7 +20,8 @@ import Games from "./pages/Games"
 import Approval from "./pages/Approval"
 import Monitoring from "./pages/Monitoring"
 import Reports from "./pages/Reports"
-import AdminProfile from "./pages/AdminProfile"
+import AdminProfile from "./pages/AdminProfiles.jsx"
+import AdminOrders from "./pages/AdminOrders.jsx"
 
 
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
@@ -79,6 +80,8 @@ function App() {
           <Route path="monitoring" element={<Monitoring />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<AdminProfile />} />
+          <Route path="orders" element={<AdminOrders />} />
+
         </Route>
 
       </Routes>

@@ -21,6 +21,7 @@ import UserManagement from './pages/UserManagement.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import PublisherManagerDiscount from './pages/PublisherManagerDiscount.jsx';
 import PublisherManagerRevenue from './pages/PublisherManagerRevenue.jsx';
+import Report from './pages/ReportPage.jsx';
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
   return (
@@ -63,6 +64,8 @@ function App() {
           <Route path="/game/:id" element={<GameDetail />} />
           <Route path="/promotions" element={<PublisherManagerDiscount />} />
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
+          <Route path="/report" element={<Report />} />
+          
         </Route>
 
         {/* Independent routes for login, register, and forgot-password */}

@@ -203,40 +203,78 @@ const exportToExcel = async () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          <select
-            value={selectedTimeRange}
-            onChange={(e) => setSelectedTimeRange(e.target.value)}
-            className="p-2 rounded bg-white/10 text-white border border-white/20"
-          >
-            {timeRanges.map((range) => (
-              <option key={range.value} value={range.value}>
-                {range.label}
-              </option>
-            ))}
-          </select>
-          <input
-  type="text"
-  placeholder="Tìm kiếm theo tên..."
-  value={searchQuery}
-  onChange={(e) => setSearchQuery(e.target.value)}
-  className="p-2 rounded bg-white/10 text-white border border-white/20 placeholder-white/50"
-/>
+<div className="flex flex-wrap gap-4">
+  {/* Bộ lọc thời gian */}
+  <div className="relative group">
+    <select
+      value={selectedTimeRange}
+      onChange={(e) => setSelectedTimeRange(e.target.value)}
+      className="appearance-none p-2 pr-8 rounded-lg bg-[#8130CD]/40 border border-white/20 
+                 text-white focus:ring-2 focus:ring-[#8130CD] outline-none 
+                 hover:bg-[#8130CD]/60 cursor-pointer transition-all"
+      style={{ colorScheme: "dark" }}
+    >
+      {timeRanges.map((range) => (
+        <option
+          key={range.value}
+          value={range.value}
+          className="bg-[#8130CD] text-white"
+        >
+          {range.label}
+        </option>
+      ))}
+    </select>
+    <svg
+      className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-200 pointer-events-none"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  </div>
 
+  {/* Ô tìm kiếm */}
+  <input
+    type="text"
+    placeholder="Tìm kiếm theo tên..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="p-2 rounded-lg bg-[#8130CD]/40 text-white border border-white/20 
+               placeholder-white/50 focus:ring-2 focus:ring-[#8130CD] 
+               outline-none hover:bg-[#8130CD]/60 transition-all"
+  />
 
-          <select
-            value={selectedGame}
-            onChange={(e) => setSelectedGame(e.target.value)}
-            className="p-2 rounded bg-white/10 text-white border border-white/20"
-          >
-            <option value="all">Tất cả game</option>
-            {gamesData.map((game) => (
-              <option key={game.id} value={game.id.toString()}>
-                {game.name}
-              </option>
-            ))}
-          </select>
-        </div>
+  {/* Bộ lọc game */}
+  <div className="relative group">
+    <select
+      value={selectedGame}
+      onChange={(e) => setSelectedGame(e.target.value)}
+      className="appearance-none p-2 pr-8 rounded-lg bg-[#8130CD]/40 border border-white/20 
+                 text-white focus:ring-2 focus:ring-[#8130CD] outline-none 
+                 hover:bg-[#8130CD]/60 cursor-pointer transition-all"
+      style={{ colorScheme: "dark" }}
+    >
+      <option value="all" className="bg-[#8130CD] text-white">Tất cả game</option>
+      {gamesData.map((game) => (
+        <option key={game.id} value={game.id.toString()} className="bg-[#8130CD] text-white">
+          {game.name}
+        </option>
+      ))}
+    </select>
+    <svg
+      className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-200 pointer-events-none"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  </div>
+</div>
+
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

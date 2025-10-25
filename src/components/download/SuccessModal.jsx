@@ -1,8 +1,20 @@
-export default function SuccessModal({ isOpen = true, onClose, amount = "200.000đ" }) {
+export default function SuccessModal({
+  isOpen = true,
+  onClose,
+  amount = "200.000đ",
+  onSuccess,
+}) {
   if (!isOpen) return null;
 
+  const handleBack = () => {
+    const numericValue = parseInt(amount.replace(/\D/g, "")) || 0;
+    if (onSuccess) onSuccess(numericValue);
+
+    if (onClose) onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
       <div className="relative w-full max-w-md rounded-2xl bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 p-8 text-center shadow-2xl">
         <div className="mx-auto mb-6 flex h-32 w-32 items-center justify-center">
           <div className="relative h-full w-full">
@@ -19,7 +31,6 @@ export default function SuccessModal({ isOpen = true, onClose, amount = "200.000
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                fill="none"
               />
             </svg>
           </div>
@@ -31,7 +42,7 @@ export default function SuccessModal({ isOpen = true, onClose, amount = "200.000
           Chúc bạn mua sắm vui vẻ ^^
         </p>
         <button
-          onClick={onClose}
+          onClick={handleBack}
           className="w-full rounded-full bg-green-600 px-8 py-3 font-semibold text-white transition-colors hover:bg-green-700"
         >
           Quay lại

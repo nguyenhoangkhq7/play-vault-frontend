@@ -17,7 +17,6 @@ export default function Report() {
     email: "",
   });
   const [attachments, setAttachments] = useState([]);
-  const [systemInfo, setSystemInfo] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -33,15 +32,7 @@ export default function Report() {
     }
   }, [formData.summary]);
 
-  // ⚙️ Tự động lấy thông tin hệ thống
-  useEffect(() => {
-    setSystemInfo({
-      browser: navigator.userAgent,
-      os: navigator.platform,
-      resolution: `${window.innerWidth}x${window.innerHeight}`,
-      time: new Date().toLocaleString("vi-VN"),
-    });
-  }, []);
+
 
   // 📂 Xử lý file
   const handleFileChange = (e) => {
@@ -91,7 +82,7 @@ export default function Report() {
           <CheckCircle2 className="w-16 h-16 mx-auto text-green-400 mb-4 animate-bounce" />
           <h2 className="text-3xl font-bold mb-2">Báo cáo đã gửi thành công!</h2>
           <p className="text-purple-200">
-            Cảm ơn bạn đã giúp chúng tôi cải thiện. Đội ngũ kỹ thuật sẽ xem xét sớm nhất có thể 💜
+            Cảm ơn bạn đã giúp chúng tôi cải thiện. Đội ngũ kỹ thuật sẽ xem xét sớm nhất có thể
           </p>
         </div>
       </motion.div>
@@ -114,22 +105,23 @@ export default function Report() {
             Báo Cáo Lỗi Hệ Thống
           </h1>
           <p className="text-purple-200 mt-2">
-            Hãy giúp chúng tôi phát hiện và sửa lỗi nhanh hơn 🚀
+            Hãy giúp chúng tôi phát hiện và sửa lỗi nhanh hơn
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
-          <FormSection title="1. Tiêu đề lỗi" desc="Tóm tắt ngắn gọn vấn đề bạn gặp phải">
+          <FormSection title="1. Tiêu đề lỗi" >
             <input
-              name="summary"
-              value={formData.summary}
-              onChange={handleInputChange}
-              placeholder="Ví dụ: Lỗi khi thanh toán đơn hàng #ORD-003"
-              className="w-full p-3 rounded-lg bg-white/10 border border-white/20 focus:ring-2 focus:ring-[#8130CD] outline-none"
-              required
+            name="summary"
+            value={formData.summary}
+            readOnly
+            placeholder="Ví dụ: Lỗi khi thanh toán đơn hàng #ORD-003"
+            className="w-full p-3 rounded-lg bg-white/10 border border-white/20 focus:ring-2 focus:ring-[#8130CD] outline-none cursor-not-allowed"
+            required
             />
           </FormSection>
+
 
           <FormSection title="2. Mô tả chi tiết" desc="Giải thích điều gì đã xảy ra và bạn mong đợi điều gì">
             <textarea
@@ -141,19 +133,8 @@ export default function Report() {
               required
             />
           </FormSection>
-
-          <FormSection title="3. Các bước tái hiện lỗi" desc="Cách để lỗi xảy ra">
-            <textarea
-              name="stepsToReproduce"
-              value={formData.stepsToReproduce}
-              onChange={handleInputChange}
-              placeholder={`1. Đăng nhập\n2. Chọn đơn hàng\n3. Nhấn “Thanh toán” và lỗi xuất hiện`}
-              className="w-full p-3 rounded-lg bg-white/10 border border-white/20 focus:ring-2 focus:ring-[#8130CD] outline-none min-h-32"
-            />
-          </FormSection>
-
           <div className="grid md:grid-cols-2 gap-6">
-            <FormSection title="4. Kết quả mong muốn">
+            <FormSection title="3. Kết quả mong muốn">
               <textarea
                 name="expectedResult"
                 value={formData.expectedResult}
@@ -163,7 +144,7 @@ export default function Report() {
               />
             </FormSection>
 
-            <FormSection title="5. Kết quả thực tế">
+            <FormSection title="4. Kết quả thực tế">
               <textarea
                 name="actualResult"
                 value={formData.actualResult}
@@ -175,71 +156,10 @@ export default function Report() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {/* 6. Mức độ nghiêm trọng */}
-{/* 6. Mức độ nghiêm trọng */}
-<FormSection title="6. Mức độ nghiêm trọng">
-  <div className="relative group">
-    <select
-      name="severity"
-      value={formData.severity}
-      onChange={handleInputChange}
-      className="appearance-none w-full p-3 pr-10 rounded-lg 
-                 bg-[#8130CD]/40 border border-white/20 
-                 focus:ring-2 focus:ring-[#8130CD] 
-                 outline-none text-white 
-                 hover:bg-[#8130CD]/60 cursor-pointer transition-all"
-      style={{
-        colorScheme: "dark", // ép màu chữ sáng trong dropdown
-      }}
-    >
-      <option value="">Chọn mức độ...</option>
-      <option className="bg-[#8130CD] text-white" value="low">Thấp</option>
-      <option className="bg-[#8130CD] text-white" value="medium">Trung bình</option>
-      <option className="bg-[#8130CD] text-white" value="high">Cao</option>
-      <option className="bg-[#8130CD] text-white" value="critical">Nghiêm trọng</option>
-    </select>
-
-    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 
-                            text-purple-200 group-hover:text-white 
-                            transition-all pointer-events-none" />
-  </div>
-</FormSection>
-
-{/* 7. Loại lỗi */}
-<FormSection title="7. Loại lỗi">
-  <div className="relative group">
-    <select
-      name="bugType"
-      value={formData.bugType}
-      onChange={handleInputChange}
-      className="appearance-none w-full p-3 pr-10 rounded-lg 
-                 bg-[#8130CD]/40 border border-white/20 
-                 focus:ring-2 focus:ring-[#8130CD] 
-                 outline-none text-white 
-                 hover:bg-[#8130CD]/60 cursor-pointer transition-all"
-      style={{
-        colorScheme: "dark", // ép nền tối cho dropdown
-      }}
-    >
-      <option value="">Chọn loại lỗi...</option>
-      <option className="bg-[#8130CD] text-white" value="ui">Giao diện (UI)</option>
-      <option className="bg-[#8130CD] text-white" value="payment">Thanh toán</option>
-      <option className="bg-[#8130CD] text-white" value="data">Dữ liệu</option>
-      <option className="bg-[#8130CD] text-white" value="performance">Hiệu năng</option>
-      <option className="bg-[#8130CD] text-white" value="security">Bảo mật</option>
-    </select>
-
-    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 
-                            text-purple-200 group-hover:text-white 
-                            transition-all pointer-events-none" />
-  </div>
-</FormSection>
-
-
           </div>
 
           {/* Upload & Preview */}
-          <FormSection title="8. File minh họa" desc="Tải lên ảnh hoặc video để mô tả lỗi">
+          <FormSection title="5. File minh họa" desc="Tải lên ảnh hoặc video để mô tả lỗi">
             <label
               htmlFor="file-upload"
               className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-white/30 rounded-xl cursor-pointer hover:bg-white/10 transition-all"
@@ -295,17 +215,9 @@ export default function Report() {
           </FormSection>
 
           {/* System Info */}
-          <FormSection title="9. Thông tin hệ thống" desc="Dữ liệu kỹ thuật tự động thu thập">
-            <div className="grid md:grid-cols-2 gap-4 text-sm bg-white/10 p-4 rounded-lg border border-white/20">
-              <p>🧭 <strong>Trình duyệt:</strong> {systemInfo.browser}</p>
-              <p>💻 <strong>Hệ điều hành:</strong> {systemInfo.os}</p>
-              <p>🕓 <strong>Thời gian:</strong> {systemInfo.time}</p>
-              <p>🖥️ <strong>Độ phân giải:</strong> {systemInfo.resolution}</p>
-            </div>
-          </FormSection>
 
           {/* Email */}
-          <FormSection title="10. Email liên hệ">
+          {/* <FormSection title="10. Email liên hệ"> // Phần này sẽ áp cứng email khi đăng nhập 
             <input
               type="email"
               name="email"
@@ -315,7 +227,7 @@ export default function Report() {
               className="w-full p-3 rounded-lg bg-white/10 border border-white/20 focus:ring-2 focus:ring-[#8130CD] outline-none"
               required
             />
-          </FormSection>
+          </FormSection> */}
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">

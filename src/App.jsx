@@ -87,7 +87,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="games" element={<Games />} />
-          <Route path="approval" element={<Approval />} />
+          <Route path="approval/*" element={<Approval />} />
           <Route path="monitoring" element={<Monitoring />} />
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<AdminProfile />} />

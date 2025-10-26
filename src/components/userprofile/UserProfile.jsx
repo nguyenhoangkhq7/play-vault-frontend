@@ -17,6 +17,10 @@ import { getUsers, updateUser } from "../../services/users"; // Import users API
 import { getPurchases } from "../../services/purchases"; // Import games and purchases API
 import { getGames } from "../../services/games"; // Import games API
 
+
+// 🧪 Dữ liệu mẫu đơn hàng để test giao diện
+
+
 // Define the form schema with validation rules
 const formSchema = z
     .object({
@@ -56,6 +60,73 @@ export default function UserProfile() {
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("profile");
     const fileInputRef = useRef(null);
+    useEffect(() => {
+    // 🧩 Dữ liệu mẫu
+    const sampleOrders = [
+      {
+        id: "ORD-001",
+        name: "Cyberpunk 2077",
+        publisher: "CD Projekt Red",
+        date: "15/10/2025",
+        status: "Hoàn thành",
+        statusColor: "bg-green-500/20 text-green-300 border border-green-500/40",
+        statusIcon: "✓",
+        price: 1200000,
+        priceFormatted: "1.200.000 ₫",
+        image: "https://placehold.co/100x100/008000/FFFFFF?text=Cyberpunk",
+        tags: ["Hành động", "Thế giới mở"],
+        age_limit: "18+",
+      },
+      {
+        id: "ORD-002",
+        name: "Elden Ring",
+        publisher: "FromSoftware",
+        date: "10/10/2025",
+        status: "Đang xử lý",
+        statusColor: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40",
+        statusIcon: "⏳",
+        price: 1500000,
+        priceFormatted: "1.500.000 ₫",
+        image: "https://placehold.co/100x100/FFA500/FFFFFF?text=Elden+Ring",
+        tags: ["Phiêu lưu", "Hành động"],
+        age_limit: "16+",
+      },
+      {
+        id: "ORD-003",
+        name: "Baldur’s Gate 3",
+        publisher: "Larian Studios",
+        date: "05/10/2025",
+        status: "Bị lỗi",
+        statusColor: "bg-red-500/20 text-red-300 border border-red-500/40",
+        statusIcon: "⚠️",
+        price: 990000,
+        priceFormatted: "990.000 ₫",
+        image: "https://placehold.co/100x100/FF0000/FFFFFF?text=Baldur",
+        tags: ["Chiến thuật", "Nhập vai"],
+        age_limit: "18+",
+      },
+      {
+        id: "ORD-004",
+        name: "Stardew Valley",
+        publisher: "ConcernedApe",
+        date: "01/10/2025",
+        status: "Hoàn thành",
+        statusColor: "bg-green-500/20 text-green-300 border border-green-500/40",
+        statusIcon: "✓",
+        price: 250000,
+        priceFormatted: "250.000 ₫",
+        image: "https://placehold.co/100x100/228B22/FFFFFF?text=Stardew",
+        tags: ["Giả lập", "Nông trại"],
+        age_limit: "Mọi lứa tuổi",
+      },
+    ]
+
+    // 🧠 Giả lập loading và gán dữ liệu
+    setTimeout(() => {
+      setUserOrders(sampleOrders)
+      setOrdersLoading(false)
+    }, 800)
+  }, [])
 
     // Initialize the form
     const form = useForm({

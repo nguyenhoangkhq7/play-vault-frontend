@@ -65,6 +65,7 @@ export default function Navbar() {
     { name: "Ưa thích", path: "/favorites" },
     { name: "Đã mua", path: "/bought" },
     { name: "Giỏ hàng", path: "/cart" },
+    
   ];
 
   return (

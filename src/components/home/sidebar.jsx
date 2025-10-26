@@ -1,5 +1,5 @@
 import { useLocation, NavLink } from 'react-router-dom';
-import { Crown, Diamond, ShoppingCart, LayoutGrid, Download, Heart, User } from 'lucide-react';
+import { Crown, Diamond, ShoppingCart, LayoutGrid, Download, Heart, User,Bug } from 'lucide-react';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -10,6 +10,8 @@ export default function Sidebar() {
     { id: "favorites", icon: Heart, label: "Ưa thích", path: "/favorites" },
     { id: "bought", icon: Download, label: "Đã mua", path: "/bought" },
     { id: "cart", icon: ShoppingCart, label: "Giỏ hàng", path: "/cart" },
+    { id: "report", icon: Bug, label: "Báo lỗi", path: "/report" },
+
   ];
 
   return (

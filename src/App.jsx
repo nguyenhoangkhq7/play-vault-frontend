@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Outlet, NavLink } from "react-router-dom";
-import { Home, MessageSquare, Gamepad2, Users } from "lucide-react";
 import HomePage from './pages/Home.jsx';
 import Sidebar from "./components/home/sidebar";
 import Footer from "./components/home/footer";
@@ -11,7 +10,6 @@ import Favorite from "./pages/Favorite.jsx";
 import Login from "./pages/Login.jsx";
 import Register from './pages/Register.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
-import AdminLayout from './components/AdminLayout.jsx';
 import GameDetail from './pages/GameDetail.jsx';
 import ProductPages from './pages/ProductPages.jsx';
 import CartPage from './pages/CartPage.jsx';
@@ -22,6 +20,16 @@ import AdminDashboard from './pages/AdminDashboard.jsx';
 import PublisherManagerDiscount from './pages/PublisherManagerDiscount.jsx';
 import PublisherManagerRevenue from './pages/PublisherManagerRevenue.jsx';
 import Report from './pages/ReportPage.jsx';
+import { Toaster } from "@/components/ui/sonner";
+import AdminLayout from "./layouts/AdminLayout"
+import Dashboard from "./pages/Dashboard"
+import Users from "./pages/Users"
+import Games from "./pages/Games"
+import Approval from "./pages/Approval"
+import Monitoring from "./pages/Monitoring"
+import Reports from "./pages/Reports"
+import AdminProfile from "./pages/AdminProfiles.jsx"
+import AdminOrders from "./pages/AdminOrders.jsx"
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
   return (
@@ -52,6 +60,7 @@ function MainLayout() {
 function App() {
   return (
     <BrowserRouter>
+    <Toaster richColors position="top-right" />
       <Routes>
         {/* Main layout for all pages except login, register, forgot-password, and admin */}
         <Route element={<MainLayout />}>
@@ -68,19 +77,24 @@ function App() {
           
         </Route>
 
-        {/* Independent routes for login, register, and forgot-password */}
+        {/* Independent routes for login, register, and forgot-password */} */
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> 
 
         {/* Admin routes nested under AdminLayout */}
-        <Route element={<AdminLayout />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admindashboard" element={<AdminDashboard />} />
-          <Route path="/admin/feedback" element={<FeedbackManagement />} />
-          <Route path="/admin/games" element={<GameManagement />} />
-          <Route path="/admin/users" element={<UserManagement />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="users" element={<Users />} />
+          <Route path="games" element={<Games />} />
+          <Route path="approval" element={<Approval />} />
+          <Route path="monitoring" element={<Monitoring />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="profile" element={<AdminProfile />} />
+          <Route path="orders" element={<AdminOrders />} />
+
         </Route>
+
       </Routes>
     </BrowserRouter>
   );

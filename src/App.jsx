@@ -13,6 +13,11 @@ import ForgotPassword from './pages/ForgotPassword.jsx';
 import GameDetail from './pages/GameDetail.jsx';
 import ProductPages from './pages/ProductPages.jsx';
 import CartPage from './pages/CartPage.jsx';
+import FeedbackManagement from './pages/FeedbackManagement.jsx';
+import GameManagement from './pages/GameManagement.jsx';
+import UserManagement from './pages/UserManagement.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
+import { Toaster } from "@/components/ui/sonner";
 import AdminLayout from "./layouts/AdminLayout"
 import Dashboard from "./pages/Dashboard"
 import Users from "./pages/Users"
@@ -22,7 +27,6 @@ import Monitoring from "./pages/Monitoring"
 import Reports from "./pages/Reports"
 import AdminProfile from "./pages/AdminProfiles.jsx"
 import AdminOrders from "./pages/AdminOrders.jsx"
-
 
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
@@ -54,6 +58,7 @@ function MainLayout() {
 function App() {
   return (
     <BrowserRouter>
+    <Toaster richColors position="top-right" />
       <Routes>
         {/* Main layout for all pages except login, register, forgot-password, and admin */}
         <Route element={<MainLayout />}>
@@ -66,10 +71,10 @@ function App() {
           <Route path="/game/:id" element={<GameDetail />} />
         </Route>
 
-        {/* Independent routes for login, register, and forgot-password */}
+        {/* Independent routes for login, register, and forgot-password */} */
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> 
 
         {/* Admin routes nested under AdminLayout */}
         <Route path="/admin" element={<AdminLayout />}>

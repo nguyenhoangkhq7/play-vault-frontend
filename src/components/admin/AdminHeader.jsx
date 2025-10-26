@@ -25,14 +25,16 @@ export default function AdminHeader() {
   const userMenuRef = useRef(null)
   const notificationRef = useRef(null)
 
-  const menuItems = [
-    { id: "dashboard", icon: LayoutDashboard, label: "Trang chủ", path: "/admin" },
-    { id: "users", icon: Users, label: "Quản lý tài khoản", path: "/admin/users" },
-    { id: "games", icon: Gamepad2, label: "Quản lý game", path: "/admin/games" },
-    { id: "approval", icon: FileCheck, label: "Duyệt game & cấp quyền", path: "/admin/approval" },
-    { id: "monitoring", icon: Activity, label: "Giám sát hệ thống", path: "/admin/monitoring" },
-    { id: "reports", icon: FileText, label: "Báo cáo thống kê", path: "/admin/reports" },
-  ]
+const menuItems = [
+  { id: "dashboard", icon: LayoutDashboard, label: "Trang chủ", path: "/admin" },
+  { id: "users", icon: Users, label: "Quản lý tài khoản", path: "/admin/users" },
+  { id: "games", icon: Gamepad2, label: "Quản lý game", path: "/admin/games" },
+  { id: "approval", icon: FileCheck, label: "Duyệt game & cấp quyền", path: "/admin/approval" },
+  { id: "orders", icon: FileText, label: "Quản lý đơn hàng", path: "/admin/orders" },
+  { id: "monitoring", icon: Activity, label: "Giám sát hệ thống", path: "/admin/monitoring" },
+  { id: "reports", icon: FileText, label: "Báo cáo thống kê", path: "/admin/reports" },
+]
+
 
   const notifications = [
     { id: 1, type: "error", message: "Lỗi kết nối database", time: "5 phút trước" },

@@ -177,9 +177,6 @@ export default function Users() {
         onClose={() => setIsModalOpen(false)}
         onCopy={copyToClipboard}
       />
-
-      
-
         <style>{`
           @keyframes scale-in {
             from {

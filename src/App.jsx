@@ -20,6 +20,10 @@ import AdminDashboard from './pages/AdminDashboard.jsx';
 import PublisherManagerDiscount from './pages/PublisherManagerDiscount.jsx';
 import PublisherManagerRevenue from './pages/PublisherManagerRevenue.jsx';
 import Report from './pages/ReportPage.jsx';
+import PublisherUpload from './pages/PublisherUpLoad.jsx';
+import PublisherInfo from './components/publisher/PublisherInfo.jsx';
+import PublisherBuild from './components/publisher/PublisherBuild.jsx';
+import PublisherStore from './components/publisher/PublisherStore.jsx';
 import { Toaster } from "@/components/ui/sonner";
 import AdminLayout from "./layouts/AdminLayout"
 import Dashboard from "./pages/Dashboard"
@@ -75,6 +79,13 @@ function App() {
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />
           
+        </Route>
+
+        {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
+        <Route path="/publisher/upload" element={<PublisherUpload />}>
+          <Route index element={<PublisherInfo />} />
+          <Route path="build" element={<PublisherBuild />} />
+          <Route path="store" element={<PublisherStore />} />
         </Route>
 
         {/* Independent routes for login, register, and forgot-password */} */

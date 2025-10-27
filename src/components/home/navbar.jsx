@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,8 @@ export default function Navbar() {
     { name: "Ưa thích", path: "/favorites" },
     { name: "Đã mua", path: "/bought" },
     { name: "Giỏ hàng", path: "/cart" },
+    // Quick access for publishers to upload a new game
+    { name: "UpGame", path: "/publisher/upload" },
     
   ];
 

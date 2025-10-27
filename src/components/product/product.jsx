@@ -1230,6 +1230,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Star, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function ProductsPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -1254,13 +1255,34 @@ export default function ProductsPage() {
   ];
 
   const comments = [
-    { id: 1, author: "Nguyễn Văn A", rating: 5, text: "Game rất hay, đồ họa đẹp và gameplay mượt mà. Tôi rất thích!", date: "2 ngày trước" },
-    { id: 2, author: "Trần Thị B", rating: 4, text: "Tuyệt vời nhưng hơi nặng máy. Cần cấu hình khá cao để chơi mượt.", date: "1 tuần trước" },
-    { id: 3, author: "Lê Minh C", rating: 5, text: "Phiên bản tốt nhất của FIFA cho đến nay. Các tính năng mới rất hay!", date: "2 tuần trước" },
+    {
+      id: 1,
+      author: "Nguyễn Văn A",
+      rating: 5,
+      text: "Game rất hay, đồ họa đẹp và gameplay mượt mà. Tôi rất thích!",
+      date: "2 ngày trước",
+    },
+    {
+      id: 2,
+      author: "Trần Thị B",
+      rating: 4,
+      text: "Tuyệt vời nhưng hơi nặng máy. Cần cấu hình khá cao để chơi mượt.",
+      date: "1 tuần trước",
+    },
+    {
+      id: 3,
+      author: "Lê Minh C",
+      rating: 5,
+      text: "Phiên bản tốt nhất của FIFA cho đến nay. Các tính năng mới rất hay!",
+      date: "2 tuần trước",
+    },
   ];
 
   const faqs = [
-    { question: "Bao lâu nữa thì bản được 1 lý gọi mẻ?", answer: "Em bán kem đánh răng." }
+    {
+      question: "Bao lâu nữa thì bản được 1 lý gọi mẻ?",
+      answer: "Em bán kem đánh răng.",
+    },
   ];
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -1270,63 +1292,52 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-purple-800 to-purple-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Section - Carousel */}
+          {/* LEFT SECTION */}
           <div className="lg:col-span-2">
             <h1 className="text-4xl font-bold text-white mb-6">FIFA 23</h1>
 
-            {/* Main Carousel */}
-            <div className="relative bg-purple-950 rounded-lg overflow-hidden mb-6">
-              <div className="aspect-video bg-purple-900 flex items-center justify-center relative">
-                <img
-                  src={`/fifa-23-game-screenshot-.jpg?height=400&width=600&query=FIFA 23 game screenshot ${currentSlide + 1}`}
+            {/* SLIDES */}
+            <div className="relative bg-purple-950 rounded-xl overflow-hidden mb-6 shadow-lg">
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={currentSlide}
+                  src={`/fifa-23-game-screenshot-.jpg?query=${currentSlide + 1}`}
                   alt={`FIFA 23 screenshot ${currentSlide + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-[400px] object-cover"
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.5 }}
                 />
-                <button
-                  onClick={prevSlide}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button
-                  onClick={nextSlide}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition"
-                >
-                  <ChevronRight size={24} />
-                </button>
-              </div>
-              {/* Slide Indicators */}
-              <div className="flex justify-center gap-2 py-4 bg-purple-950">
-                {slides.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentSlide(index)}
-                    className={`w-2 h-2 rounded-full transition ${index === currentSlide ? "bg-white" : "bg-white/40"}`}
-                  />
-                ))}
-              </div>
+              </AnimatePresence>
+              <button
+                onClick={prevSlide}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition"
+              >
+                <ChevronRight size={24} />
+              </button>
             </div>
 
-            {/* Thumbnail Carousel */}
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {slides.map((slide, index) => (
+            {/* INDICATORS */}
+            <div className="flex justify-center gap-2 py-4 bg-purple-950 rounded-lg">
+              {slides.map((_, i) => (
                 <button
-                  key={slide.id}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`flex-shrink-0 w-24 h-24 rounded border-2 transition ${
-                    index === currentSlide ? "border-pink-500" : "border-purple-700 hover:border-purple-500"
+                  key={i}
+                  onClick={() => setCurrentSlide(i)}
+                  className={`w-3 h-3 rounded-full transition ${
+                    i === currentSlide ? "bg-pink-500" : "bg-white/40 hover:bg-white/70"
                   }`}
-                >
-                  <img
-                    src={`/fifa-23-thumbnail-.jpg?height=100&width=100&query=FIFA 23 thumbnail ${index + 1}`}
-                    alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-full object-cover rounded"
-                  />
-                </button>
+                />
               ))}
             </div>
 
-            {/* Tabs */}
+            {/* TABS */}
             <div className="mt-8 border-b border-purple-700">
               <div className="flex gap-4 flex-wrap">
                 {[
@@ -1334,19 +1345,14 @@ export default function ProductsPage() {
                   { id: "requirements", label: "System Requirements" },
                   { id: "reviews", label: "Reviews" },
                   { id: "download", label: "Download" },
-                  { id: "comment", label: "Comment" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-3 font-semibold transition ${
+                    className={`px-5 py-3 font-semibold rounded-t-md transition-all duration-300 ${
                       activeTab === tab.id
-                        ? tab.id === "about"
-                          ? "bg-pink-500 text-white"
-                          : tab.id === "download"
-                          ? "bg-red-500 text-white"
-                          : "text-white border-b-2 border-white"
-                        : "text-purple-300 hover:text-white"
+                        ? "bg-pink-500 text-white shadow-md shadow-pink-400/30"
+                        : "text-purple-300 hover:text-white hover:bg-purple-700/50"
                     }`}
                   >
                     {tab.label}
@@ -1355,132 +1361,144 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Tab Content */}
-            {/* Download Tab */}
-            {activeTab === "download" && (
-              <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Google Drive */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">🔗</span>
-                      <h3 className="text-xl font-bold text-white">Google Drive:</h3>
-                    </div>
-                    <div className="flex gap-3 flex-wrap">
-                      {["Part 1", "Part 2", "Part 3", "Part 4"].map((part, idx) => (
-                        <button
-                          key={idx}
-                          className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-6 py-2 rounded-full transition"
-                        >
-                          {part}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+            {/* TAB CONTENT */}
+            <div className="mt-6">
+              <AnimatePresence mode="wait">
+                {/* REVIEWS TAB (GỘP COMMENT) */}
+                {activeTab === "reviews" && (
+                  <motion.div
+                    key="reviews"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.4 }}
+                    className="space-y-6"
+                  >
+                    <h3 className="text-2xl font-bold text-white mb-4">Người chơi đánh giá</h3>
+                    {comments.map((comment) => (
+                      <motion.div
+                        key={comment.id}
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-purple-900/60 p-5 rounded-xl border border-purple-700 shadow-lg"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="text-white font-semibold">{comment.author}</p>
+                            <p className="text-purple-300 text-xs">{comment.date}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                size={16}
+                                className={`${
+                                  i < comment.rating ? "fill-yellow-400 text-yellow-400" : "text-purple-600"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-purple-100 text-sm leading-relaxed">{comment.text}</p>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
 
-                  {/* MediaFire */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">☁️</span>
-                      <h3 className="text-xl font-bold text-white">MediaFire:</h3>
-                    </div>
-                    <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-2 rounded-full transition">
-                      Full
-                    </button>
-                  </div>
+                {/* DOWNLOAD TAB */}
+                {activeTab === "download" && (
+                  <motion.div
+                    key="download"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.4 }}
+                    className="space-y-6"
+                  >
+                    <h3 className="text-2xl font-bold text-white mb-4">Tải xuống</h3>
 
-                  {/* Mega */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">M</span>
-                      <h3 className="text-xl font-bold text-white">Mega:</h3>
+                    <div>
+                      <h4 className="text-xl text-yellow-400 font-semibold mb-2">Google Drive</h4>
+                      <div className="flex gap-3 flex-wrap">
+                        {["Part 1", "Part 2", "Part 3", "Part 4"].map((part, idx) => (
+                          <button
+                            key={idx}
+                            className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-6 py-2 rounded-full transition"
+                          >
+                            {part}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-2 rounded-full transition">
-                      Full
-                    </button>
-                  </div>
 
-                  {/* FAQ */}
-                  <div className="mt-8">
-                    <h3 className="text-xl font-bold text-white mb-4">Câu hỏi thường gặp:</h3>
-                    <div className="space-y-2">
+                    <div>
+                      <h4 className="text-xl text-yellow-400 font-semibold mb-2">MediaFire</h4>
+                      <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-2 rounded-full transition">
+                        Full
+                      </button>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xl text-yellow-400 font-semibold mb-2">Mega</h4>
+                      <button className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-2 rounded-full transition">
+                        Full
+                      </button>
+                    </div>
+
+                    {/* FAQ */}
+                    <div className="mt-8">
+                      <h3 className="text-xl font-bold text-white mb-4">Câu hỏi thường gặp:</h3>
                       {faqs.map((faq, idx) => (
-                        <div key={idx} className="bg-gray-800 rounded">
+                        <div key={idx} className="bg-gray-800/60 rounded-lg mb-2">
                           <button
                             onClick={() => setExpandedFaq(expandedFaq === idx ? -1 : idx)}
-                            className="w-full flex items-center justify-between p-4 hover:bg-gray-700 transition"
+                            className="w-full flex items-center justify-between p-4 hover:bg-gray-700/60 transition"
                           >
                             <span className="text-white font-semibold text-left">{faq.question}</span>
                             <ChevronDown
                               size={20}
-                              className={`text-white transition ${expandedFaq === idx ? "rotate-180" : ""}`}
+                              className={`text-white transition-transform ${
+                                expandedFaq === idx ? "rotate-180" : ""
+                              }`}
                             />
                           </button>
-                          {expandedFaq === idx && <div className="px-4 pb-4 text-purple-200">{faq.answer}</div>}
+                          <AnimatePresence>
+                            {expandedFaq === idx && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="px-4 pb-4 text-purple-200"
+                              >
+                                {faq.answer}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       ))}
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Comment Tab */}
-            {/* Comment Tab */}
-            {activeTab === "comment" && (
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-1 gap-6">
-                <div className="lg:col-span-1">
-                <div className="bg-purple-900/60 rounded-xl p-6 shadow-lg">
-                    <h3 className="text-2xl font-bold text-white mb-6">Bình luận</h3>
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-purple-900">
-                    {comments.map((comment) => (
-                        <div
-                        key={comment.id}
-                        className="bg-purple-800/50 hover:bg-purple-800/70 transition rounded-lg p-4 border border-purple-700 shadow-sm"
-                        >
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-2">
-                            <div>
-                            <p className="text-white font-semibold">{comment.author}</p>
-                            <p className="text-purple-300 text-xs">{comment.date}</p>
-                            </div>
-                            <div className="flex gap-1">
-                            {[...Array(5)].map((_, i) => (
-                                <Star
-                                key={i}
-                                size={16}
-                                className={`${i < comment.rating ? "fill-yellow-400 text-yellow-400" : "text-purple-600"}`}
-                                />
-                            ))}
-                            </div>
-                        </div>
-                        {/* Comment Body */}
-                        <p className="text-purple-100 text-sm leading-relaxed">{comment.text}</p>
-                        </div>
-                    ))}
-                    </div>
-                </div>
-                </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            )}
-
           </div>
 
-          {/* Right Section - Info */}
-          <div className="lg:col-span-1">
-            {/* Description */}
-            <div className="bg-purple-900/50 rounded-lg p-6 mb-6">
+          {/* RIGHT SIDEBAR */}
+          <div className="lg:col-span-1 space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="bg-purple-900/50 rounded-lg p-6"
+            >
               <p className="text-purple-100 text-sm leading-relaxed">
                 FIFA 23 là tựa game bóng đá nổi tiếng nhất từ EA Sports, mang đến trải nghiệm chơi game tuyệt vời với
-                những cải tiến đáng kể. Trò chơi này được phát hành vào năm 2022 và là phiên bản mới nhất trong loạt
-                FIFA. Với các tính năng mới, đồ họa cải tiến và gameplay được cải thiện, FIFA 23 hứa hẹn mang lại trải
-                nghiệm chơi game tuyệt vời cho những người yêu thích bóng đá.
+                những cải tiến đáng kể...
               </p>
-            </div>
+            </motion.div>
 
-            {/* Rating */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-pink-500 rounded-full w-16 h-16 flex items-center justify-center">
+            <div className="flex items-center gap-4">
+              <div className="bg-pink-500 rounded-full w-16 h-16 flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-2xl">5.0</span>
               </div>
               <div>
@@ -1493,41 +1511,37 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Info Grid */}
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-purple-300">Publisher:</span>
-                <span className="text-white font-semibold">EA Sports</span>
+            <div className="space-y-3 text-sm text-purple-200">
+              <div className="flex justify-between">
+                <span>Publisher:</span> <span className="font-semibold text-white">EA Sports</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-purple-300">Release Date:</span>
-                <span className="text-white font-semibold">30/9/2022</span>
+              <div className="flex justify-between">
+                <span>Release Date:</span> <span className="font-semibold text-white">30/9/2022</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-purple-300">Age Limit:</span>
-                <span className="text-white font-semibold">3+</span>
+              <div className="flex justify-between">
+                <span>Age Limit:</span> <span className="font-semibold text-white">3+</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-purple-300">Tags:</span>
+              <div className="flex justify-between">
+                <span>Tags:</span>
                 <div className="flex gap-2">
-                  <span className="bg-purple-700 text-white px-3 py-1 rounded text-sm">Sports</span>
-                  <span className="bg-purple-700 text-white px-3 py-1 rounded text-sm">Simulation</span>
+                  <span className="bg-purple-700 text-white px-3 py-1 rounded text-xs">Sports</span>
+                  <span className="bg-purple-700 text-white px-3 py-1 rounded text-xs">Simulation</span>
                 </div>
               </div>
             </div>
 
-            {/* Related Games */}
             <div>
-              <h3 className="text-xl font-bold text-white mb-4">Related Games</h3>
+              <h3 className="text-xl font-bold text-white mb-3">Related Games</h3>
               <div className="grid grid-cols-2 gap-3">
                 {relatedGames.map((game) => (
-                  <div
+                  <motion.div
                     key={game.id}
-                    className="bg-purple-900/50 rounded-lg overflow-hidden hover:bg-purple-800/50 transition cursor-pointer"
+                    whileHover={{ scale: 1.05 }}
+                    className="bg-purple-900/50 rounded-lg overflow-hidden cursor-pointer"
                   >
-                    <img src={game.image || "/placeholder.svg"} alt={game.title} className="w-full h-24 object-cover" />
+                    <img src={game.image} alt={game.title} className="w-full h-24 object-cover" />
                     <p className="text-white text-xs font-semibold p-2 text-center">{game.title}</p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -1537,6 +1551,7 @@ export default function ProductsPage() {
     </div>
   );
 }
+
 
 
 

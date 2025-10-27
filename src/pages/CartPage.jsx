@@ -371,7 +371,6 @@ function CartPage() {
 
     setCartItems(fakeCart);
     setGames(fakeGames);
-    // setSelectedItems(fakeCart.map((item) => String(item.id)));
     setSelectedItems([]);
     setLoading(false);
   }, []);
@@ -417,7 +416,7 @@ function CartPage() {
     if (total > balance) {
       setCheckoutMode(mode);
       setShowPaymentModal(true);
-      toast.error("Số dư không đủ, vui lòng nạp thêm GCoin!");
+      // Thông báo số dư không đủ sẽ được hiển thị trong PaymentModal
     } else {
       setPendingAmount(total);
       setShowConfirmModal(true);
@@ -426,7 +425,7 @@ function CartPage() {
 
   const handlePaymentSuccess = (amount) => {
     setBalance((prev) => prev + amount);
-    toast.success(`Nạp thành công ${amount.toLocaleString("vi-VN")} GCoin!`);
+    // Thông báo nạp thành công sẽ được hiển thị trong SuccessModal
     setShowPaymentModal(false);
   };
 
@@ -458,7 +457,7 @@ function CartPage() {
     <>
       <Toaster richColors position="top-right" />
       
-      {/* Payment Modal - Đặt ở ngoài cùng */}
+      {/* Payment Modal - Đặt ở ngoài cùng, full màn hình */}
       {showPaymentModal && (
         <PaymentModal
           onClose={() => setShowPaymentModal(false)}
@@ -478,8 +477,8 @@ function CartPage() {
         />
       )}
 
-      {/* Container chính với hiệu ứng blur khi modal mở */}
-      <div className={`container mx-auto py-10 ${showPaymentModal || showConfirmModal ? 'blur-sm' : ''}`}>
+      {/* Container chính với blur khi modal mở */}
+      <div className={`container mx-auto py-10 ${showPaymentModal || showConfirmModal ? 'blur-sm pointer-events-none' : ''}`}>
         <h1 className="text-4xl font-extrabold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 drop-shadow-[0_0_10px_rgba(168,85,247,0.6)]">
           🛒 Giỏ Hàng Của Bạn
         </h1>

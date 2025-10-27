@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 
@@ -65,9 +65,6 @@ export default function Navbar() {
     { name: "Ưa thích", path: "/favorites" },
     { name: "Đã mua", path: "/bought" },
     { name: "Giỏ hàng", path: "/cart" },
-    // Quick access for publishers to upload a new game
-    { name: "UpGame", path: "/publisher/upload" },
-    
   ];
 
   return (
@@ -88,7 +85,14 @@ export default function Navbar() {
         ))}
       </div>
 
-      <div className="flex items-center space-x-6">
+      <div className="flex items-center space-x-4">
+        <Button
+          onClick={() => navigate("/publisher/upload")}
+          className="bg-gradient-to-r from-green-600 to-yellow-600 text-white px-5 py-2 rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+        >
+          <Upload className="w-5 h-5" />
+          Up Game
+        </Button>
 
         {user ? (
           <div className="relative" ref={dropdownRef}>

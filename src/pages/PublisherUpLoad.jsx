@@ -160,47 +160,9 @@ function PublisherUploadInner() {
         <Navbar />
       </div>
 
-      {/* Left publisher sidebar (step navigation) */}
-      <div className="sidebar d-flex flex-column align-items-center py-3">
-        <nav className="nav flex-column gap-2 w-100" style={{ alignItems: 'center' }}>
-          <button
-            type="button"
-            className={`nav-link d-flex align-items-center justify-content-center p-2 ${
-              location.pathname.endsWith('/build') || location.pathname.endsWith('/store') ? '' : 'active'
-            }`}
-            title="Thông tin"
-            onClick={() => navigate('/publisher/upload')}
-          >
-            <i className="bi bi-info-circle" />
-          </button>
-
-          <button
-            type="button"
-            className={`nav-link d-flex align-items-center justify-content-center p-2 ${
-              location.pathname.endsWith('/build') ? 'active' : ''
-            }`}
-            title="Build"
-            onClick={() => navigate('/publisher/upload/build')}
-          >
-            <i className="bi bi-hdd-network" />
-          </button>
-
-          <button
-            type="button"
-            className={`nav-link d-flex align-items-center justify-content-center p-2 ${
-              location.pathname.endsWith('/store') ? 'active' : ''
-            }`}
-            title="Store"
-            onClick={() => navigate('/publisher/upload/store')}
-          >
-            <i className="bi bi-shop" />
-          </button>
-        </nav>
-      </div>
+      
 
       <div className="page-wrap">
-        
-
         {/* Main */}
         <main className="container py-30">
           <div className="glass p-4">
@@ -208,6 +170,35 @@ function PublisherUploadInner() {
               <div>
                 <h2 className="section-title h4 mb-3">Thông tin phát hành</h2>
                 <p className="text-secondary mb-2">Nhập chi tiết game của bạn và tải lên bản build để xuất bản trên GameHub.</p>
+                <div className="d-flex gap-4 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/publisher/upload')}
+                    className={`btn px-4 ${location.pathname === '/publisher/upload' ? 'btn-gradient' : 'btn-outline-light'}`}
+                    style={{ minWidth: '140px' , marginRight: '10px' }}
+                  >
+                    <i className="bi bi-info-circle me-2"></i>
+                    Thông tin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/publisher/upload/build')}
+                    className={`btn px-4 ${location.pathname.endsWith('/build') ? 'btn-gradient' : 'btn-outline-light'}`}
+                    style={{ minWidth: '140px', marginRight: '10px' }}
+                  >
+                    <i className="bi bi-hdd-network me-2"></i>
+                    Build
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/publisher/upload/store')}
+                    className={`btn px-4 ${location.pathname.endsWith('/store') ? 'btn-gradient' : 'btn-outline-light'}`}
+                    style={{ minWidth: '140px' }}
+                  >
+                    <i className="bi bi-shop me-2"></i>
+                    Store
+                  </button>
+                </div>
               </div>
               <div className="text-end">
                 <div className="small text-secondary mb-1">Tiến độ hoàn thành</div>
@@ -248,12 +239,12 @@ function PublisherUploadInner() {
               {/* CTA + Actions */}
               <div className="d-flex flex-wrap justify-content-end gap-2 mt-4">
                 {!isLastStep && (
-                  <button type="button" className="btn btn-gradient" onClick={goNextStep}>
+                  <button type="button" className="btn btn-gradient mr-3" onClick={goNextStep}>
                     Tiếp tục <i className="bi bi-arrow-right-circle ms-1" />
                   </button>
                 )}
-                <button type="button" className="btn btn-outline-light" onClick={onSaveDraft}>
-                  <i className="bi bi-save me-1" />Lưu nháp
+                <button type="button" className="btn btn-outline-light mr-3" onClick={onSaveDraft}>
+                  <i className="bi bi-save me-3" />Lưu nháp
                 </button>
                 <button type="button" className="btn btn-gradient" onClick={onSubmitReview}>
                   <i className="bi bi-send-check me-1" />Gửi duyệt

@@ -8,7 +8,7 @@ export default function OrderModal({ order, onClose, onUpdate }) {
       <div className="bg-gradient-to-br from-[#4a0e74] to-[#2a0242] rounded-2xl shadow-2xl w-full max-w-2xl transform transition-all duration-300 animate-scale-in border border-purple-500/50">
         <div className="p-6 border-b border-purple-500/30 flex justify-between items-center">
           <h2 className="text-xl font-bold text-white">
-            Chi tiết đơn hàng: <span className="text-pink-400">{order.id}</span>
+            Khiếu nại: <span className="text-pink-400">{order.id}</span>
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <XIcon className="h-6 w-6" />
@@ -21,7 +21,8 @@ export default function OrderModal({ order, onClose, onUpdate }) {
           <div><p className="font-semibold text-gray-400">Email:</p><p>{order.customerEmail}</p></div>
           <div><p className="font-semibold text-gray-400">Số tiền:</p><p className="font-bold text-pink-400">{order.amount}</p></div>
           <div><p className="font-semibold text-gray-400">Thời gian:</p><p>{order.time}</p></div>
-          <div className="sm:col-span-2"><p className="font-semibold text-gray-400">Mã giao dịch ngân hàng:</p><p className="font-mono">{order.bankTransactionId}</p></div>
+          <div className="font-semibold text-gray-400"><p className="font-semibold text-gray-400">Mã giao dịch ngân hàng:</p><p className="font-mono">{order.bankTransactionId}</p></div>
+          <div className="font-semibold text-gray-400"><p className="font-semibold text-gray-400">Mô tả:</p><p className="font-mono">{order.description}</p></div>
           <div className="sm:col-span-2"><p className="font-semibold text-gray-400">Trạng thái hiện tại:</p>
             <div className={`mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full font-semibold ${
               order.status === 'Đã xác nhận' ? 'bg-green-500/10 text-green-400'

@@ -20,6 +20,11 @@ import AdminDashboard from './pages/AdminDashboard.jsx';
 import PublisherManagerDiscount from './pages/PublisherManagerDiscount.jsx';
 import PublisherManagerRevenue from './pages/PublisherManagerRevenue.jsx';
 import Report from './pages/ReportPage.jsx';
+import PublisherUpload from './pages/PublisherUpLoad.jsx';
+import PublisherInfo from './components/publisher/PublisherInfo.jsx';
+import PublisherBuild from './components/publisher/PublisherBuild.jsx';
+import PublisherStore from './components/publisher/PublisherStore.jsx';
+import PublishserManageGame from './pages/PublishserManageGame.jsx';
 import { Toaster } from "@/components/ui/sonner";
 import AdminLayout from "./layouts/AdminLayout"
 import Dashboard from "./pages/Dashboard"
@@ -30,6 +35,7 @@ import Monitoring from "./pages/Monitoring"
 import Reports from "./pages/Reports"
 import AdminProfile from "./pages/AdminProfiles.jsx"
 import AdminOrders from "./pages/AdminOrders.jsx"
+
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
   return (
@@ -74,7 +80,15 @@ function App() {
           <Route path="/promotions" element={<PublisherManagerDiscount />} />
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />
+          <Route path="/publisher/games" element={<PublishserManageGame />} />
           
+        </Route>
+
+        {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
+        <Route path="/publisher/upload" element={<PublisherUpload />}>
+          <Route index element={<PublisherInfo />} />
+          <Route path="build" element={<PublisherBuild />} />
+          <Route path="store" element={<PublisherStore />} />
         </Route>
 
         {/* Independent routes for login, register, and forgot-password */} */

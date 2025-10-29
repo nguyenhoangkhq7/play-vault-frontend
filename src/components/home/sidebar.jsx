@@ -1,5 +1,5 @@
 import { useLocation, NavLink } from 'react-router-dom';
-import { Crown, Diamond, ShoppingCart, LayoutGrid, Download, Heart, User,Bug } from 'lucide-react';
+import { Crown, Diamond, ShoppingCart, LayoutGrid, Download, Heart, User, Bug, GamepadIcon } from 'lucide-react';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -11,6 +11,7 @@ export default function Sidebar() {
     { id: "bought", icon: Download, label: "Đã mua", path: "/bought" },
     { id: "cart", icon: ShoppingCart, label: "Giỏ hàng", path: "/cart" },
     { id: "report", icon: Bug, label: "Báo lỗi", path: "/report" },
+    { id: "managegames", icon: GamepadIcon, label: "Quản lý Game", path: "/publisher/games" },
 
   ];
 

@@ -21,10 +21,6 @@ const ScrollPane = ({ children, className = "" }) => {
         p-4 
         ${className}
       `}
-      style={{
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(168, 85, 247, 0.5) rgba(30, 0, 60, 0.3)',
-      }}
     >
       <style jsx>{`
         .scroll-pane {
@@ -60,17 +56,10 @@ const ScrollPane = ({ children, className = "" }) => {
             rgba(168, 85, 247, 1)
           );
           box-shadow: 0 0 15px rgba(168, 85, 247, 0.8);
-          transform: scale(1.1);
         }
 
         .scroll-pane::-webkit-scrollbar-corner {
           background: rgba(30, 0, 60, 0.3);
-        }
-
-        /* Custom scrollbar for Firefox */
-        .scroll-pane {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(168, 85, 247, 0.8) rgba(30, 0, 60, 0.3);
         }
       `}</style>
       {children}
@@ -89,6 +78,7 @@ export default function PaymentModal({
   const [selectedMethod, setSelectedMethod] = useState("credit");
   const [selectedBank, setSelectedBank] = useState("VCB");
   const [modalStage, setModalStage] = useState("payment");
+  const [showBalanceWarning, setShowBalanceWarning] = useState(true); // Hiển thị cảnh báo số dư không đủ
 
   const amounts = ["10000", "20000", "50000", "100000", "200000"];
   const banks = [
@@ -120,8 +110,13 @@ export default function PaymentModal({
 
   return (
     <>
-      {/* Embedded CSS Styles */}
-      <style jsx>{`
+      <style jsx global>{`
+        .payment-modal-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+        }
+
         .custom-scrollbar {
           scrollbar-width: thin;
           scrollbar-color: rgba(168, 85, 247, 0.5) rgba(30, 0, 60, 0.3);
@@ -175,7 +170,7 @@ export default function PaymentModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-gradient-to-br from-purple-900 via-purple-800 to-black z-[9999]"
+            className="payment-modal-overlay bg-gradient-to-br from-purple-900 via-purple-800 to-black"
           >
             {/* Header */}
             <div className="border-b border-purple-500/30 bg-purple-900/20 backdrop-blur-md sticky top-0 z-10 shadow-lg">
@@ -204,6 +199,20 @@ export default function PaymentModal({
                       ? "🎯 Thanh Toán Toàn Bộ Giỏ Hàng"
                       : "🎯 Thanh Toán Các Mục Đã Chọn"}
                   </h2>
+                  
+                  {/* Cảnh báo số dư không đủ - HIỂN THỊ BÊN TRONG MODAL */}
+                  {showBalanceWarning && gamePrice > userBalance && (
+                    <div className="mb-6 p-4 bg-red-500/20 border border-red-400/50 rounded-xl text-center">
+                      <div className="flex items-center justify-center gap-2 text-red-300">
+                        <div className="w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
+                        <span className="font-semibold">⚠️ Số dư không đủ!</span>
+                        <div className="w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
+                      </div>
+                      <p className="text-red-200 mt-2">
+                        Bạn cần nạp thêm <span className="font-bold text-yellow-300">{(gamePrice - userBalance).toLocaleString("vi-VN")} GCoin</span> để thanh toán.
+                      </p>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-gradient-to-br from-purple-700/30 to-pink-600/20 p-6 rounded-xl border border-purple-500/30 shadow-lg">

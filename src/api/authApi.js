@@ -96,6 +96,4 @@ export const api = {
         }),
       setAccessToken
     ),
-
-  // put, delete tương tự...
 };

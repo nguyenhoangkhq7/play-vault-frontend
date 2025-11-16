@@ -14,14 +14,16 @@ const callWithRefresh = async (requestFn, setAccessToken) => {
           {},
           { withCredentials: true }
         );
-        const { accessToken } = refreshRes.data;
-        localStorage.setItem("accessToken", accessToken);
-        setAccessToken?.(accessToken); // update context
+        const { token } = refreshRes.data;
+        localStorage.setItem("accessToken", token);
+        setAccessToken?.(token); // update context
         return await requestFn(); // retry request cũ
-      } catch {
+      } catch (refreshError) {
+        // Xóa token và redirect về login nếu refresh thất bại
         localStorage.removeItem("accessToken");
+        localStorage.removeItem("user");
         window.location.href = "/login";
-        throw error;
+        throw refreshError;
       }
     }
     throw error;
@@ -71,29 +73,218 @@ export const loginApi = async (username, password) => {
   }
 };
 
+// Register API
+export const registerApi = async (userData) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/auth/register`,
+      userData,
+      {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("❌ ERROR trong registerApi:", error.response?.data);
+    throw error;
+  }
+};
+
+// Logout API
+export const logoutApi = async () => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/auth/logout`,
+      {},
+      {
+        withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
+    );
+
+    // Xóa token khỏi localStorage
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ ERROR trong logoutApi:", error.response?.data);
+    // Vẫn xóa token dù API lỗi
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    throw error;
+  }
+};
+
 // Wrapper API chung
 export const api = {
-  get: (url, setAccessToken) =>
+  /**
+   * GET request
+   * @param {string} url - API endpoint (e.g., "/users" or "/users/123")
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {object} config - Additional axios config (optional)
+   */
+  get: (url, setAccessToken, config = {}) =>
     callWithRefresh(
       () =>
         axios.get(`${API_BASE_URL}${url}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            ...config.headers,
           },
           withCredentials: true,
+          ...config,
         }),
       setAccessToken
     ),
 
-  post: (url, data, setAccessToken) =>
+  /**
+   * POST request
+   * @param {string} url - API endpoint
+   * @param {object} data - Request body
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {object} config - Additional axios config (optional)
+   */
+  post: (url, data, setAccessToken, config = {}) =>
     callWithRefresh(
       () =>
         axios.post(`${API_BASE_URL}${url}`, data, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            "Content-Type": "application/json",
+            ...config.headers,
           },
           withCredentials: true,
+          ...config,
         }),
       setAccessToken
     ),
+
+  /**
+   * PUT request (update toàn bộ resource)
+   * @param {string} url - API endpoint
+   * @param {object} data - Request body
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {object} config - Additional axios config (optional)
+   */
+  put: (url, data, setAccessToken, config = {}) =>
+    callWithRefresh(
+      () =>
+        axios.put(`${API_BASE_URL}${url}`, data, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            "Content-Type": "application/json",
+            ...config.headers,
+          },
+          withCredentials: true,
+          ...config,
+        }),
+      setAccessToken
+    ),
+
+  /**
+   * PATCH request (update một phần resource)
+   * @param {string} url - API endpoint
+   * @param {object} data - Request body
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {object} config - Additional axios config (optional)
+   */
+  patch: (url, data, setAccessToken, config = {}) =>
+    callWithRefresh(
+      () =>
+        axios.patch(`${API_BASE_URL}${url}`, data, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            "Content-Type": "application/json",
+            ...config.headers,
+          },
+          withCredentials: true,
+          ...config,
+        }),
+      setAccessToken
+    ),
+
+  /**
+   * DELETE request
+   * @param {string} url - API endpoint
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {object} config - Additional axios config (optional)
+   */
+  delete: (url, setAccessToken, config = {}) =>
+    callWithRefresh(
+      () =>
+        axios.delete(`${API_BASE_URL}${url}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            ...config.headers,
+          },
+          withCredentials: true,
+          ...config,
+        }),
+      setAccessToken
+    ),
+
+  /**
+   * Upload file (FormData)
+   * @param {string} url - API endpoint
+   * @param {FormData} formData - Form data containing file
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {function} onUploadProgress - Progress callback (optional)
+   */
+  uploadFile: (url, formData, setAccessToken, onUploadProgress) =>
+    callWithRefresh(
+      () =>
+        axios.post(`${API_BASE_URL}${url}`, formData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            "Content-Type": "multipart/form-data",
+          },
+          withCredentials: true,
+          onUploadProgress,
+        }),
+      setAccessToken
+    ),
+
+  /**
+   * Download file
+   * @param {string} url - API endpoint
+   * @param {function} setAccessToken - Function to update access token in context
+   * @param {string} filename - Filename to save as
+   */
+  downloadFile: async (url, setAccessToken, filename) => {
+    try {
+      const response = await callWithRefresh(
+        () =>
+          axios.get(`${API_BASE_URL}${url}`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+            withCredentials: true,
+            responseType: "blob",
+          }),
+        setAccessToken
+      );
+
+      // Create download link
+      const blob = new Blob([response.data]);
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      return response;
+    } catch (error) {
+      console.error("❌ ERROR trong downloadFile:", error);
+      throw error;
+    }
+  },
 };

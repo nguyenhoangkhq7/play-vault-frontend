@@ -5,7 +5,7 @@ import {
   calculateCurrentStatistics,
   getPreviousStatistics,
   autoSaveStatistics,
-} from "../services/statistic";
+} from "../api/statistic.js";
 
 function AdminDashboard() {
   const [currentStats, setCurrentStats] = useState({

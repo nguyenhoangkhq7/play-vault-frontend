@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import DataTable from "react-data-table-component";
 import { Button } from "../components/ui/Button";
 import { Edit, Trash2, X, Eye, Search } from "lucide-react";
-import { getUsers, updateUser, createUser } from "../services/users";
-import { uploadImagesToCloudinary } from "../services/cloudinary";
+import { getUsers, updateUser, createUser } from "../api/users.js";
+import { uploadImagesToCloudinary } from "../api/cloudinary.js";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);

@@ -2,8 +2,8 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom" // Thêm useNavigate
 import { ChevronDown, Star, Loader2 } from "lucide-react"
 import { LazyLoadImage } from "react-lazy-load-image-component"
-import { getGames } from "../../services/games"
-import { getCommentsByGameId } from "../../services/comments"
+import { getGames } from "../../api/games.js"
+import { getCommentsByGameId } from "../../api/comments.js"
 
 // Component GameCard
 const GameCard = ({ game }) => {

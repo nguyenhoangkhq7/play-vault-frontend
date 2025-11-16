@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Star } from "lucide-react"
-import { getCommentsByGameIdWithUsers } from "../services/comments"
+import { getCommentsByGameIdWithUsers } from "../api/comments.js"
 
 function GameCard({ game }) {
   const [rating, setRating] = useState(0)

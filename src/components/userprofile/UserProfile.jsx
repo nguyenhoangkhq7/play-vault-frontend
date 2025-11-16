@@ -13,9 +13,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getUsers, updateUser } from "../../services/users"; // Import users API
-import { getPurchases } from "../../services/purchases"; // Import games and purchases API
-import { getGames } from "../../services/games"; // Import games API
+import { getUsers, updateUser } from "../../api/users.js"; // Import users API
+import { getPurchases } from "../../api/purchases.js"; // Import games and purchases API
+import { getGames } from "../../api/games.js"; // Import games API
 
 
 // 🧪 Dữ liệu mẫu đơn hàng để test giao diện

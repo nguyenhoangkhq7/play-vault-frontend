@@ -27,8 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getGames } from "../../services/games";
-import { getPurchases } from "../../services/purchases";
+import { getGames } from "../../api/games.js";
+import { getPurchases } from "../../api/purchases.js";
 
 const statusMap = {
     delivered: { label: "Đã giao", variant: "green" },

@@ -6,8 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { getGames } from "../../services/games"
-import { getWishlist, updateWishlist } from "../../services/wishlist"
+import { getGames } from "../../api/games.js"
+import { getWishlist, updateWishlist } from "../../api/wishlist.js"
 
 export default function FavoriteProducts() {
     const [viewMode, setViewMode] = useState("list")

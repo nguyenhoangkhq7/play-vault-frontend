@@ -7,9 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { login } from "@/api/authApi";
+import { useUser } from "../../store/UserContext";
+import { loginApi } from "../../api/authApi";
 
 export default function LoginPage() {
+  const { login } = useUser();
+
   const [formState, setFormState] = useState({
     username: "",
     password: "",
@@ -60,16 +63,37 @@ export default function LoginPage() {
     setLoginError("");
 
     try {
-      await login(formState.username, formState.password);
+      // Gọi API login
+      console.log("🔵 Bắt đầu gọi API login...");
+      const response = await loginApi(formState.username, formState.password);
+
+      console.log("✅ Response từ API:", response);
+      console.log("👤 User:", response.user);
+      console.log("🔑 AccessToken:", response.accessToken);
+
+      const { user, accessToken } = response;
+
+      // Kiểm tra nếu thiếu user hoặc accessToken
+      if (!user || !accessToken) {
+        console.error("❌ Thiếu user hoặc accessToken trong response");
+        throw new Error("Dữ liệu đăng nhập không hợp lệ");
+      }
+
+      // Lưu vào UserContext + localStorage
+      login(user, accessToken);
 
       toast.success("Đăng nhập thành công!", {
         description: "Chào mừng bạn quay lại!",
       });
 
       setTimeout(() => {
-        navigate("/");
+        navigate("/"); // redirect về home
       }, 1000);
     } catch (error) {
+      console.error("❌ Lỗi đăng nhập:", error);
+      console.error("📄 Error response:", error.response);
+      console.error("💬 Error message:", error.message);
+
       const msg =
         error.response?.data?.message ||
         error.message ||

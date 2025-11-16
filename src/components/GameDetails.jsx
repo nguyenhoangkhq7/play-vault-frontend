@@ -6,10 +6,10 @@ import GameConfig from "../components/GameConfig"
 import RelatedGames from "../components/RelatedGames"
 import { Button } from "../components/ui/Button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { getGameById, getGames } from "../services/games"
-import { getCommentsByGameIdWithUsers } from "../services/comments"
-import { getWishlist, updateWishlist, createWishlist } from "../services/wishlist"
-import { addToCart } from "../services/cart"
+import { getGameById, getGames } from "../api/games.js"
+import { getCommentsByGameIdWithUsers } from "../api/comments.js"
+import { getWishlist, updateWishlist, createWishlist } from "../api/wishlist.js"
+import { addToCart } from "../api/cart.js"
 
 function GameDetail() {
   const { id } = useParams()

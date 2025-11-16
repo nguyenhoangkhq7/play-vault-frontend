@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { LazyLoadImage } from "react-lazy-load-image-component"
 import { Star, Award, Clock, Users, Gamepad2, Monitor, Smartphone, Loader2 } from "lucide-react"
-import { getGames } from "../../services/games"
-import { getCommentsByGameId } from "../../services/comments"
-import { addToCart, getCart, removeFromCart } from "../../services/cart"
+import { getGames } from "../../api/games.js"
+import { getCommentsByGameId } from "../../api/comments.js"
+import { addToCart, getCart, removeFromCart } from "../../api/cart.js"
 
 export default function GameDetail() {
   const [game, setGame] = useState(null)

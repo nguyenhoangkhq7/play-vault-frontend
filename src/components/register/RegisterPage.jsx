@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { checkIfUserExists, registerUser, getUsers } from "../../services/users";
+import { checkIfUserExists, registerUser, getUsers } from "../../api/users.js";
 
 export default function RegisterPage() {
     const [formState, setFormState] = useState({

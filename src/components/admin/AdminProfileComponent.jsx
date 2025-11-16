@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { getUsers, updateUser } from "../../services/users";
+import { getUsers, updateUser } from "../../api/users.js";
 
 const formSchema = z
   .object({

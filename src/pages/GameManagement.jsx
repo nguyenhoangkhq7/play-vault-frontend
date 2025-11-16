@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Trash2, Edit } from "lucide-react";
-import { getGames, addGame, updateGame, deleteGame } from "../services/games";
-import { uploadImagesToCloudinary } from "../services/cloudinary";
+import { getGames, addGame, updateGame, deleteGame } from "../api/games.js";
+import { uploadImagesToCloudinary } from "../api/cloudinary.js";
 import DataTable from "react-data-table-component";
 
 function GameManagement() {

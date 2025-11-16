@@ -2,7 +2,7 @@ import {API_BASE_URL} from "../config/api.js"
 
 const API_URL = `${API_BASE_URL}/comments`
 
-import { getUsers } from "./users" // Nhập hàm lấy người dùng
+import { getUsers } from "./users.js" // Nhập hàm lấy người dùng
 
 export async function getComments() {
   try {

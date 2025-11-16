@@ -1,27 +1,29 @@
-import {API_BASE_URL} from "../config/api.js"
+// src/services/login.js
+import axiosInstance from "../api/axiosInstance"; // Đường dẫn đúng đến axiosInstance
 
-const USERS_API_URL = `${API_BASE_URL}/users`;
+const LOGIN_API_URL = "/api/auth/login"; // Dùng relative path vì axiosInstance có baseURL
 
 export async function loginUser(username, password) {
-    try {
-        const response = await fetch(`${USERS_API_URL}?username=${encodeURIComponent(username)}`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch user: ${response.statusText}`);
-        }
-        const users = await response.json();
+  try {
+    const response = await axiosInstance.post(LOGIN_API_URL, {
+      username,
+      password,
+    });
 
-        if (users.length === 0) {
-            throw new Error("Không tìm thấy người dùng với tên đăng nhập này");
-        }
+    // Backend trả về: { accessToken: "...", user: { ... } }
+    const { accessToken, ...user } = response.data;
 
-        const user = users[0];
-        if (user.password !== password) {
-            throw new Error("Mật khẩu không đúng, vui lòng kiểm tra lại");
-        }
+    // Lưu accessToken → axiosInstance sẽ tự thêm vào header
+    localStorage.setItem("accessToken", accessToken);
 
-        return user;
-    } catch (error) {
-        console.error("Error during login:", error);
-        throw error;
-    }
+    return { ...user, accessToken }; // Trả về user + token (nếu cần)
+  } catch (error) {
+    // Xử lý lỗi từ backend
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      "Đăng nhập thất bại. Vui lòng thử lại.";
+
+    throw new Error(message);
+  }
 }

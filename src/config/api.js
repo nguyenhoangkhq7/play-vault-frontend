@@ -1,3 +1,4 @@
-const API_BASE_URL = "http://localhost:8080/api"; // thay bằng đường dẫn backend api
+export const API_BASE_URL = "http://localhost:8080";
 
-export { API_BASE_URL };
+// Endpoint làm mới token
+export const REFRESH_TOKEN_URL = `${API_BASE_URL}/api/auth/refresh`;

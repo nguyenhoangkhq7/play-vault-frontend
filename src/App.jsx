@@ -12,6 +12,7 @@ import Register from './pages/Register.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import GameDetail from './pages/GameDetail.jsx';
 import ProductPages from './pages/ProductPages.jsx';
+import ProductDetailPage from'./pages/ProductDetailPages.jsx';
 import CartPage from './pages/CartPage.jsx';
 import FeedbackManagement from './pages/FeedbackManagement.jsx';
 import GameManagement from './pages/GameManagement.jsx';
@@ -77,6 +78,7 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/profile" element={<UserProfiles />} />
           <Route path="/game/:id" element={<GameDetail />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
           <Route path="/promotions" element={<PublisherManagerDiscount />} />
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />

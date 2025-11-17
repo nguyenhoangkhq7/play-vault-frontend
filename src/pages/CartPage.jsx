@@ -326,6 +326,7 @@ import { Toaster } from "../components/ui/sonner";
 import { toast } from "sonner";
 import PaymentModal from "../components/download/PaymentModal";
 import ConfirmModal from "../components/download/ConfirmModal";
+import {addToCart,getCart,clearCart,removeFromCart} from "../api/cart"
 
 function CartPage() {
   const navigate = useNavigate();
@@ -342,35 +343,11 @@ function CartPage() {
 
   // 🧪 Mock dữ liệu
   useEffect(() => {
-    setUser({ id: 1, name: "Test User" });
+    setUser(localStorage.getItem("user"));
 
-    const fakeCart = [{ id: 101 }, { id: 102 }, { id: 103 }];
-    const fakeGames = [
-      {
-        id: 101,
-        name: "Elden Ring",
-        price: 1200000,
-        thumbnail_image:
-          "https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/header.jpg",
-      },
-      {
-        id: 102,
-        name: "Hollow Knight",
-        price: 150000,
-        thumbnail_image:
-          "https://cdn.cloudflare.steamstatic.com/steam/apps/367520/header.jpg",
-      },
-      {
-        id: 103,
-        name: "Hades",
-        price: 200000,
-        thumbnail_image:
-          "https://cdn.cloudflare.steamstatic.com/steam/apps/1145360/header.jpg",
-      },
-    ];
+    const gameCart= getCart();
 
-    setCartItems(fakeCart);
-    setGames(fakeGames);
+    setCartItems(gameCart);
     setSelectedItems([]);
     setLoading(false);
   }, []);

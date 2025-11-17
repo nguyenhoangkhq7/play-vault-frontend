@@ -13,9 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getUsers, updateUser } from "../../api/users.js"; // Import users API
+import { getUsers, updateUser} from "../../api/users.js"; // Import users API
 import { getPurchases } from "../../api/purchases.js"; // Import games and purchases API
 import { getGames } from "../../api/games.js"; // Import games API
+import { API_BASE_URL } from "../../config/api";
 
 
 // 🧪 Dữ liệu mẫu đơn hàng để test giao diện
@@ -222,74 +223,6 @@ export default function UserProfile() {
         fetchData();
     }, [form]);
 
-    // Handle form submission
-    async function onSubmit(values) {
-        setIsSubmitting(true);
-        try {
-            const nameParts = values.name.trim().split(" ");
-            const f_name = nameParts[0] || "Unknown";
-            const l_name = nameParts.slice(1).join(" ") || "";
-
-            let dob = null;
-            if (values.birthDay && values.birthMonth && values.birthYear) {
-                const date = new Date(
-                    Date.UTC(
-                        parseInt(values.birthYear),
-                        parseInt(values.birthMonth) - 1,
-                        parseInt(values.birthDay),
-                    ),
-                );
-                if (!isNaN(date.getTime())) {
-                    dob = { $date: date.toISOString() };
-                } else {
-                    throw new Error("Ngày không hợp lệ");
-                }
-            }
-
-            const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
-            const userId = storedUser.id || storedUser._id;
-
-            const updatedUser = {
-                f_name,
-                l_name,
-                phone: values.phone || storedUser.phone,
-                email: values.email || storedUser.email,
-                gender: values.gender || storedUser.gender,
-                address: values.address || storedUser.address,
-                dob: dob || storedUser.dob || null,
-                avatar: avatarUrl,
-                username: storedUser.username,
-                password: storedUser.password,
-                role: storedUser.role,
-                status: storedUser.status,
-                created_at: storedUser.created_at,
-                last_login: storedUser.last_login,
-            };
-
-            // Cập nhật dữ liệu lên server
-            const response = await updateUser(userId, updatedUser);
-
-            if (!response.ok) {
-                throw new Error(`Không thể cập nhật dữ liệu: ${response.statusText}`);
-            }
-
-            // Lưu dữ liệu vào localStorage
-            const storage = localStorage.getItem("user") ? localStorage : sessionStorage;
-            storage.setItem("user", JSON.stringify(updatedUser));
-
-            toast.success("Thành công", {
-                description: "Hồ sơ đã được cập nhật thành công.",
-            });
-        } catch (error) {
-            console.error("Lỗi khi lưu hồ sơ:", error);
-            toast.error("Lỗi", {
-                description: "Không thể cập nhật hồ sơ. Vui lòng thử lại.",
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-
     // Fetch order history when tab changes to orders
     useEffect(() => {
         if (activeTab === "orders") {
@@ -432,71 +365,108 @@ export default function UserProfile() {
 
     // Handle form submission
     async function onSubmit(values) {
-        setIsSubmitting(true);
-        try {
-            const nameParts = values.name.trim().split(" ");
-            const f_name = nameParts[0] || "Unknown";
-            const l_name = nameParts.slice(1).join(" ") || "";
-
-            let dob = null;
-            if (values.birthDay && values.birthMonth && values.birthYear) {
-                const date = new Date(
-                    Date.UTC(
-                        parseInt(values.birthYear),
-                        parseInt(values.birthMonth) - 1,
-                        parseInt(values.birthDay),
-                    ),
-                );
-                if (!isNaN(date.getTime())) {
-                    dob = { $date: date.toISOString() };
-                } else {
-                    throw new Error("Ngày không hợp lệ");
-                }
-            }
-
-            const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
-            const userId = storedUser.id || storedUser._id;
-
-            const updatedUser = {
-                f_name,
-                l_name,
-                phone: values.phone || storedUser.phone,
-                email: values.email || storedUser.email,
-                gender: values.gender || storedUser.gender,
-                address: values.address || storedUser.address,
-                dob: dob || storedUser.dob || null,
-                avatar: avatarUrl,
-                username: storedUser.username,
-                password: storedUser.password,
-                role: storedUser.role,
-                status: storedUser.status,
-                created_at: storedUser.created_at,
-                last_login: storedUser.last_login,
-            };
-
-            // Gọi API để cập nhật dữ liệu
-            const response = await updateUser(userId, updatedUser);
-
-            if (!response.ok) {
-                throw new Error(`Không thể cập nhật dữ liệu: ${response.statusText}`);
-            }
-
-            // Lưu dữ liệu vào localStorage
-            const storage = localStorage.getItem("user") ? localStorage : sessionStorage;
-            storage.setItem("user", JSON.stringify(updatedUser));
-
-            toast.success("Thành công", {
-                description: "Hồ sơ đã được cập nhật thành công.",
-            });
-        } catch (error) {
-            console.error("Lỗi khi lưu hồ sơ:", error);
-            toast.error("Lỗi", {
-                description: "Không thể cập nhật hồ sơ. Vui lòng thử lại.",
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+  setIsSubmitting(true);
+  try {
+    const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!storedRaw) {
+      toast.error("User ID không tồn tại. Vui lòng đăng nhập lại.");
+      setIsSubmitting(false);
+      return;
     }
+    const storedUser = JSON.parse(storedRaw);
+    const userId = storedUser.id || storedUser.customerId || storedUser._id;
+    if (!userId) {
+      toast.error("User ID không tồn tại. Vui lòng đăng nhập lại.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const fullName = (values.name || storedUser.fullName || "Unknown").trim();
+    let dateOfBirth = null;
+    if (values.birthDay && values.birthMonth && values.birthYear) {
+      const d = new Date(Date.UTC(
+        parseInt(values.birthYear,10),
+        parseInt(values.birthMonth,10)-1,
+        parseInt(values.birthDay,10)
+      ));
+      if (!isNaN(d.getTime())) {
+        const yyyy = d.getUTCFullYear();
+        const mm = String(d.getUTCMonth()+1).padStart(2,"0");
+        const dd = String(d.getUTCDate()).padStart(2,"0");
+        dateOfBirth = `${yyyy}-${mm}-${dd}`;
+      }
+    }
+
+    const payload = {
+      fullName,
+      gender: values.gender,
+      dateOfBirth,
+      avatarUrl: avatarUrl || storedUser.avatarUrl || storedUser.avatar || null,
+      address: values.address || storedUser.address || null
+    };
+
+    // gọi helper updateUser (phải trả về Response)
+    const resp = await updateUser(userId, payload).catch(err => {
+      // network-level error (connection refused...)
+      console.error("Network error when calling updateUser:", err);
+      throw new Error("Không thể kết nối tới server. Kiểm tra backend/PORT/API_BASE_URL.");
+    });
+
+    // *** DEBUG: log chi tiết để biết nguyên nhân server trả lỗi ***
+    console.log("[updateUser] resp.status:", resp.status, resp.statusText);
+    // cố gắng parse JSON body (nếu server trả json)
+    let respBodyText = null;
+    try {
+      // read as text first (safer), then try parse json
+      respBodyText = await resp.text();
+      try {
+        const parsed = JSON.parse(respBodyText);
+        console.log("[updateUser] resp.body (json):", parsed);
+      } catch{
+        console.log("[updateUser] resp.body (text):", respBodyText);
+      }
+    } catch (e) {
+      console.warn("Không thể đọc body response", e);
+    }
+
+    if (!resp.ok) {
+      // đưa message rõ ràng cho user
+      const serverMsg = (respBodyText && respBodyText.length < 1000) ? respBodyText : `${resp.status} ${resp.statusText}`;
+      throw new Error(`Cập nhật thất bại: ${serverMsg}`);
+    }
+
+    // nếu OK -> parse json
+    const updatedDto = JSON.parse(respBodyText || "{}");
+
+    // cập nhật storage & UI
+    const newStored = { ...storedUser,
+      fullName: updatedDto.fullName || payload.fullName,
+      avatar: updatedDto.avatarUrl || payload.avatarUrl,
+      address: updatedDto.address || payload.address,
+      dateOfBirth: updatedDto.dateOfBirth || payload.dateOfBirth,
+      gender: updatedDto.gender || payload.gender
+    };
+    localStorage.setItem("user", JSON.stringify(newStored));
+    form.reset({
+      name: newStored.fullName,
+      phone: newStored.phone,
+      email: newStored.email,
+      gender: newStored.gender || "male",
+      address: newStored.address || "",
+      birthDay: values.birthDay,
+      birthMonth: values.birthMonth,
+      birthYear: values.birthYear
+    });
+
+    toast.success("Cập nhật hồ sơ thành công");
+  } catch (err) {
+    console.error("Lỗi when saving profile:", err);
+    // hiện thông báo rõ cho user
+    toast.error("Lỗi khi lưu hồ sơ", { description: err.message || "Unknown error" });
+  } finally {
+    setIsSubmitting(false);
+  }
+}
 
 
     if (isLoading) {
@@ -747,24 +717,6 @@ export default function UserProfile() {
                                                     />
                                                 </div>
                                             </div>
-
-                                            <FormField
-                                                control={form.control}
-                                                name="address"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-purple-200">Địa chỉ</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                placeholder="Nhập địa chỉ"
-                                                                {...field}
-                                                                className="bg-purple-900/40 border-purple-600 focus:border-purple-500 text-white"
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
 
                                             <Button
                                                 type="submit"

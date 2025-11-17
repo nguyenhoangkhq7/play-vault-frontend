@@ -1,33 +1,8 @@
 import {API_BASE_URL} from "../config/api.js"
 
-const API_URL = `${API_BASE_URL}/games`
+const API_URL = `${API_BASE_URL}/api/games`
 
-export async function getGames() {
-  try {
-    const response = await fetch(API_URL)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch games: ${response.statusText}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error('Error fetching games:', error)
-    throw error
-  }
-}
-
-export async function getGameById(id) {
-  try {
-    const response = await fetch(`${API_URL}/${id}`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch game ${id}: ${response.statusText}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error(`Error fetching game ${id}:`, error)
-    throw error
-  }
-}
-
+//API cũ
 export async function updateGame(id, gameData) {
   try {
     const response = await fetch(`${API_URL}/${id}`, {
@@ -82,5 +57,73 @@ export async function deleteGame(id) {
   } catch (error) {
     console.error(`Error deleting game ${id}:`, error);
     throw error;
+  }
+}
+
+//end API cũ
+
+
+export async function getGameById(id) {
+  try {
+    const response = await fetch(`${API_URL}/${id}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch game ${id}: ${response.statusText}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error(`Error fetching game ${id}:`, error)
+    throw error
+  }
+}
+
+export async function getGames() {
+  try {
+    const response = await fetch(API_URL)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch games: ${response.statusText}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching games:', error)
+    throw error
+  }
+}
+
+export async function getTopNGame(topGame) {
+  try {
+    const response = await fetch(`${API_URL}/top?limit=${topGame}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch games: ${response.statusText}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching games:', error)
+    throw error
+  }
+}
+
+export async function getReviewByGameId(id) {
+  try {
+    const response = await fetch(`${API_URL}/reviews/${id}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch games: ${response.statusText}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching games:', error)
+    throw error
+  }
+}
+
+export async function getRalatedGameWithCategoryName(categoryName) {
+  try {
+    const response = await fetch(`${API_URL}?categoryName=${categoryName}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch games: ${response.statusText}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching games:', error)
+    throw error
   }
 }

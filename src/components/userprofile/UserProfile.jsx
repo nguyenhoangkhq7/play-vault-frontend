@@ -13,10 +13,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getUsers, updateUser} from "../../api/users.js"; // Import users API
+import { getUsers} from "../../api/users.js"; // Import users API
 import { getPurchases } from "../../api/purchases.js"; // Import games and purchases API
 import { getGames } from "../../api/games.js"; // Import games API
 import { API_BASE_URL } from "../../config/api";
+import { getProfile, updateProfile} from "../../api/profile.js";
+import { getOrderHistory} from "../../api/order.js";
 
 
 // 🧪 Dữ liệu mẫu đơn hàng để test giao diện
@@ -147,193 +149,246 @@ export default function UserProfile() {
     // Load user data from API and storage on mount
     // Load user data from API and storage on mount
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user");
-                if (storedUser) {
-                    const userData = JSON.parse(storedUser);
-                    const userId = userData.id || userData._id;
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (!storedRaw) throw new Error("User chưa đăng nhập");
 
-                    if (userId) {
-                        try {
-                            const userFromApi = await getUsers();
-                            const matchedUser = userFromApi.find(user => user.id === userId || user._id === userId);
+      const storedUser = JSON.parse(storedRaw);
+      // Lấy id ưu tiên
+      const userId = storedUser.id || storedUser.customerId || storedUser.customer_id || null;
 
-                            if (matchedUser) {
-                                userData.f_name = matchedUser.f_name || userData.f_name;
-                                userData.l_name = matchedUser.l_name || userData.l_name;
-                                userData.avatar = matchedUser.avatar || userData.avatar;
-                                userData.email = matchedUser.email || userData.email;
-                                userData.phone = matchedUser.phone || userData.phone;
-                                userData.gender = matchedUser.gender || userData.gender;
-                                userData.address = matchedUser.address || userData.address;
-                                userData.dob = matchedUser.dob || userData.dob;
-                            }
-                        } catch (apiError) {
-                            console.warn("Không thể lấy dữ liệu người dùng từ API:", apiError);
-                        }
-                    }
-
-                    if (userData.avatar) {
-                        setAvatarUrl(userData.avatar);
-                    } else {
-                        const fullName = `${userData.f_name || ""} ${userData.l_name || ""}`.trim();
-                        if (fullName) {
-                            setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=9333ea&color=ffffff&size=200`);
-                        }
-                    }
-
-                    let birthDay = "";
-                    let birthMonth = "";
-                    let birthYear = "";
-                    if (userData.dob && userData.dob.$date) {
-                        const date = new Date(userData.dob.$date);
-                        if (!isNaN(date.getTime())) {
-                            birthDay = date.getUTCDate().toString();
-                            birthMonth = (date.getUTCMonth() + 1).toString();
-                            birthYear = date.getUTCFullYear().toString();
-                        }
-                    }
-
-                    form.reset({
-                        name: `${userData.f_name || ""} ${userData.l_name || ""}`.trim() || "Unknown",
-                        phone: userData.phone || "",
-                        email: userData.email || "",
-                        gender: userData.gender || "male",
-                        address: userData.address || "",
-                        birthDay,
-                        birthMonth,
-                        birthYear,
-                    });
-
-                    // Lưu dữ liệu cập nhật vào localStorage
-                    localStorage.setItem("user", JSON.stringify(userData));
-                }
-            } catch (error) {
-                console.error("Lỗi khi tải dữ liệu người dùng:", error);
-                toast.error("Lỗi", {
-                    description: "Không thể tải dữ liệu người dùng.",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [form]);
-
-    // Fetch order history when tab changes to orders
-    useEffect(() => {
-        if (activeTab === "orders") {
-            fetchOrderHistory();
-        }
-    }, [activeTab]);
-
-    // Fetch order history from API
-    const fetchOrderHistory = async () => {
-        setOrdersLoading(true);
+      let profile = null;
+      if (userId) {
         try {
-            const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user");
-            if (!storedUser) {
-                throw new Error('Thông tin người dùng không tồn tại');
-            }
-
-            const userData = JSON.parse(storedUser);
-            const userId = userData.id || userData._id;
-
-            if (!userId) {
-                throw new Error('ID người dùng không tồn tại');
-            }
-
-            // Fetch games and purchases in parallel
-            const [gamesResponse, purchasesResponse] = await Promise.all([
-                getGames(),
-                getPurchases()
-            ]);
-
-            console.log("Dữ liệu đơn hàng:", purchasesResponse);
-            console.log("Dữ liệu games:", gamesResponse);
-
-            // Find user's purchases
-            const userPurchase = purchasesResponse.find(item =>
-                item.user_id?.toString() === userId?.toString() ||
-                item.user_id === Number(userId) ||
-                item.userId === userId
-            );
-
-            console.log("Đơn hàng của người dùng:", userPurchase);
-
-            if (!userPurchase || !userPurchase.games_purchased || userPurchase.games_purchased.length === 0) {
-                console.log("Không tìm thấy đơn hàng cho người dùng");
-                setUserOrders([]);
-                setOrdersLoading(false);
-                return;
-            }
-
-            // Process each purchased game into an order
-            const processedOrders = userPurchase.games_purchased.map((purchase, index) => {
-                const game = gamesResponse.find(g =>
-                    g.id.toString() === purchase.game_id.toString() ||
-                    g.id === Number(purchase.game_id)
-                );
-
-                // Generate unique order ID
-                const orderId = `${userPurchase.id}-${purchase.game_id}-${index + 1}`;
-
-                // Format purchase date
-                const purchaseDate = purchase.purchased_at?.$date
-                    ? new Date(purchase.purchased_at.$date).toLocaleDateString("vi-VN")
-                    : new Date().toLocaleDateString("vi-VN");
-
-                // Default status
-                const status = "Đã giao";
-
-                // Use price from purchase
-                const price = purchase.price || 0;
-                const priceFormatted = new Intl.NumberFormat('vi-VN', {
-                    style: 'currency',
-                    currency: 'VND'
-                }).format(price);
-
-                return {
-                    id: orderId,
-                    date: purchaseDate,
-                    status,
-                    price,
-                    priceFormatted,
-                    name: game?.name || "Unknown Game",
-                    image: game?.thumbnail_image || game?.imageUrl || game?.img || "https://placehold.co/100x100/3a1a5e/ffffff?text=Game",
-                    gameId: purchase.game_id,
-                    tags: game?.tags || [],
-                    publisher: game?.details?.publisher || game?.publisher || "Unknown Publisher",
-                    published_date: game?.details?.published_date?.$date || game?.published_date || "",
-                    age_limit: game?.details?.["age-limit"] || game?.age_limit || ""
-                };
-            });
-
-            // Sort orders by date (newest first)
-            processedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            console.log("Đơn hàng đã xử lý:", processedOrders);
-
-            setUserOrders(processedOrders);
-
-            // Save to localStorage for offline use
-            localStorage.setItem('user_orders', JSON.stringify(processedOrders));
-        } catch (error) {
-            console.error("Error fetching order history:", error);
-            toast.error("Lỗi", {
-                description: "Không thể tải lịch sử đơn hàng. Vui lòng thử lại sau.",
-            });
-            const savedOrders = localStorage.getItem('user_orders');
-            if (savedOrders) {
-                setUserOrders(JSON.parse(savedOrders));
-            }
-        } finally {
-            setOrdersLoading(false);
+          profile = await getProfile(userId);
+        } catch (e) {
+          console.warn("Không lấy được profile theo id:", userId, e);
         }
-    };
+      } else if (storedUser.username) {
+        // fallback: tìm bằng username (nếu bạn có getUsers trả array)
+        try {
+          const all = await getUsers();
+          const matched = all.find(u => u.username === storedUser.username || u.accountUsername === storedUser.username);
+          const idFound = matched?.customerId || matched?.id || matched?.userId || null;
+          if (idFound) {
+            profile = await getProfile(idFound);
+            storedUser.id = idFound; // lưu id để lần sau khỏi tìm
+          }
+        } catch (e) {
+          console.warn("Fallback tìm user bằng username thất bại:", e);
+        }
+      }
+
+      // Nếu không có profile từ API thì dùng dữ liệu localStorage
+      const final = {
+        username: storedUser.username,
+        email: (profile && profile.email) || storedUser.email || null,
+        phone: (profile && profile.phone) || storedUser.phone || null,
+        fullName: (profile && (profile.fullName || profile.full_name)) || storedUser.fullName || storedUser.f_name || "",
+        avatar: (profile && (profile.avatarUrl || profile.avatar_url || profile.avatar)) || storedUser.avatar || storedUser.avatarUrl || null,
+        address: (profile && profile.address) || storedUser.address || null,
+        gender: (profile && profile.gender) || storedUser.gender || "male",
+        dob: (profile && (profile.dateOfBirth || profile.date_of_birth || profile.dob)) || storedUser.dob || null,
+        id: userId || storedUser.id || storedUser.customerId || null
+      };
+
+      // parse dateOfBirth (API trả "YYYY-MM-DD")
+      let birthDay = "", birthMonth = "", birthYear = "";
+      if (final.dob) {
+        // dob có thể là "1999-05-12" hoặc object {$date: "..."}
+        let iso = null;
+        if (typeof final.dob === "string") iso = final.dob;
+        else if (typeof final.dob === "object" && final.dob.$date) iso = final.dob.$date;
+
+        if (iso) {
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) {
+            birthDay = String(d.getUTCDate());
+            birthMonth = String(d.getUTCMonth() + 1);
+            birthYear = String(d.getUTCFullYear());
+          }
+        }
+      }
+
+      // reset form values
+      form.reset({
+        name: final.fullName || "Unknown",
+        phone: final.phone || "",
+        email: final.email || "",
+        gender: final.gender || "male",
+        address: final.address || "",
+        birthDay,
+        birthMonth,
+        birthYear,
+      });
+
+      // set avatar
+      if (final.avatar) setAvatarUrl(final.avatar);
+      else {
+        const fn = final.fullName || storedUser.f_name || storedUser.l_name || "";
+        if (fn) setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(fn)}&background=9333ea&color=ffffff&size=200`);
+      }
+
+      // cập nhật localStorage merged
+      const merged = {
+        ...storedUser,
+        id: final.id,
+        fullName: final.fullName,
+        avatar: final.avatar,
+        address: final.address,
+        gender: final.gender,
+        dob: final.dob,
+        email: final.email,
+        phone: final.phone
+      };
+      localStorage.setItem("user", JSON.stringify(merged));
+    } catch (err) {
+      console.error("Lỗi khi tải dữ liệu người dùng:", err);
+      toast.error("Lỗi", { description: "Không thể tải dữ liệu người dùng." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
+    // thay thế useEffect + fetchOrderHistory cũ bằng đoạn này
+
+// khi user chuyển tab sang orders sẽ load
+useEffect(() => {
+  if (activeTab === "orders") {
+    fetchOrderHistory();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [activeTab]);
+
+// fetch order history tối ưu: ưu tiên endpoint /api/users/{id}/orders (getOrderHistory)
+// nếu không có hàm đó thì fallback sang getPurchases() hiện có
+const fetchOrderHistory = async (page = 0, size = 20) => {
+  setOrdersLoading(true);
+  try {
+    const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!storedRaw) throw new Error("Thông tin người dùng không tồn tại");
+    const storedUser = JSON.parse(storedRaw);
+    const userId = storedUser.id || storedUser.customerId || storedUser._id || null;
+    if (!userId) throw new Error("ID người dùng không tồn tại");
+
+    // --- try server pageable orders endpoint if available (recommended) ---
+    let ordersResponse = null;
+    try {
+      // try dynamic import / API helper if you created src/api/orders.js with getOrderHistory
+      // eslint-disable-next-line no-undef
+      if (typeof getOrderHistory === "function") {
+        ordersResponse = await getOrderHistory(userId, page, size);
+      } else {
+        ordersResponse = null;
+      }
+    } catch (e) {
+      console.warn("getOrderHistory unavailable or failed, fallback to purchases endpoint:", e);
+      ordersResponse = null;
+    }
+
+    // --- fallback: use existing purchases endpoint (getPurchases) ---
+    let purchasesData = null;
+    if (!ordersResponse) {
+      // getPurchases should return array of purchase objects; you already import it at top
+      purchasesData = await getPurchases().catch(e => {
+        console.warn("getPurchases failed:", e);
+        return null;
+      });
+    }
+
+    // Normalize into an array of order items to show in UI
+    let content = [];
+    if (Array.isArray(ordersResponse)) {
+      content = ordersResponse;
+    } else if (ordersResponse && Array.isArray(ordersResponse.content)) {
+      // Spring Page<T>
+      content = ordersResponse.content;
+    } else if (purchasesData) {
+      // purchasesData structure: array of purchase groups per user. find current user's purchases
+      const userPurchaseGroup = purchasesData.find(item =>
+        item.user_id?.toString() === userId?.toString() ||
+        item.userId?.toString() === userId?.toString() ||
+        item.user_id === Number(userId)
+      );
+      if (userPurchaseGroup && Array.isArray(userPurchaseGroup.games_purchased)) {
+        // convert each purchased game into a pseudo-order (same logic as cũ)
+        content = userPurchaseGroup.games_purchased.map((p, idx) => ({
+          id: `${userPurchaseGroup.id || "PUR"}-${p.game_id}-${idx + 1}`,
+          createdAt: p.purchased_at?.$date || new Date().toISOString(),
+          total: p.price || 0,
+          status: "Đã giao",
+          items: [
+            {
+              game_id: p.game_id,
+              price: p.price,
+              // additional fields missing -> map later with gamesResponse
+              raw: p
+            }
+          ]
+        }));
+      } else {
+        content = []; // nothing for user
+      }
+    } else {
+      content = [];
+    }
+
+    // If you need game metadata (name, thumbnail) try to fetch games (optional)
+    let gamesResponse = [];
+    try {
+      gamesResponse = await getGames().catch(() => []);
+    } catch {
+      gamesResponse = [];
+    }
+
+    // Map content -> processedOrders for your UI
+    const processedOrders = (content || []).map((o, idx) => {
+      // try to find first item / game id
+      const firstItem = (o.items && o.items[0]) || (o.raw && o.raw.games_purchased && o.raw.games_purchased[0]) || null;
+      const gid = firstItem?.game_id || firstItem?.gameId || firstItem?.game || null;
+
+      // try to find game metadata
+      const game = gamesResponse.find(g => String(g.id) === String(gid) || String(g.game_id) === String(gid));
+
+      // parse date
+      const dateIso = o.createdAt || o.created_at || firstItem?.purchased_at?.$date || new Date().toISOString();
+      const dateStr = dateIso ? new Date(dateIso).toLocaleDateString("vi-VN") : "";
+
+      const price = o.total || firstItem?.price || 0;
+      const priceFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
+      return {
+        id: o.id || `ORD-${idx}`,
+        date: dateStr,
+        status: o.status || o.orderStatus || "Đã giao",
+        price,
+        priceFormatted,
+        name: game?.name || firstItem?.title || firstItem?.name || "Unknown Game",
+        image: game?.thumbnail_image || game?.imageUrl || firstItem?.thumbnail || "https://placehold.co/100x100/3a1a5e/ffffff?text=Game",
+        raw: o
+      };
+    });
+
+    // sort newest first
+    processedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    setUserOrders(processedOrders);
+    localStorage.setItem('user_orders', JSON.stringify(processedOrders));
+  } catch (err) {
+    console.error("Error fetching order history:", err);
+    toast.error("Không thể tải lịch sử đơn hàng. Vui lòng thử lại sau.");
+    const saved = localStorage.getItem('user_orders');
+    if (saved) setUserOrders(JSON.parse(saved));
+  } finally {
+    setOrdersLoading(false);
+  }
+};
+
 
     // Handle avatar upload click
     const handleAvatarUploadClick = () => {
@@ -364,20 +419,19 @@ export default function UserProfile() {
     };
 
     // Handle form submission
-    async function onSubmit(values) {
+    // Handle form submission
+async function onSubmit(values) {
   setIsSubmitting(true);
   try {
     const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
     if (!storedRaw) {
       toast.error("User ID không tồn tại. Vui lòng đăng nhập lại.");
-      setIsSubmitting(false);
       return;
     }
     const storedUser = JSON.parse(storedRaw);
     const userId = storedUser.id || storedUser.customerId || storedUser._id;
     if (!userId) {
       toast.error("User ID không tồn tại. Vui lòng đăng nhập lại.");
-      setIsSubmitting(false);
       return;
     }
 
@@ -385,14 +439,14 @@ export default function UserProfile() {
     let dateOfBirth = null;
     if (values.birthDay && values.birthMonth && values.birthYear) {
       const d = new Date(Date.UTC(
-        parseInt(values.birthYear,10),
-        parseInt(values.birthMonth,10)-1,
-        parseInt(values.birthDay,10)
+        parseInt(values.birthYear, 10),
+        parseInt(values.birthMonth, 10) - 1,
+        parseInt(values.birthDay, 10)
       ));
       if (!isNaN(d.getTime())) {
         const yyyy = d.getUTCFullYear();
-        const mm = String(d.getUTCMonth()+1).padStart(2,"0");
-        const dd = String(d.getUTCDate()).padStart(2,"0");
+        const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(d.getUTCDate()).padStart(2, "0");
         dateOfBirth = `${yyyy}-${mm}-${dd}`;
       }
     }
@@ -405,48 +459,24 @@ export default function UserProfile() {
       address: values.address || storedUser.address || null
     };
 
-    // gọi helper updateUser (phải trả về Response)
-    const resp = await updateUser(userId, payload).catch(err => {
-      // network-level error (connection refused...)
-      console.error("Network error when calling updateUser:", err);
-      throw new Error("Không thể kết nối tới server. Kiểm tra backend/PORT/API_BASE_URL.");
-    });
+    // gọi API updateProfile (trả về JSON DTO)
+    const updatedDto = await updateProfile(userId, payload);
 
-    // *** DEBUG: log chi tiết để biết nguyên nhân server trả lỗi ***
-    console.log("[updateUser] resp.status:", resp.status, resp.statusText);
-    // cố gắng parse JSON body (nếu server trả json)
-    let respBodyText = null;
-    try {
-      // read as text first (safer), then try parse json
-      respBodyText = await resp.text();
-      try {
-        const parsed = JSON.parse(respBodyText);
-        console.log("[updateUser] resp.body (json):", parsed);
-      } catch{
-        console.log("[updateUser] resp.body (text):", respBodyText);
-      }
-    } catch (e) {
-      console.warn("Không thể đọc body response", e);
-    }
-
-    if (!resp.ok) {
-      // đưa message rõ ràng cho user
-      const serverMsg = (respBodyText && respBodyText.length < 1000) ? respBodyText : `${resp.status} ${resp.statusText}`;
-      throw new Error(`Cập nhật thất bại: ${serverMsg}`);
-    }
-
-    // nếu OK -> parse json
-    const updatedDto = JSON.parse(respBodyText || "{}");
-
-    // cập nhật storage & UI
-    const newStored = { ...storedUser,
+    // cập nhật storage & UI với dữ liệu server trả về (fallback về payload nếu thiếu)
+    const newStored = {
+      ...storedUser,
       fullName: updatedDto.fullName || payload.fullName,
       avatar: updatedDto.avatarUrl || payload.avatarUrl,
       address: updatedDto.address || payload.address,
       dateOfBirth: updatedDto.dateOfBirth || payload.dateOfBirth,
-      gender: updatedDto.gender || payload.gender
+      gender: updatedDto.gender || payload.gender,
+      email: updatedDto.email || storedUser.email,
+      phone: updatedDto.phone || storedUser.phone
     };
+
     localStorage.setItem("user", JSON.stringify(newStored));
+
+    // reset form hiển thị
     form.reset({
       name: newStored.fullName,
       phone: newStored.phone,
@@ -461,12 +491,12 @@ export default function UserProfile() {
     toast.success("Cập nhật hồ sơ thành công");
   } catch (err) {
     console.error("Lỗi when saving profile:", err);
-    // hiện thông báo rõ cho user
     toast.error("Lỗi khi lưu hồ sơ", { description: err.message || "Unknown error" });
   } finally {
     setIsSubmitting(false);
   }
 }
+
 
 
     if (isLoading) {
@@ -603,37 +633,6 @@ export default function UserProfile() {
                                                     )}
                                                 />
                                             </div>
-
-                                            <FormField
-                                                control={form.control}
-                                                name="gender"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-purple-200">Giới tính</FormLabel>
-                                                        <FormControl>
-                                                            <RadioGroup
-                                                                defaultValue={field.value}
-                                                                onValueChange={field.onChange}
-                                                                className="flex space-x-4"
-                                                            >
-                                                                <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="male" id="male" className="border-purple-500 text-purple-500" />
-                                                                    <Label htmlFor="male" className="text-purple-200">Nam</Label>
-                                                                </div>
-                                                                <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="female" id="female" className="border-purple-500 text-purple-500" />
-                                                                    <Label htmlFor="female" className="text-purple-200">Nữ</Label>
-                                                                </div>
-                                                                <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="other" id="other" className="border-purple-500 text-purple-500" />
-                                                                    <Label htmlFor="other" className="text-purple-200">Khác</Label>
-                                                                </div>
-                                                            </RadioGroup>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
 
                                             <div className="space-y-2">
                                                 <FormLabel className="text-purple-200">Ngày sinh</FormLabel>

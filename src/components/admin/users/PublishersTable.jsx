@@ -2,13 +2,13 @@ import { PlayCircleIcon, StopCircleIcon, EyeIcon } from "lucide-react";
 import React, { useState } from "react";
 import BlockReasonModal from "./BlockReasonModal"; // Modal nhập lý do
 
-export default function PublishersTable({ publishers, onStatusToggle, onViewDetails }) {
+export default function PublishersTable({ publishers, onStatusToggle, onViewDetails ,isReviewMode }) {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [selectedPublisher, setSelectedPublisher] = useState(null);
 
   const getStatusClass = (status) => {
     switch (status) {
-      case "Active":
+      case "ACTIVE":
         return "border-green-400 text-green-400 bg-green-500/10";
       case "Blocked":
         return "border-orange-500 text-orange-500 bg-orange-500/10";
@@ -20,13 +20,29 @@ export default function PublishersTable({ publishers, onStatusToggle, onViewDeta
   };
 
   const handleBlockClick = (publisher) => {
-    if (publisher.status === "Active") {
+    if (publisher.status === "ACTIVE") {
       setSelectedPublisher(publisher);
       setIsBlockModalOpen(true);
     } else {
       onStatusToggle(publisher.id); // Kích hoạt lại mà không cần lý do
     }
   };
+
+  const handleActionClick = (publisher) => {
+  if (isReviewMode) {
+    // Tab Pending review -> gọi approve
+    onStatusToggle(publisher.publisherRequestId);
+  } else {
+    // Tab ACTIVE/Blocked -> toggle status
+    if (publisher.status === "ACTIVE") {
+      setSelectedPublisher(publisher);
+      setIsBlockModalOpen(true);
+    } else {
+      onStatusToggle(publisher.id); // Kích hoạt lại mà không cần lý do
+    }
+  }
+};
+
 
   const handleConfirmBlock = (reason) => {
     if (selectedPublisher) {
@@ -61,20 +77,20 @@ export default function PublishersTable({ publishers, onStatusToggle, onViewDeta
                 <td className="p-4 text-center">{pub.games}</td>
                 <td className="p-4">
                   <div className={`inline-block px-5 py-1 rounded-full text-sm font-semibold border-2 ${getStatusClass(pub.status)}`}>
-                    {pub.status === "Active" ? "Hoạt động" : pub.status === "Blocked" ? "Bị chặn" : "Chờ duyệt"}
+                    {pub.status === "ACTIVE" ? "Hoạt động" : pub.status === "Blocked" ? "Bị chặn" : "Chờ duyệt"}
                   </div>
                 </td>
                 <td className="p-4 flex justify-center items-center gap-2">
                   <button
-                    onClick={() => handleBlockClick(pub)}
+                    onClick={() => handleActionClick(pub)}
                     className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg ${
-                      pub.status === "Active"
+                      pub.status === "ACTIVE"
                         ? "bg-gradient-to-r from-red-500 to-pink-600 shadow-pink-500/30"
                         : "bg-gradient-to-r from-green-500 to-teal-600 shadow-teal-500/30"
                     }`}
                   >
-                    {pub.status === "Active" ? <StopCircleIcon className="h-4 w-4" /> : <PlayCircleIcon className="h-4 w-4" />}
-                    <span>{pub.status === "Active" ? "Chặn" : "Kích hoạt"}</span>
+                    {pub.status === "ACTIVE" ? <StopCircleIcon className="h-4 w-4" /> : <PlayCircleIcon className="h-4 w-4" />}
+                    <span>{pub.status === "ACTIVE" ? "Chặn" : "Kích hoạt"}</span>
                   </button>
 
                   <button

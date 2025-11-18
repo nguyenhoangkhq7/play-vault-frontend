@@ -179,7 +179,7 @@ export default function FavoriteProducts() {
 
     // Handle game selection
     const handleGameSelect = (gameId) => {
-        navigate(`/game/${gameId}`)
+        navigate(`/product/${gameId}`)
     }
 
     // Format tags for display

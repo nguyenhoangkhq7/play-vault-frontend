@@ -83,13 +83,13 @@ export default function HeroSlideshow() {
 
   // Hàm xử lý khi nhấn "Xem Chi Tiết"
   const handleViewDetails = (gameId) => {
-    navigate(`/game/${gameId}`); // Điều hướng đến trang chi tiết
+    navigate(`/product/${gameId}`); // Điều hướng đến trang chi tiết
   };
 
   // Hàm xử lý khi nhấn "Mua Ngay"
   const handleBuyNow = (gameId, gameTitle) => {
     alert(`Bạn đã chọn mua ${gameTitle}!`);
-    navigate(`/game/${gameId}`); // Điều hướng đến trang chi tiết (hoặc có thể đến trang thanh toán)
+    navigate(`/product/${gameId}`); // Điều hướng đến trang chi tiết (hoặc có thể đến trang thanh toán)
   };
 
   if (loading) {

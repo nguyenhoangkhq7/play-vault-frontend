@@ -133,18 +133,19 @@ const checkCartStatus = useCallback(async () => {
       return
     }
     console.log(`Buy Now: ${game.title} (ID: ${game.id})`)
-    try {
-      if (!isInCart) {
-        setIsInCart(true) // Optimistic update
-        await addToCart(user.customerId, game.id)
-        await checkCartStatus() // Sync with backend
-      }
-      navigate(`/game/${game.id}`) // Redirect to game detail page
-    } catch (err) {
-      console.error("Error adding to cart for Buy Now:", err)
-      setIsInCart(false) // Revert on failure
-      alert("Không thể thêm game vào giỏ hàng để mua. Vui lòng thử lại.")
-    }
+    navigate(`/product/${game.id}`)
+    // try {
+    //   if (!isInCart) {
+    //     setIsInCart(true) // Optimistic update
+    //     await addToCart(user.customerId, game.id)
+    //     await checkCartStatus() // Sync with backend
+    //   }
+    //   navigate(`/product/${game.id}`) // Redirect to game detail page
+    // } catch (err) {
+    //   console.error("Error adding to cart for Buy Now:", err)
+    //   setIsInCart(false) // Revert on failure
+    //   alert("Không thể thêm game vào giỏ hàng để mua. Vui lòng thử lại.")
+    // }
   }
 
   // Hàm xử lý khi nhấn "Thêm Vào Giỏ" hoặc "Xóa Khỏi Giỏ"

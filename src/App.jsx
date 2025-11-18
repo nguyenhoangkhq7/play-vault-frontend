@@ -42,6 +42,7 @@ import Monitoring from "./pages/Monitoring";
 import Reports from "./pages/Reports";
 import AdminProfile from "./pages/AdminProfiles.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
+import { CartProvider } from "./store/CartContext";
 
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
@@ -72,6 +73,7 @@ function MainLayout() {
 
 function App() {
   return (
+    <CartProvider>
     <BrowserRouter>
       <Toaster richColors position="top-right" />
       <Routes>
@@ -113,6 +115,7 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </CartProvider>
   );
 }
 

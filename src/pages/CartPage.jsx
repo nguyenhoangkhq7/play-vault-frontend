@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import PaymentModal from "../components/download/PaymentModal";
 import ConfirmModal from "../components/download/ConfirmModal";
 import { api } from "../api/authApi"; // Thay đổi: Import api wrapper
-import { useUser } from "../store/UserContext"; // Thay đổi: Import context
+import { useUser } from "../store/UserContext";
+import { useCart } from "../store/CartContext"; // Thay đổi: Import context
 
 function CartPage() {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ function CartPage() {
           const fetchCart = async () => {
               setLoading(true);
               try {
-                  const response = await api.get("/api/cart", setAccessToken);
+                  const response = await api.get("/api/cart");
                   setCart(response.data); 
 
                   // Thay đổi QUAN TRỌNG TẠI ĐÂY:
@@ -80,10 +81,7 @@ function CartPage() {
     try {
       // 1. GỌI API: Dùng api.delete với endpoint của backend
       // Backend trả về CartResponse mới
-      const response = await api.delete(
-        `/api/cart/items/${cartItemId}`,
-        setAccessToken
-      );
+      const response = await api.delete(`/api/cart/items/${cartItemId}`);
 
       // 2. ĐẨY LÊN GIAO DIỆN: Cập nhật state 'cart'
       setCart(response.data);
@@ -143,34 +141,49 @@ function CartPage() {
   // ✅ Xử lý xác nhận thanh toán (Mock)
   // Backend của bạn chưa có API checkout, nên logic này vẫn là mock
   // nhưng nó sẽ cập nhật state 'cart' và 'localBalance' mới
-  const handleConfirmPayment = () => {
-    // Thay đổi: Cập nhật localBalance
-    setLocalBalance((prev) => prev - pendingAmount);
-    toast.success(
-      `Thanh toán thành công! Đã trừ ${pendingAmount.toLocaleString("vi-VN")} GCoin.`
-    );
-    
-    // TODO: Gọi API checkout thật ở đây khi backend sẵn sàng
-    // const response = await api.post("/api/checkout", { items: selectedItems }, setAccessToken);
-    
-    // Tạm thời: Lọc các item đã mua ra khỏi state 'cart'
-    setCart(prevCart => ({
-      ...prevCart,
-      items: prevCart.items.filter(item => !selectedItems.includes(String(item.cartItemId)))
-    }));
-    
-    setSelectedItems([]);
-    setShowConfirmModal(false);
-  };
+  // Trong CartPage.jsx → Sửa hàm handleConfirmPayment
 
-  // ✅ Loading UI
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+const handleConfirmPayment = async () => {
+  try {
+    // 1. Gọi API thanh toán thật (khi backend có)
+    // const response = await api.post("/api/orders/checkout", {
+    //   // cartItemIds: selectedItems.map(id => Number(id))
+    // });
+
+    // 2. Cập nhật số dư
+    setLocalBalance((prev) => prev - pendingAmount);
+
+    // 3. Lấy danh sách gameId đã thanh toán thành công
+    const purchasedGameIds = (cart?.items || [])
+      .filter((item) => selectedItems.includes(String(item.cartItemId)))
+      .map((item) => item.gameId); // ← quan trọng: gameId của game thật
+
+    // 4. Xóa các game đã mua khỏi giỏ hàng
+    setCart((prev) => ({
+      ...prev,
+      items: prev.items.filter((item) => !selectedItems.includes(String(item.cartItemId))),
+    }));
+    setSelectedItems([]);
+
+    toast.success(`Thanh toán thành công ${pendingAmount.toLocaleString()} GCoin!`);
+
+    // 5. CHUYỂN HƯỚNG THÔNG MINH
+    if (purchasedGameIds.length === 1) {
+      // Nếu chỉ mua 1 game → chuyển thẳng đến trang chi tiết + mở tab download
+      const gameId = purchasedGameIds[0];
+      navigate(`/product/${gameId}?tab=download`);
+    } else if (purchasedGameIds.length > 1) {
+      // Nếu mua nhiều game → về trang thư viện hoặc thông báo
+      toast.success("Đã thêm tất cả game vào thư viện của bạn!");
+      navigate("/library"); // hoặc "/my-games"
+    }
+
+    setShowConfirmModal(false);
+  } catch (error) {
+    console.error("Lỗi thanh toán:", error);
+    toast.error("Thanh toán thất bại. Vui lòng thử lại.");
   }
+};
 
   // Thay đổi: Xử lý khi chưa đăng nhập
   if (!user && !loading) {

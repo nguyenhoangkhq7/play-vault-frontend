@@ -65,7 +65,7 @@ export async function deleteGame(id) {
 
 export async function getGameById(id) {
   try {
-    const response = await fetch(`${API_URL}/${id}`)
+    const response = await fetch(`${API_URL}/card/${id}`)
     if (!response.ok) {
       throw new Error(`Failed to fetch game ${id}: ${response.statusText}`)
     }

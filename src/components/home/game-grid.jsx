@@ -1,23 +1,29 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom" // Thêm useNavigate
+import { useNavigate } from "react-router-dom"
 import { ChevronDown, Star, Loader2 } from "lucide-react"
 import { LazyLoadImage } from "react-lazy-load-image-component"
-import { getGames } from "../../api/games.js"
-import { getCommentsByGameId } from "../../api/comments.js"
+// THÊM getTopNGame và API_BASE_URL (Giả định bạn có import này)
+import { getTopNGame } from "../../api/games.js" 
+import { API_BASE_URL } from "../../config/api.js"
+// import { getGames } from "../../api/games.js" // KHÔNG CẦN
+// import { getCommentsByGameId } from "../../api/comments.js" // KHÔNG CẦN
 
-// Component GameCard
+// Component GameCard (Giữ nguyên)
 const GameCard = ({ game }) => {
-  const navigate = useNavigate() // Khởi tạo useNavigate trong GameCard
+  const navigate = useNavigate()
 
-  // Hàm xử lý khi nhấn "Mua Ngay"
-  const handleBuyNow = () => {
+  const handleBuyNow = (e) => {
+    e.stopPropagation() // Ngăn chặn click lan truyền
     if (!game?.id) return
-    alert(`Bạn đã chọn mua ${game.title}!`)
-    navigate(`/game/${game.id}`) // Điều hướng đến trang chi tiết
+    // alert(`Bạn đã chọn mua ${game.title}!`) 
+    navigate(`/game/${game.id}`) 
   }
 
   return (
-    <div className="relative group overflow-hidden rounded-xl bg-black/20 hover:bg-black/40 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10">
+    <div 
+      className="relative group overflow-hidden rounded-xl bg-black/20 hover:bg-black/40 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 cursor-pointer"
+      onClick={() => navigate(`/game/${game.id}`)} // Bấm vào card điều hướng
+    >
       <div className="relative aspect-[3/2] overflow-hidden rounded-t-xl">
         <LazyLoadImage
           src={game.image}
@@ -38,11 +44,13 @@ const GameCard = ({ game }) => {
 
         <div className="flex justify-between items-end">
           <div className="flex flex-col">
-            <span className="text-white font-bold">{game.price}</span>
-            {game.discount && (
+            <span className="text-white font-bold">{game.originalPrice}</span>
+            {game.price != game.originalPrice && (
               <div className="flex items-center space-x-1">
-                <span className="text-gray-400 text-xs line-through">{game.originalPrice}</span>
-                <span className="text-green-500 text-xs">-{game.discount}</span>
+                <span className="text-gray-400 text-xs line-through">{game.price}</span>
+                <span className="text-green-500 text-xs">
+                  -{game.discount || ""} 
+                </span>
               </div>
             )}
           </div>
@@ -65,73 +73,65 @@ export default function GameGrid() {
   const [error, setError] = useState(null)
   const [showMore, setShowMore] = useState(false)
 
-  // Tính rating trung bình từ danh sách comment (trên thang điểm 5)
-  const calculateAverageRating = (comments) => {
-    if (!comments || comments.length === 0) return 0
-    const sum = comments.reduce((total, comment) => total + (comment.rating || 0), 0)
-    return (sum / comments.length).toFixed(1)
-  }
-
   // Lấy danh sách game có rating cao
   useEffect(() => {
-    const fetchTopRatedGames = async () => {
+    const fetchTopGamesForGrid = async () => {
       try {
         setLoading(true)
-        const allGames = await getGames()
-        const gamesWithRatings = []
-
-        for (const g of allGames) {
-          try {
-            const comments = await getCommentsByGameId(g.id)
-            const avgRating = calculateAverageRating(comments)
-            gamesWithRatings.push({
-              id: g.id,
-              title: g.name,
-              image: g.thumbnail_image || g.images?.[0] || "/placeholder.svg?height=200&width=300",
-              price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(g.price || 0),
-              originalPrice: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                (g.price || 0) * 1.2
-              ),
-              rating: parseFloat(avgRating) || 0,
-              commentCount: comments.length,
-            })
-          } catch (err) {
-            console.error(`Error fetching comments for game ${g.id}:`, err)
-            gamesWithRatings.push({
-              id: g.id,
-              title: g.name,
-              image: g.thumbnail_image || g.images?.[0] || "/placeholder.svg?height=200&width=300",
-              price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(g.price || 0),
-              originalPrice: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                (g.price || 0) * 1.2
-              ),
-              discount: "20%", // Giá trị mẫu, có thể thay đổi
-              rating: 0,
-              commentCount: 0,
-            })
-          }
+        
+        // 🎯 Lấy 8 game có rating cao nhất cho lưới hiển thị
+        const topGamesData = await getTopNGame(8) 
+        
+        if (topGamesData.length === 0) {
+            setGames([]);
+            setLoading(false);
+            return;
         }
 
-        const topGames = gamesWithRatings
-          .sort((a, b) => b.rating - a.rating || b.commentCount - a.commentCount)
-          .slice(0, 8)
+        // Ánh xạ dữ liệu từ backend sang định dạng component GameCard
+        const processedGames = topGamesData.map((g, index) => {
+          
+          const priceValue = g.gameBasicInfos?.price || 0
+          // Giả định giá gốc (hoặc có thể lấy từ trường khác nếu API có)
+          const originalPriceValue = priceValue - (g.discount || 0)
 
-        const processedGames = topGames.map((game, index) => ({
-          ...game,
-          showWhenExpanded: index >= 4,
-        }))
+          // Định dạng tiền tệ
+          const formattedPrice = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(priceValue);
+          const formattedOriginalPrice = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(originalPriceValue);
+          
+          return {
+            id: g.id,
+            title: g.gameBasicInfos?.name || "Untitled Game",
+            
+            // Xây dựng URL hình ảnh
+            image: g.gameBasicInfos?.thumbnail 
+              ? `${API_BASE_URL}${g.gameBasicInfos.thumbnail}` 
+              : "/placeholder.svg?height=200&width=300",
+            
+            price: formattedPrice,
+            originalPrice: formattedOriginalPrice,
+            discount: g.discount || 0,
+            
+            // Lấy rating và review count trực tiếp
+            rating: (g.avgRating || 0).toFixed(1), 
+            commentCount: g.reviewCount || 0,
+            
+            // Logic ẩn/hiện (4 game đầu luôn hiện, các game sau cần click "Xem thêm")
+            showWhenExpanded: index >= 4, 
+          }
+        })
 
         setGames(processedGames)
         setLoading(false)
       } catch (err) {
-        console.error("Error fetching top rated games:", err)
+        console.error("Error fetching top games for grid:", err)
         setError("Không thể tải dữ liệu game. Vui lòng thử lại sau.")
         setLoading(false)
       }
     }
 
-    fetchTopRatedGames()
-  }, [])
+    fetchTopGamesForGrid()
+  }, []) // Dependencies là mảng rỗng
 
   const visibleGames = showMore ? games : games.filter((game) => !game.showWhenExpanded)
 

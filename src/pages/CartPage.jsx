@@ -210,6 +210,7 @@ function CartPage() {
         />
       )}
 
+      {/* Confirm Modal */}
       {showConfirmModal && (
         <ConfirmModal
           amount={pendingAmount}
@@ -239,6 +240,7 @@ function CartPage() {
             </Button>
           </div>
         ) : (
+          // --- GIỎ HÀNG CÓ HÀNG ---
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Danh sách sản phẩm */}
             <div className="lg:col-span-3">

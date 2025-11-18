@@ -16,6 +16,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getUsers, updateUser } from "../../api/users.js"; // Import users API
 import { api } from "../../api/authApi.js"; // Import api wrapper
 import { useUser } from "../../store/UserContext.jsx"; // Import user context
+import { getUsers} from "../../api/users.js"; // Import users API
+import { getPurchases } from "../../api/purchases.js"; // Import games and purchases API
+import { getGames } from "../../api/games.js"; // Import games API
+import { API_BASE_URL } from "../../config/api";
+import { getProfile, updateProfile} from "../../api/profile.js";
+import { getOrderHistory} from "../../api/order.js";
+
+
+// 🧪 Dữ liệu mẫu đơn hàng để test giao diện
 
 
 // Define the form schema with validation rules
@@ -78,209 +87,246 @@ export default function UserProfile() {
 
     // Load user data from API and storage on mount
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                // Sửa: Lấy thông tin user từ Context thay vì localStorage
-                const userData = user; 
-                
-                if (userData) {
-                    // Dữ liệu từ API (getUsers) có thể không cần thiết
-                    // nếu 'user' từ context đã là phiên bản mới nhất
-                    // từ AuthController (chứa customer/publisher info).
-                    // Tạm thời giữ logic đồng bộ của bạn:
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (!storedRaw) throw new Error("User chưa đăng nhập");
 
-                    const userId = userData.id || userData._id; // Giả sử 'user' có 'id' hoặc '_id'
+      const storedUser = JSON.parse(storedRaw);
+      // Lấy id ưu tiên
+      const userId = storedUser.id || storedUser.customerId || storedUser.customer_id || null;
 
-                    if (userId) {
-                        try {
-                            const userFromApi = await getUsers(); // API này có thể không cần thiết
-                            const matchedUser = userFromApi.find(user => user.id === userId || user._id === userId);
-
-                            if (matchedUser) {
-                                // ... (logic cập nhật userData của bạn)
-                                userData.f_name = matchedUser.f_name || userData.f_name;
-                                // ...
-                            }
-                        } catch (apiError) {
-                            console.warn("Không thể lấy dữ liệu người dùng từ API:", apiError);
-                        }
-                    }
-
-                    if (userData.avatarUrl) { // Sửa: Dùng avatarUrl từ DTO
-                        setAvatarUrl(userData.avatarUrl);
-                    } else {
-                        const fullName = userData.fullName || userData.studioName; // Sửa: Dùng fullName
-                        if (fullName) {
-                            setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=9333ea&color=ffffff&size=200`);
-                        }
-                    }
-
-                    let birthDay = "";
-                    let birthMonth = "";
-                    let birthYear = "";
-                    if (userData.dateOfBirth) { // Sửa: Dùng dateOfBirth từ DTO
-                        const date = new Date(userData.dateOfBirth);
-                        if (!isNaN(date.getTime())) {
-                            birthDay = date.getUTCDate().toString();
-                            birthMonth = (date.getUTCMonth() + 1).toString();
-                            birthYear = date.getUTCFullYear().toString();
-                        }
-                    }
-
-                    form.reset({
-                        name: userData.fullName || userData.studioName || "Unknown", // Sửa: Dùng fullName
-                        phone: userData.phone || "",
-                        email: userData.email || "",
-                        gender: userData.gender || "male", // Backend chưa có trường này
-                        address: userData.address || "", // Backend chưa có trường này
-                        birthDay,
-                        birthMonth,
-                        birthYear,
-                    });
-                }
-            } catch (error) {
-                console.error("Lỗi khi tải dữ liệu người dùng:", error);
-                toast.error("Lỗi", {
-                    description: "Không thể tải dữ liệu người dùng.",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [form, user]); // Thêm 'user' vào dependency array
-
-    // Handle form submission
-    async function onSubmit(values) {
-        setIsSubmitting(true);
+      let profile = null;
+      if (userId) {
         try {
-            // ... (Phần logic xử lý tên và ngày sinh của bạn)
-            const nameParts = values.name.trim().split(" ");
-            const f_name = nameParts[0] || "Unknown";
-            const l_name = nameParts.slice(1).join(" ") || "";
-
-            let dob = null;
-            if (values.birthDay && values.birthMonth && values.birthYear) {
-                const date = new Date(
-                    Date.UTC(
-                        parseInt(values.birthYear),
-                        parseInt(values.birthMonth) - 1,
-                        parseInt(values.birthDay),
-                    ),
-                );
-                if (!isNaN(date.getTime())) {
-                    dob = { $date: date.toISOString() }; // Cần xem backend nhận format nào
-                } else {
-                    throw new Error("Ngày không hợp lệ");
-                }
-            }
-            
-            // Sửa: Lấy userId từ 'user' trong context
-            const userId = user.id || user._id; // Cần đảm bảo 'user' có 'id'
-
-            const updatedUser = {
-                f_name,
-                l_name,
-                phone: values.phone || user.phone,
-                email: values.email || user.email,
-                gender: values.gender || user.gender,
-                address: values.address || user.address,
-                dob: dob || user.dob || null,
-                avatar: avatarUrl,
-                // ... (Các trường khác từ 'user' context)
-                username: user.username,
-                role: user.role,
-                // ...
-            };
-
-            // Cập nhật dữ liệu lên server (API updateUser có thể cần sửa)
-            // Backend của bạn dùng Spring Security, logic updateUser
-            // có thể cần gọi /api/customer/profile hoặc /api/publisher/profile
-            const response = await updateUser(userId, updatedUser); // Giả sử API này đúng
-
-            if (!response.ok) {
-                throw new Error(`Không thể cập nhật dữ liệu: ${response.statusText}`);
-            }
-
-            // Cập nhật lại user trong localStorage/sessionStorage
-            // Tốt hơn là cập nhật trong UserContext
-            // Ví dụ: login(updatedUser, accessToken)
-            const storage = localStorage.getItem("user") ? localStorage : sessionStorage;
-            storage.setItem("user", JSON.stringify(updatedUser));
-
-            toast.success("Thành công", {
-                description: "Hồ sơ đã được cập nhật thành công.",
-            });
-        } catch (error) {
-            console.error("Lỗi khi lưu hồ sơ:", error);
-            toast.error("Lỗi", {
-                description: "Không thể cập nhật hồ sơ. Vui lòng thử lại.",
-            });
-        } finally {
-            setIsSubmitting(false);
+          profile = await getProfile(userId);
+        } catch (e) {
+          console.warn("Không lấy được profile theo id:", userId, e);
         }
+      } else if (storedUser.username) {
+        // fallback: tìm bằng username (nếu bạn có getUsers trả array)
+        try {
+          const all = await getUsers();
+          const matched = all.find(u => u.username === storedUser.username || u.accountUsername === storedUser.username);
+          const idFound = matched?.customerId || matched?.id || matched?.userId || null;
+          if (idFound) {
+            profile = await getProfile(idFound);
+            storedUser.id = idFound; // lưu id để lần sau khỏi tìm
+          }
+        } catch (e) {
+          console.warn("Fallback tìm user bằng username thất bại:", e);
+        }
+      }
+
+      // Nếu không có profile từ API thì dùng dữ liệu localStorage
+      const final = {
+        username: storedUser.username,
+        email: (profile && profile.email) || storedUser.email || null,
+        phone: (profile && profile.phone) || storedUser.phone || null,
+        fullName: (profile && (profile.fullName || profile.full_name)) || storedUser.fullName || storedUser.f_name || "",
+        avatar: (profile && (profile.avatarUrl || profile.avatar_url || profile.avatar)) || storedUser.avatar || storedUser.avatarUrl || null,
+        address: (profile && profile.address) || storedUser.address || null,
+        gender: (profile && profile.gender) || storedUser.gender || "male",
+        dob: (profile && (profile.dateOfBirth || profile.date_of_birth || profile.dob)) || storedUser.dob || null,
+        id: userId || storedUser.id || storedUser.customerId || null
+      };
+
+      // parse dateOfBirth (API trả "YYYY-MM-DD")
+      let birthDay = "", birthMonth = "", birthYear = "";
+      if (final.dob) {
+        // dob có thể là "1999-05-12" hoặc object {$date: "..."}
+        let iso = null;
+        if (typeof final.dob === "string") iso = final.dob;
+        else if (typeof final.dob === "object" && final.dob.$date) iso = final.dob.$date;
+
+        if (iso) {
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) {
+            birthDay = String(d.getUTCDate());
+            birthMonth = String(d.getUTCMonth() + 1);
+            birthYear = String(d.getUTCFullYear());
+          }
+        }
+      }
+
+      // reset form values
+      form.reset({
+        name: final.fullName || "Unknown",
+        phone: final.phone || "",
+        email: final.email || "",
+        gender: final.gender || "male",
+        address: final.address || "",
+        birthDay,
+        birthMonth,
+        birthYear,
+      });
+
+      // set avatar
+      if (final.avatar) setAvatarUrl(final.avatar);
+      else {
+        const fn = final.fullName || storedUser.f_name || storedUser.l_name || "";
+        if (fn) setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(fn)}&background=9333ea&color=ffffff&size=200`);
+      }
+
+      // cập nhật localStorage merged
+      const merged = {
+        ...storedUser,
+        id: final.id,
+        fullName: final.fullName,
+        avatar: final.avatar,
+        address: final.address,
+        gender: final.gender,
+        dob: final.dob,
+        email: final.email,
+        phone: final.phone
+      };
+      localStorage.setItem("user", JSON.stringify(merged));
+    } catch (err) {
+      console.error("Lỗi khi tải dữ liệu người dùng:", err);
+      toast.error("Lỗi", { description: "Không thể tải dữ liệu người dùng." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
+    // thay thế useEffect + fetchOrderHistory cũ bằng đoạn này
+
+// khi user chuyển tab sang orders sẽ load
+useEffect(() => {
+  if (activeTab === "orders") {
+    fetchOrderHistory();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [activeTab]);
+
+// fetch order history tối ưu: ưu tiên endpoint /api/users/{id}/orders (getOrderHistory)
+// nếu không có hàm đó thì fallback sang getPurchases() hiện có
+const fetchOrderHistory = async (page = 0, size = 20) => {
+  setOrdersLoading(true);
+  try {
+    const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!storedRaw) throw new Error("Thông tin người dùng không tồn tại");
+    const storedUser = JSON.parse(storedRaw);
+    const userId = storedUser.id || storedUser.customerId || storedUser._id || null;
+    if (!userId) throw new Error("ID người dùng không tồn tại");
+
+    // --- try server pageable orders endpoint if available (recommended) ---
+    let ordersResponse = null;
+    try {
+      // try dynamic import / API helper if you created src/api/orders.js with getOrderHistory
+      // eslint-disable-next-line no-undef
+      if (typeof getOrderHistory === "function") {
+        ordersResponse = await getOrderHistory(userId, page, size);
+      } else {
+        ordersResponse = null;
+      }
+    } catch (e) {
+      console.warn("getOrderHistory unavailable or failed, fallback to purchases endpoint:", e);
+      ordersResponse = null;
     }
 
-    // Fetch order history when tab changes to orders
-    useEffect(() => {
-        // Thêm 'user' vào điều kiện
-        if (activeTab === "orders" && user) {
-            fetchOrderHistory();
-        }
-    }, [activeTab, user, setAccessToken]); // Thêm 'user', 'setAccessToken'
+    // --- fallback: use existing purchases endpoint (getPurchases) ---
+    let purchasesData = null;
+    if (!ordersResponse) {
+      // getPurchases should return array of purchase objects; you already import it at top
+      purchasesData = await getPurchases().catch(e => {
+        console.warn("getPurchases failed:", e);
+        return null;
+      });
+    }
 
-    // Fetch order history from API
-    const fetchOrderHistory = async () => {
-        setOrdersLoading(true);
-        try {
-            if (!user) { // Kiểm tra user từ context
-                throw new Error('Thông tin người dùng không tồn tại');
+    // Normalize into an array of order items to show in UI
+    let content = [];
+    if (Array.isArray(ordersResponse)) {
+      content = ordersResponse;
+    } else if (ordersResponse && Array.isArray(ordersResponse.content)) {
+      // Spring Page<T>
+      content = ordersResponse.content;
+    } else if (purchasesData) {
+      // purchasesData structure: array of purchase groups per user. find current user's purchases
+      const userPurchaseGroup = purchasesData.find(item =>
+        item.user_id?.toString() === userId?.toString() ||
+        item.userId?.toString() === userId?.toString() ||
+        item.user_id === Number(userId)
+      );
+      if (userPurchaseGroup && Array.isArray(userPurchaseGroup.games_purchased)) {
+        // convert each purchased game into a pseudo-order (same logic as cũ)
+        content = userPurchaseGroup.games_purchased.map((p, idx) => ({
+          id: `${userPurchaseGroup.id || "PUR"}-${p.game_id}-${idx + 1}`,
+          createdAt: p.purchased_at?.$date || new Date().toISOString(),
+          total: p.price || 0,
+          status: "Đã giao",
+          items: [
+            {
+              game_id: p.game_id,
+              price: p.price,
+              // additional fields missing -> map later with gamesResponse
+              raw: p
             }
+          ]
+        }));
+      } else {
+        content = []; // nothing for user
+      }
+    } else {
+      content = [];
+    }
 
-            // Sửa: Dùng 'api.get' từ 'authApi.js'
-            const response = await api.get("/api/orders/history", setAccessToken);
-            const orders = response.data; // Đây là List<OrderHistoryResponse>
+    // If you need game metadata (name, thumbnail) try to fetch games (optional)
+    let gamesResponse = [];
+    try {
+      gamesResponse = await getGames().catch(() => []);
+    } catch {
+      gamesResponse = [];
+    }
 
-            // "Làm phẳng" (Flatten) dữ liệu để khớp với giao diện
-            const flattenedOrders = [];
-            for (const order of orders) {
-                // THAY ĐỔI: Dùng (order.games || []) để đảm bảo nó là một mảng
-                for (const game of order.games || []) { 
-                    // 'game' là PurchasedGameResponse
-                    
-                    // ... (Giữ nguyên logic làm phẳng của bạn)
-                    flattenedOrders.push({
-                        id: order.orderCode,
-                        name: game.gameName,
-                        // ... các thuộc tính khác
-                        // Lưu ý: price và priceFormatted vẫn đang sử dụng order.totalPrice
-                        price: order.totalPrice, 
-                        priceFormatted: `${order.totalPrice.toLocaleString("vi-VN")} ₫`,
-                        // ...
-                    });
-                }
-            }
+    // Map content -> processedOrders for your UI
+    const processedOrders = (content || []).map((o, idx) => {
+      // try to find first item / game id
+      const firstItem = (o.items && o.items[0]) || (o.raw && o.raw.games_purchased && o.raw.games_purchased[0]) || null;
+      const gid = firstItem?.game_id || firstItem?.gameId || firstItem?.game || null;
 
-            console.log("Đơn hàng đã xử lý:", flattenedOrders);
-            setUserOrders(flattenedOrders);
+      // try to find game metadata
+      const game = gamesResponse.find(g => String(g.id) === String(gid) || String(g.game_id) === String(gid));
 
-            // Save to localStorage for offline use
-            localStorage.setItem('user_orders', JSON.stringify(flattenedOrders));
-        } catch (error) {
-            console.error("Error fetching order history:", error);
-            toast.error("Lỗi", {
-                description: "Không thể tải lịch sử đơn hàng. Vui lòng thử lại sau.",
-            });
-            const savedOrders = localStorage.getItem('user_orders');
-            if (savedOrders) {
-                setUserOrders(JSON.parse(savedOrders));
-            }
-        } finally {
-            setOrdersLoading(false);
-        }
-    };
+      // parse date
+      const dateIso = o.createdAt || o.created_at || firstItem?.purchased_at?.$date || new Date().toISOString();
+      const dateStr = dateIso ? new Date(dateIso).toLocaleDateString("vi-VN") : "";
+
+      const price = o.total || firstItem?.price || 0;
+      const priceFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
+      return {
+        id: o.id || `ORD-${idx}`,
+        date: dateStr,
+        status: o.status || o.orderStatus || "Đã giao",
+        price,
+        priceFormatted,
+        name: game?.name || firstItem?.title || firstItem?.name || "Unknown Game",
+        image: game?.thumbnail_image || game?.imageUrl || firstItem?.thumbnail || "https://placehold.co/100x100/3a1a5e/ffffff?text=Game",
+        raw: o
+      };
+    });
+
+    // sort newest first
+    processedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    setUserOrders(processedOrders);
+    localStorage.setItem('user_orders', JSON.stringify(processedOrders));
+  } catch (err) {
+    console.error("Error fetching order history:", err);
+    toast.error("Không thể tải lịch sử đơn hàng. Vui lòng thử lại sau.");
+    const saved = localStorage.getItem('user_orders');
+    if (saved) setUserOrders(JSON.parse(saved));
+  } finally {
+    setOrdersLoading(false);
+  }
+};
+
 
     // Handle avatar upload click
     const handleAvatarUploadClick = () => {
@@ -312,6 +358,87 @@ export default function UserProfile() {
             reader.readAsDataURL(file);
         }
     };
+
+    // Handle form submission
+    // Handle form submission
+async function onSubmit(values) {
+  setIsSubmitting(true);
+  try {
+    const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!storedRaw) {
+      toast.error("User ID không tồn tại. Vui lòng đăng nhập lại.");
+      return;
+    }
+    const storedUser = JSON.parse(storedRaw);
+    const userId = storedUser.id || storedUser.customerId || storedUser._id;
+    if (!userId) {
+      toast.error("User ID không tồn tại. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    const fullName = (values.name || storedUser.fullName || "Unknown").trim();
+    let dateOfBirth = null;
+    if (values.birthDay && values.birthMonth && values.birthYear) {
+      const d = new Date(Date.UTC(
+        parseInt(values.birthYear, 10),
+        parseInt(values.birthMonth, 10) - 1,
+        parseInt(values.birthDay, 10)
+      ));
+      if (!isNaN(d.getTime())) {
+        const yyyy = d.getUTCFullYear();
+        const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(d.getUTCDate()).padStart(2, "0");
+        dateOfBirth = `${yyyy}-${mm}-${dd}`;
+      }
+    }
+
+    const payload = {
+      fullName,
+      gender: values.gender,
+      dateOfBirth,
+      avatarUrl: avatarUrl || storedUser.avatarUrl || storedUser.avatar || null,
+      address: values.address || storedUser.address || null
+    };
+
+    // gọi API updateProfile (trả về JSON DTO)
+    const updatedDto = await updateProfile(userId, payload);
+
+    // cập nhật storage & UI với dữ liệu server trả về (fallback về payload nếu thiếu)
+    const newStored = {
+      ...storedUser,
+      fullName: updatedDto.fullName || payload.fullName,
+      avatar: updatedDto.avatarUrl || payload.avatarUrl,
+      address: updatedDto.address || payload.address,
+      dateOfBirth: updatedDto.dateOfBirth || payload.dateOfBirth,
+      gender: updatedDto.gender || payload.gender,
+      email: updatedDto.email || storedUser.email,
+      phone: updatedDto.phone || storedUser.phone
+    };
+
+    localStorage.setItem("user", JSON.stringify(newStored));
+
+    // reset form hiển thị
+    form.reset({
+      name: newStored.fullName,
+      phone: newStored.phone,
+      email: newStored.email,
+      gender: newStored.gender || "male",
+      address: newStored.address || "",
+      birthDay: values.birthDay,
+      birthMonth: values.birthMonth,
+      birthYear: values.birthYear
+    });
+
+    toast.success("Cập nhật hồ sơ thành công");
+  } catch (err) {
+    console.error("Lỗi when saving profile:", err);
+    toast.error("Lỗi khi lưu hồ sơ", { description: err.message || "Unknown error" });
+  } finally {
+    setIsSubmitting(false);
+  }
+}
+
+
 
     if (isLoading) {
         return (
@@ -448,37 +575,6 @@ export default function UserProfile() {
                                                 />
                                             </div>
 
-                                            <FormField
-                                                control={form.control}
-                                                name="gender"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-purple-200">Giới tính</FormLabel>
-                                                        <FormControl>
-                                                            <RadioGroup
-                                                                defaultValue={field.value}
-                                                                onValueChange={field.onChange}
-                                                                className="flex space-x-4"
-                                                            >
-                                                                <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="male" id="male" className="border-purple-500 text-purple-500" />
-                                                                    <Label htmlFor="male" className="text-purple-200">Nam</Label>
-                                                                </div>
-                                                                <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="female" id="female" className="border-purple-500 text-purple-500" />
-                                                                    <Label htmlFor="female" className="text-purple-200">Nữ</Label>
-                                                                </div>
-                                                                <div className="flex items-center space-x-2">
-                                                                    <RadioGroupItem value="other" id="other" className="border-purple-500 text-purple-500" />
-                                                                    <Label htmlFor="other" className="text-purple-200">Khác</Label>
-                                                                </div>
-                                                            </RadioGroup>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
                                             <div className="space-y-2">
                                                 <FormLabel className="text-purple-200">Ngày sinh</FormLabel>
                                                 <div className="grid grid-cols-3 gap-2">
@@ -561,24 +657,6 @@ export default function UserProfile() {
                                                     />
                                                 </div>
                                             </div>
-
-                                            <FormField
-                                                control={form.control}
-                                                name="address"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-purple-200">Địa chỉ</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                placeholder="Nhập địa chỉ"
-                                                                {...field}
-                                                                className="bg-purple-900/40 border-purple-600 focus:border-purple-500 text-white"
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
 
                                             <Button
                                                 type="submit"

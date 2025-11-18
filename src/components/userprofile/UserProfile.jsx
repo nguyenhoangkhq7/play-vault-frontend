@@ -13,12 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import users API
-import { getPurchases } from "../../api/purchases.js"; // Import games and purchases API
-import { getGames } from "../../api/games.js"; // Import games API
 import { API_BASE_URL } from "../../config/api";
 import { updateProfile, getProfile} from "../../api/profile.js";
-import { getOrderHistory} from "../../api/order.js";
 import { uploadImageToCloudinary } from "../../api/uploadImage.js";
+import { useUserOrders } from "../../api/useUserOrders.js"
 // Define the form schema with validation rules
 const formSchema = z
     .object({
@@ -79,8 +77,6 @@ export default function UserProfile() {
     const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg?height=200&width=200");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [userOrders, setUserOrders] = useState([]);
-    const [ordersLoading, setOrdersLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("profile");
     const fileInputRef = useRef(null);
 
@@ -210,134 +206,19 @@ export default function UserProfile() {
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 // khi user chuyển tab sang orders sẽ load
-useEffect(() => {
-  if (activeTab === "orders") {
-    fetchOrderHistory();
-    }
-}, [activeTab]);
+// When switching to orders tab, the `useUserOrders` hook is enabled
+// via its `enabled` option so an explicit `fetchOrderHistory` call
+// is unnecessary and `fetchOrderHistory` was undefined — removed.
 
-// fetch order history tối ưu: ưu tiên endpoint /api/users/{id}/orders (getOrderHistory)
-// nếu không có hàm đó thì fallback sang getPurchases() hiện có
-const fetchOrderHistory = async (page = 0, size = 20) => {
-  setOrdersLoading(true);
-  try {
-    const storedRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
-    if (!storedRaw) throw new Error("Thông tin người dùng không tồn tại");
-    const storedUser = JSON.parse(storedRaw);
-    const userId = storedUser.id || storedUser.customerId || storedUser._id || null;
-    if (!userId) throw new Error("ID người dùng không tồn tại");
-
-    // --- try server pageable orders endpoint if available (recommended) ---
-    let ordersResponse = null;
-    try {
-      // try dynamic import / API helper if you created src/api/orders.js with getOrderHistory
-      if (typeof getOrderHistory === "function") {
-        ordersResponse = await getOrderHistory(userId, page, size);
-      } else {
-        ordersResponse = null;
-      }
-    } catch (e) {
-      console.warn("getOrderHistory unavailable or failed, fallback to purchases endpoint:", e);
-      ordersResponse = null;
-    }
-
-    // --- fallback: use existing purchases endpoint (getPurchases) ---
-    let purchasesData = null;
-    if (!ordersResponse) {
-      // getPurchases should return array of purchase objects; you already import it at top
-      purchasesData = await getPurchases().catch(e => {
-        console.warn("getPurchases failed:", e);
-        return null;
-      });
-    }
-
-    // Normalize into an array of order items to show in UI
-    let content = [];
-    if (Array.isArray(ordersResponse)) {
-      content = ordersResponse;
-    } else if (ordersResponse && Array.isArray(ordersResponse.content)) {
-      // Spring Page<T>
-      content = ordersResponse.content;
-    } else if (purchasesData) {
-      // purchasesData structure: array of purchase groups per user. find current user's purchases
-      const userPurchaseGroup = purchasesData.find(item =>
-        item.user_id?.toString() === userId?.toString() ||
-        item.userId?.toString() === userId?.toString() ||
-        item.user_id === Number(userId)
-      );
-      if (userPurchaseGroup && Array.isArray(userPurchaseGroup.games_purchased)) {
-        // convert each purchased game into a pseudo-order (same logic as cũ)
-        content = userPurchaseGroup.games_purchased.map((p, idx) => ({
-          id: `${userPurchaseGroup.id || "PUR"}-${p.game_id}-${idx + 1}`,
-          createdAt: p.purchased_at?.$date || new Date().toISOString(),
-          total: p.price || 0,
-          status: "Đã giao",
-          items: [
-            {
-              game_id: p.game_id,
-              price: p.price,
-              // additional fields missing -> map later with gamesResponse
-              raw: p
-            }
-          ]
-        }));
-      } else {
-        content = []; // nothing for user
-      }
-    } else {
-      content = [];
-    }
-
-    // If you need game metadata (name, thumbnail) try to fetch games (optional)
-    let gamesResponse = [];
-    try {
-      gamesResponse = await getGames().catch(() => []);
-    } catch {
-      gamesResponse = [];
-    }
-
-    // Map content -> processedOrders for your UI
-    const processedOrders = (content || []).map((o, idx) => {
-      // try to find first item / game id
-      const firstItem = (o.items && o.items[0]) || (o.raw && o.raw.games_purchased && o.raw.games_purchased[0]) || null;
-      const gid = firstItem?.game_id || firstItem?.gameId || firstItem?.game || null;
-
-      // try to find game metadata
-      const game = gamesResponse.find(g => String(g.id) === String(gid) || String(g.game_id) === String(gid));
-
-      // parse date
-      const dateIso = o.createdAt || o.created_at || firstItem?.purchased_at?.$date || new Date().toISOString();
-      const dateStr = dateIso ? new Date(dateIso).toLocaleDateString("vi-VN") : "";
-
-      const price = o.total || firstItem?.price || 0;
-      const priceFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-
-      return {
-        id: o.id || `ORD-${idx}`,
-        date: dateStr,
-        status: o.status || o.orderStatus || "Đã giao",
-        price,
-        priceFormatted,
-        name: game?.name || firstItem?.title || firstItem?.name || "Unknown Game",
-        image: game?.thumbnail_image || game?.imageUrl || firstItem?.thumbnail || "https://placehold.co/100x100/3a1a5e/ffffff?text=Game",
-        raw: o
-      };
-    });
-
-    // sort newest first
-    processedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    setUserOrders(processedOrders);
-    localStorage.setItem('user_orders', JSON.stringify(processedOrders));
-  } catch (err) {
-    console.error("Error fetching order history:", err);
-    toast.error("Không thể tải lịch sử đơn hàng. Vui lòng thử lại sau.");
-    const saved = localStorage.getItem('user_orders');
-    if (saved) setUserOrders(JSON.parse(saved));
-  } finally {
-    setOrdersLoading(false);
-  }
-};
+const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
+const userId = storedUser.id || storedUser.customerId || storedUser._id || null;
+// khi tab chuyển sang orders bạn đã setActiveTab, bây giờ gọi hook với enabled = activeTab === 'orders'
+const { orders, loading: isOrdersLoading, meta, error: ordersError } = useUserOrders({
+  userId,
+  page: 0,
+  size: 20,
+  enabled: activeTab === "orders"
+});
 
 
     // Handle avatar upload click
@@ -798,97 +679,82 @@ async function onSubmit(values) {
                         </TabsContent>
 
                         <TabsContent value="orders" className="mt-0">
-                            <div className="space-y-6">
-                                {ordersLoading ? (
-                                    <div className="flex justify-center p-8">
-                                        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                ) : userOrders.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <ShoppingCart className="mx-auto h-12 w-12 text-purple-400 mb-4" />
-                                        <h3 className="text-xl font-medium text-white mb-2">Chưa có đơn hàng nào</h3>
-                                        <p className="text-purple-300">Bạn chưa có đơn hàng nào</p>
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="border-b border-purple-700/40">
-                                                    <th className="text-left py-3 px-4 text-purple-300 font-medium">Mã đơn hàng</th>
-                                                    <th className="text-left py-3 px-4 text-purple-300 font-medium">Trò chơi</th>
-                                                    <th className="text-left py-3 px-4 text-purple-300 font-medium">Ngày mua</th>
-                                                    <th className="text-left py-3 px-4 text-purple-300 font-medium">Trạng thái</th>
-                                                    <th className="text-right py-3 px-4 text-purple-300 font-medium">Giá tiền</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {userOrders.map((order, index) => (
-                                                    <tr
-                                                        key={`${order.id}-${index}`} // Sửa: Key duy nhất
-                                                        className={`border-b border-purple-700/20 hover:bg-purple-800/10 transition-colors ${index > 0 && userOrders[index - 1].date === order.date ? '' : 'border-t-4 border-t-purple-800'}`}
-                                                    >
-                                                        <td className="py-4 px-4 text-white font-medium">{order.id}</td>
-                                                        <td className="py-4 px-4">
-                                                            <div className="flex items-center gap-3">
-                                                                {order.image && (
-                                                                    <div className="w-10 h-10 rounded overflow-hidden">
-                                                                        <img
-                                                                            src={order.image}
-                                                                            alt={order.name}
-                                                                            className="w-full h-full object-cover"
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-purple-200 font-medium">{order.name}</span>
-                                                                    {order.publisher && (
-                                                                        <span className="text-purple-300 text-xs mt-1">
-                                                                            <span className="font-medium">Nhà phát hành:</span> {order.publisher}
-                                                                        </span>
-                                                                    )}
-                                                                    {order.tags && order.tags.length > 0 && (
-                                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                                            {order.tags.map((tag, idx) => (
-                                                                                <span key={idx} className="px-2 py-0.5 bg-purple-700/40 text-purple-200 text-xs rounded-full">
-                                                                                    {tag}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                    {order.age_limit && (
-                                                                        <span className="text-purple-300 text-xs mt-1">
-                                                                            <span className="font-medium">Độ tuổi:</span> {order.age_limit}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-4 px-4 text-purple-200">{order.date}</td>
-                                                        <td className="py-4 px-4">
-                                                            {/* Sửa: Hiển thị Status từ backend */}
-                                                            <span className={`inline-block px-3 py-1 rounded-full text-xs ${
-                                                                order.status === 'COMPLETED' 
-                                                                    ? 'bg-green-500/20 text-green-300' 
-                                                                    : order.status === 'PENDING' 
-                                                                    ? 'bg-yellow-500/20 text-yellow-300'
-                                                                    : 'bg-red-500/20 text-red-300'
-                                                            }`}>
-                                                                {order.status === 'COMPLETED' ? 'Hoàn thành' 
-                                                                : order.status === 'PENDING' ? 'Đang xử lý'
-                                                                : 'Bị hủy'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="py-4 px-4 text-right text-white font-medium">
-                                                            {order.priceFormatted}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
+  <div className="space-y-6">
+    {isOrdersLoading ? (
+      <div className="flex justify-center p-8">
+        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    ) : ordersError ? (
+      <div className="text-center py-12 text-red-300">
+        Lỗi khi tải lịch sử đơn hàng. Vui lòng thử lại.
+      </div>
+    ) : !orders || orders.length === 0 ? (
+      <div className="text-center py-12">
+        <ShoppingCart className="mx-auto h-12 w-12 text-purple-400 mb-4" />
+        <h3 className="text-xl font-medium text-white mb-2">Chưa có đơn hàng nào</h3>
+        <p className="text-purple-300">Bạn chưa có đơn hàng nào</p>
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-purple-700/40">
+              <th className="text-left py-3 px-4 text-purple-300 font-medium">Mã đơn hàng</th>
+              <th className="text-left py-3 px-4 text-purple-300 font-medium">Trò chơi</th>
+              <th className="text-left py-3 px-4 text-purple-300 font-medium">Ngày mua</th>
+              <th className="text-left py-3 px-4 text-purple-300 font-medium">Trạng thái</th>
+              <th className="text-right py-3 px-4 text-purple-300 font-medium">Giá tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order, index) => (
+              <tr
+                key={`${order.id}-${index}`}
+                className={`border-b border-purple-700/20 hover:bg-purple-800/10 transition-colors ${index > 0 && orders[index - 1].date === order.date ? '' : 'border-t-4 border-t-purple-800'}`}
+              >
+                <td className="py-4 px-4 text-white font-medium">{order.id}</td>
+                <td className="py-4 px-4">
+                  <div className="flex items-center gap-3">
+                    {order.image && (
+                      <div className="w-10 h-10 rounded overflow-hidden">
+                        <img src={order.image} alt={order.name} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-purple-200 font-medium">{order.name}</span>
+                      {order.publisher && (
+                        <span className="text-purple-300 text-xs mt-1">
+                          <span className="font-medium">Nhà phát hành:</span> {order.publisher}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                <td className="py-4 px-4 text-purple-200">{order.date}</td>
+                <td className="py-4 px-4">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs ${
+                    order.status === 'Hoàn thành' || order.status === 'COMPLETED' ? 'bg-green-500/20 text-green-300' :
+                    order.status === 'Đang chờ' || order.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-red-500/20 text-red-300'
+                  }`}>
+                    {order.status}
+                  </span>
+                </td>
+                <td className="py-4 px-4 text-right text-white font-medium">
+                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.price || 0)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="mt-4 text-sm text-purple-300">
+          Hiển thị {orders.length} / {meta?.totalElements ?? orders.length} đơn hàng
+        </div>
+      </div>
+    )}
+  </div>
+</TabsContent>
                     </Tabs>
                 </CardContent>
             </Card>

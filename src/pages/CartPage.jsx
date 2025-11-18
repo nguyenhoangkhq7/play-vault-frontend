@@ -1,3 +1,4 @@
+// Thay đổi: Import thêm 'api' từ authApi và 'useUser' từ UserContext
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trash2, ShoppingCart, CheckCircle, XCircle, Coins } from "lucide-react";
@@ -6,113 +7,123 @@ import { Toaster } from "../components/ui/sonner";
 import { toast } from "sonner";
 import PaymentModal from "../components/download/PaymentModal";
 import ConfirmModal from "../components/download/ConfirmModal";
-// Import các hàm API thật
-import { getCart, clearCart, removeFromCart } from "../api/cart";
+import { api } from "../api/authApi"; // Thay đổi: Import api wrapper
+import { useUser } from "../store/UserContext"; // Thay đổi: Import context
 
 function CartPage() {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState([]); // Sẽ chứa { cartItemId, gameId, gameName, ... }
-  // const [games, setGames] = useState([]); // <-- KHÔNG CẦN STATE NÀY NỮA
+  // Thay đổi: Lấy user và setAccessToken từ Context
+  const { user, setAccessToken } = useUser(); 
+  
+  // Thay đổi: 'cart' sẽ chứa toàn bộ DTO CartResponse từ backend
+  const [cart, setCart] = useState(null); 
   const [loading, setLoading] = useState(true);
-  const [selectedItems, setSelectedItems] = useState([]); // Sẽ chứa mảng các cartItemId
-  const [user, setUser] = useState(null); // Giữ lại để check login
-  const [balance, setBalance] = useState(300000); // Giữ lại mock balance
+  const [selectedItems, setSelectedItems] = useState([]);
+  
+  // Thay đổi: Lấy số dư từ 'user' trong context, và tạo state cục bộ
+  // để cập nhật UI khi nạp tiền (vì user context không tự refresh)
+  const [localBalance, setLocalBalance] = useState(0);
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState("selected");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAmount, setPendingAmount] = useState(0);
 
-  // ✅ Lấy dữ liệu giỏ hàng từ API khi component mount
+  // Thay đổi: Cập nhật localBalance khi user thay đổi (VD: khi login)
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      // Nếu không có user, không fetch, báo lỗi và chuyển hướng
-      toast.error("Vui lòng đăng nhập để xem giỏ hàng.");
-      setLoading(false);
-      navigate("/login");
-      return;
-    }
+    setLocalBalance(user?.balance || 0);
+  }, [user]);
 
-    async function fetchCartData() {
-      setLoading(true);
-      try {
-        // Gọi API thật
-        const cartData = await getCart(); 
-        // cartData là object CartResponse { cartId, items: [...], totalItems, ... }
-        setCartItems(cartData.items || []); // Cập nhật state với mảng items từ API
-        setSelectedItems([]); // Reset danh sách chọn
-      } catch (error) {
-        console.error("Error fetching cart:", error);
-        toast.error(`Không thể tải giỏ hàng: ${error.message}`);
-      } finally {
-        setLoading(false);
+  // Thay đổi: Đây là luồng fetch dữ liệu thật từ backend
+  // CartPage.jsx - Tìm và sửa hook useEffect này
+
+  useEffect(() => {
+      // ... (Phần kiểm tra user và setLoading)
+      if (user) {
+          const fetchCart = async () => {
+              setLoading(true);
+              try {
+                  const response = await api.get("/api/cart", setAccessToken);
+                  setCart(response.data); 
+
+                  // Thay đổi QUAN TRỌNG TẠI ĐÂY:
+                  // Cũ: setSelectedItems(allItemIds); // Tự động chọn tất cả
+                  
+                  // Mới: Khởi tạo là một mảng rỗng []
+                  setSelectedItems([]); // Mặc định không chọn mục nào
+
+              } catch (error) {
+                  console.error("Error fetching cart:", error);
+                  toast.error("Không thể tải giỏ hàng.");
+              } finally {
+                  setLoading(false);
+              }
+          };
+          fetchCart();
+      } else {
+          setLoading(false);
       }
-    }
+  }, [user, setAccessToken]);// Chạy lại khi user thay đổi
 
-    fetchCartData();
-  }, [navigate]); // Thêm navigate vào dependency array
 
-  // ✅ Tính tổng tiền
-  const totalPrice = cartItems
-    // Lọc các item có cartItemId nằm trong danh sách selectedItems
-    .filter((item) => selectedItems.includes(String(item.cartItemId)))
+  // ✅ Tính tổng tiền (Đã cập nhật)
+  // Tính toán dựa trên state 'cart' mới
+  const totalPrice = (cart?.items || [])
+    .filter((item) => selectedItems.includes(String(item.cartItemId))) // Thay đổi: dùng cartItemId
     .reduce((sum, item) => {
-      // Lấy giá trực tiếp từ item (vì item đã có finalPrice)
-      return sum + (item.finalPrice || 0);
+      // Thay đổi: dùng finalPrice từ CartItemResponse DTO
+      return sum + (item.finalPrice || 0); 
     }, 0);
 
-  // ✅ Xóa game khỏi giỏ hàng
-  const handleRemoveFromCart = async (cartItemId) => {
+  // ✅ Xóa game khỏi giỏ hàng (Đã cập nhật)
+  const handleRemoveFromCart = async (cartItemId) => { // Thay đổi: Nhận cartItemId
     try {
-      // Gọi API thật, truyền cartItemId
-      const updatedCart = await removeFromCart(cartItemId);
+      // 1. GỌI API: Dùng api.delete với endpoint của backend
+      // Backend trả về CartResponse mới
+      const response = await api.delete(
+        `/api/cart/items/${cartItemId}`,
+        setAccessToken
+      );
+
+      // 2. ĐẨY LÊN GIAO DIỆN: Cập nhật state 'cart'
+      setCart(response.data);
       
-      // API trả về CartResponse mới, cập nhật lại state
-      setCartItems(updatedCart.items || []);
-      
-      // Xóa khỏi danh sách selected
+      // Xóa khỏi danh sách đang chọn
       setSelectedItems((prev) => prev.filter((id) => id !== String(cartItemId)));
       toast.success("Đã xóa game khỏi giỏ hàng.");
-
+      
     } catch (error) {
       console.error("Error removing from cart:", error);
-      toast.error(`Không thể xóa game: ${error.message}`);
+      toast.error("Không thể xóa game khỏi giỏ hàng.");
     }
   };
 
-  // ✅ Chọn hoặc bỏ chọn sản phẩm (dùng cartItemId)
-  const handleToggleSelect = (cartItemId) => {
+  // ✅ Chọn hoặc bỏ chọn sản phẩm (Đã cập nhật)
+  const handleToggleSelect = (cartItemId) => { // Thay đổi: Nhận cartItemId
     const id = String(cartItemId);
     setSelectedItems((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
-  // ✅ Xử lý thanh toán
+  // ✅ Xử lý thanh toán (Đã cập nhật)
+  // Logic này giữ nguyên, nhưng dùng localBalance thay vì state balance cũ
   const handleCheckout = (mode) => {
-    // Tính tổng tiền các mục đã chọn (đã có sẵn)
-    const totalSelected = totalPrice; 
-    
-    // Tính tổng tiền TẤT CẢ item
-    const totalAll = cartItems.reduce((sum, item) => {
-      return sum + (item.finalPrice || 0);
-    }, 0);
+    // Tính tổng tiền cho tất cả item (nếu cần)
+    const totalForAll = (cart?.items || []).reduce(
+      (sum, item) => sum + (item.finalPrice || 0),
+      0
+    );
 
-    const total = (mode === "all") ? totalAll : totalSelected;
+    const total = (mode === "all") ? totalForAll : totalPrice;
 
-    // Kiểm tra trước khi mở modal
-    if (mode === 'selected' && selectedItems.length === 0) {
-      toast.error("Vui lòng chọn ít nhất một game để thanh toán!");
-      return;
-    }
-    if (mode === 'all' && cartItems.length === 0) {
-      toast.error("Giỏ hàng trống!");
+    if (total === 0) {
+      toast.error("Vui lòng chọn sản phẩm để thanh toán.");
       return;
     }
 
-    if (total > balance) {
+    // Thay đổi: Dùng localBalance
+    if (total > localBalance) {
       setCheckoutMode(mode);
       setShowPaymentModal(true);
     } else {
@@ -121,48 +132,35 @@ function CartPage() {
     }
   };
 
+  // ✅ Xử lý nạp tiền thành công (Đã cập nhật)
   const handlePaymentSuccess = (amount) => {
-    setBalance((prev) => prev + amount);
+    // Thay đổi: Cập nhật localBalance
+    setLocalBalance((prev) => prev + amount);
     setShowPaymentModal(false);
+    // Modal SuccessModal sẽ tự hiển thị
   };
 
-  // ✅ Xử lý xác nhận thanh toán (gọi API)
-  const handleConfirmPayment = async () => {
-    setShowConfirmModal(false); // Đóng modal ngay
-
-    try {
-      if (checkoutMode === "all") {
-        // --- CHẾ ĐỘ THANH TOÁN TẤT CẢ ---
-        await clearCart(); // Gọi API xóa sạch giỏ hàng
-        setCartItems([]); // Cập nhật UI
-        setSelectedItems([]); // Cập nhật UI
-
-      } else {
-        // --- CHẾ ĐỘ THANH TOÁN ĐÃ CHỌN ---
-        // Gọi API removeFromCart cho từng item đã chọn
-        const removePromises = selectedItems.map(cartItemId => 
-          removeFromCart(cartItemId)
-        );
-        
-        // Chờ tất cả API call hoàn thành
-        // Phản hồi cuối cùng (responses[responses.length - 1]) sẽ là trạng thái giỏ hàng mới nhất
-        const responses = await Promise.all(removePromises);
-        const finalCartState = responses[responses.length - 1];
-        
-        setCartItems(finalCartState.items || []); // Cập nhật UI
-        setSelectedItems([]); // Cập nhật UI
-      }
-
-      // Logic trừ tiền (giữ nguyên)
-      setBalance((prev) => prev - pendingAmount);
-      toast.success(
-        `Thanh toán thành công! Đã trừ ${pendingAmount.toLocaleString("vi-VN")} GCoin.`
-      );
-
-    } catch (error) {
-      console.error("Checkout failed:", error);
-      toast.error(`Thanh toán thất bại: ${error.message}`);
-    }
+  // ✅ Xử lý xác nhận thanh toán (Mock)
+  // Backend của bạn chưa có API checkout, nên logic này vẫn là mock
+  // nhưng nó sẽ cập nhật state 'cart' và 'localBalance' mới
+  const handleConfirmPayment = () => {
+    // Thay đổi: Cập nhật localBalance
+    setLocalBalance((prev) => prev - pendingAmount);
+    toast.success(
+      `Thanh toán thành công! Đã trừ ${pendingAmount.toLocaleString("vi-VN")} GCoin.`
+    );
+    
+    // TODO: Gọi API checkout thật ở đây khi backend sẵn sàng
+    // const response = await api.post("/api/checkout", { items: selectedItems }, setAccessToken);
+    
+    // Tạm thời: Lọc các item đã mua ra khỏi state 'cart'
+    setCart(prevCart => ({
+      ...prevCart,
+      items: prevCart.items.filter(item => !selectedItems.includes(String(item.cartItemId)))
+    }));
+    
+    setSelectedItems([]);
+    setShowConfirmModal(false);
   };
 
   // ✅ Loading UI
@@ -174,19 +172,41 @@ function CartPage() {
     );
   }
 
+  // Thay đổi: Xử lý khi chưa đăng nhập
+  if (!user && !loading) {
+    return (
+      <div className="container mx-auto py-10 text-center">
+        <h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          🛒 Giỏ Hàng
+        </h1>
+        <div className="bg-purple-900/30 backdrop-blur-md rounded-2xl p-10 border border-purple-500/30">
+          <p className="text-purple-200 text-lg mb-6">
+            Vui lòng đăng nhập để xem giỏ hàng của bạn.
+          </p>
+          <Button
+            variant="outline"
+            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
+            onClick={() => navigate("/login")}
+          >
+            Đăng nhập ngay
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // ✅ Render giao diện chính
   return (
     <>
       <Toaster richColors position="top-right" />
       
-      {/* Payment Modal */}
       {showPaymentModal && (
         <PaymentModal
           onClose={() => setShowPaymentModal(false)}
           onSuccess={handlePaymentSuccess}
           checkoutMode={checkoutMode}
-          userBalance={balance}
-          gamePrice={totalPrice} // Truyền tổng giá (của các mục đã chọn)
+          userBalance={localBalance} // Thay đổi: dùng localBalance
+          gamePrice={totalPrice} // Chỉ truyền tổng tiền của các mục đã chọn
         />
       )}
 
@@ -194,20 +214,19 @@ function CartPage() {
       {showConfirmModal && (
         <ConfirmModal
           amount={pendingAmount}
-          balance={balance}
+          balance={localBalance} // Thay đổi: dùng localBalance
           onConfirm={handleConfirmPayment}
           onCancel={() => setShowConfirmModal(false)}
         />
       )}
 
-      {/* Container chính */}
       <div className={`container mx-auto py-10 ${showPaymentModal || showConfirmModal ? 'blur-sm pointer-events-none' : ''}`}>
         <h1 className="text-4xl font-extrabold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 drop-shadow-[0_0_10px_rgba(168,85,247,0.6)]">
           🛒 Giỏ Hàng Của Bạn
         </h1>
 
-        {cartItems.length === 0 ? (
-          // --- GIỎ HÀNG TRỐNG ---
+        {/* Thay đổi: Kiểm tra cart.items */}
+        {!cart || cart.items.length === 0 ? (
           <div className="bg-purple-900/30 backdrop-blur-md rounded-2xl shadow-[0_0_25px_rgba(168,85,247,0.3)] p-10 border border-purple-500/30 text-center">
             <p className="text-purple-200 text-lg mb-6">
               Giỏ hàng của bạn đang trống.
@@ -230,45 +249,45 @@ function CartPage() {
                   🎮 Sản Phẩm Trong Giỏ Hàng
                 </h2>
                 <div className="space-y-5">
-                  {cartItems.map((item) => {
-                    // KHÔNG CẦN game.find NỮA
-                    return (
-                      <div
-                        key={item.cartItemId} // <-- Dùng cartItemId làm key
-                        className="flex items-center bg-purple-800/30 hover:bg-purple-700/40 border border-purple-500/30 hover:border-purple-400/60 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-                      >
-                        <input
-                          type="checkbox"
-                          // Dùng cartItemId để check
-                          checked={selectedItems.includes(String(item.cartItemId))}
-                          // Dùng cartItemId để toggle
-                          onChange={() => handleToggleSelect(item.cartItemId)}
-                          className="mr-4 h-5 w-5 accent-purple-500 cursor-pointer"
-                        />
-                        <img
-                          src={item.thumbnail} // <-- Dùng thumbnail từ item
-                          alt={item.gameName} // <-- Dùng gameName từ item
-                          className="w-24 h-16 object-cover rounded-lg mr-4 shadow"
-                        />
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-white">
-                            {item.gameName} {/* <-- Dùng gameName từ item */}
-                          </h3>
-                          <p className="text-purple-300 text-sm">
-                            {item.finalPrice.toLocaleString("vi-VN")} GCoin {/* <-- Dùng finalPrice */}
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="bg-transparent border-red-400 text-red-300 hover:bg-red-600 hover:text-white transition-all"
-                          // Dùng cartItemId để xóa
-                          onClick={() => handleRemoveFromCart(item.cartItemId)}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
+                  {/* Thay đổi: Lặp qua cart.items */}
+                  {cart.items.map((item) => (
+                    <div
+                      // Thay đổi: key là cartItemId
+                      key={item.cartItemId} 
+                      className="flex items-center bg-purple-800/30 hover:bg-purple-700/40 border border-purple-500/30 hover:border-purple-400/60 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+                    >
+                      <input
+                        type="checkbox"
+                        // Thay đổi: dùng cartItemId
+                        checked={selectedItems.includes(String(item.cartItemId))}
+                        onChange={() => handleToggleSelect(item.cartItemId)}
+                        className="mr-4 h-5 w-5 accent-purple-500 cursor-pointer"
+                      />
+                      <img
+                        // Thay đổi: Dùng thumbnail từ DTO
+                        src={item.thumbnail || "/placeholder.jpg"} 
+                        alt={item.gameName}
+                        className="w-24 h-16 object-cover rounded-lg mr-4 shadow"
+                      />
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-white">
+                          {item.gameName} {/* Thay đổi: Dùng gameName từ DTO */}
+                        </h3>
+                        <p className="text-purple-300 text-sm">
+                          {/* Thay đổi: Dùng finalPrice từ DTO */}
+                          {item.finalPrice.toLocaleString("vi-VN")} GCoin
+                        </p>
                       </div>
-                    );
-                  })}
+                      <Button
+                        variant="outline"
+                        className="bg-transparent border-red-400 text-red-300 hover:bg-red-600 hover:text-white transition-all"
+                        // Thay đổi: dùng cartItemId
+                        onClick={() => handleRemoveFromCart(item.cartItemId)}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -285,7 +304,8 @@ function CartPage() {
                     <Coins className="h-5 w-5 text-yellow-400" />
                     Số dư hiện tại:{" "}
                     <span className="text-green-400 font-bold ml-auto">
-                      {balance.toLocaleString("vi-VN")} GCoin
+                      {/* Thay đổi: dùng localBalance */}
+                      {localBalance.toLocaleString("vi-VN")} GCoin
                     </span>
                   </p>
                   <p className="text-purple-300">
@@ -297,7 +317,8 @@ function CartPage() {
                   <p className="text-purple-300">
                     Tổng tiền:{" "}
                     <span className="text-white font-bold text-xl">
-                      {totalPrice.toLocaleString("vi-VN")} GCoin {/* totalPrice đã đúng */}
+                      {/* Thay đổi: Dùng biến totalPrice đã tính */}
+                      {totalPrice.toLocaleString("vi-VN")} GCoin
                     </span>
                   </p>
                 </div>
@@ -314,7 +335,7 @@ function CartPage() {
                   <Button
                     onClick={() => handleCheckout("all")}
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(168,85,247,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] transition-all"
-                    disabled={cartItems.length === 0} // Thêm disabled
+                    disabled={cart?.items?.length === 0} // Thêm disabled
                   >
                     <CheckCircle className="h-5 w-5 mr-2" />
                     Thanh Toán Toàn Bộ

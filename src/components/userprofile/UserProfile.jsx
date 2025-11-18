@@ -13,6 +13,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getUsers, updateUser } from "../../api/users.js"; // Import users API
+import { api } from "../../api/authApi.js"; // Import api wrapper
+import { useUser } from "../../store/UserContext.jsx"; // Import user context
 import { getUsers} from "../../api/users.js"; // Import users API
 import { getPurchases } from "../../api/purchases.js"; // Import games and purchases API
 import { getGames } from "../../api/games.js"; // Import games API
@@ -63,73 +66,9 @@ export default function UserProfile() {
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("profile");
     const fileInputRef = useRef(null);
-    useEffect(() => {
-    // 🧩 Dữ liệu mẫu
-    const sampleOrders = [
-      {
-        id: "ORD-001",
-        name: "Cyberpunk 2077",
-        publisher: "CD Projekt Red",
-        date: "15/10/2025",
-        status: "Hoàn thành",
-        statusColor: "bg-green-500/20 text-green-300 border border-green-500/40",
-        statusIcon: "✓",
-        price: 1200000,
-        priceFormatted: "1.200.000 ₫",
-        image: "https://placehold.co/100x100/008000/FFFFFF?text=Cyberpunk",
-        tags: ["Hành động", "Thế giới mở"],
-        age_limit: "18+",
-      },
-      {
-        id: "ORD-002",
-        name: "Elden Ring",
-        publisher: "FromSoftware",
-        date: "10/10/2025",
-        status: "Đang xử lý",
-        statusColor: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40",
-        statusIcon: "⏳",
-        price: 1500000,
-        priceFormatted: "1.500.000 ₫",
-        image: "https://placehold.co/100x100/FFA500/FFFFFF?text=Elden+Ring",
-        tags: ["Phiêu lưu", "Hành động"],
-        age_limit: "16+",
-      },
-      {
-        id: "ORD-003",
-        name: "Baldur’s Gate 3",
-        publisher: "Larian Studios",
-        date: "05/10/2025",
-        status: "Bị lỗi",
-        statusColor: "bg-red-500/20 text-red-300 border border-red-500/40",
-        statusIcon: "⚠️",
-        price: 990000,
-        priceFormatted: "990.000 ₫",
-        image: "https://placehold.co/100x100/FF0000/FFFFFF?text=Baldur",
-        tags: ["Chiến thuật", "Nhập vai"],
-        age_limit: "18+",
-      },
-      {
-        id: "ORD-004",
-        name: "Stardew Valley",
-        publisher: "ConcernedApe",
-        date: "01/10/2025",
-        status: "Hoàn thành",
-        statusColor: "bg-green-500/20 text-green-300 border border-green-500/40",
-        statusIcon: "✓",
-        price: 250000,
-        priceFormatted: "250.000 ₫",
-        image: "https://placehold.co/100x100/228B22/FFFFFF?text=Stardew",
-        tags: ["Giả lập", "Nông trại"],
-        age_limit: "Mọi lứa tuổi",
-      },
-    ]
 
-    // 🧠 Giả lập loading và gán dữ liệu
-    setTimeout(() => {
-      setUserOrders(sampleOrders)
-      setOrdersLoading(false)
-    }, 800)
-  }, [])
+    // Lấy user và setAccessToken từ Context
+    const { user, setAccessToken } = useUser();
 
     // Initialize the form
     const form = useForm({
@@ -146,7 +85,6 @@ export default function UserProfile() {
         },
     });
 
-    // Load user data from API and storage on mount
     // Load user data from API and storage on mount
     useEffect(() => {
   const fetchData = async () => {
@@ -403,10 +341,13 @@ const fetchOrderHistory = async (page = 0, size = 20) => {
             reader.onload = (e) => {
                 setAvatarUrl(e.target.result);
 
+                // TODO: Cần gọi API upload ảnh
+                // Hiện tại chỉ đang lưu Base64 vào localStorage
+                
                 const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
                 const updatedUser = {
                     ...storedUser,
-                    avatar: e.target.result
+                    avatar: e.target.result // Sửa: Dùng avatarUrl
                 };
 
                 const storage = localStorage.getItem("user") ? localStorage : sessionStorage;
@@ -767,7 +708,7 @@ async function onSubmit(values) {
                                             <tbody>
                                                 {userOrders.map((order, index) => (
                                                     <tr
-                                                        key={order.id}
+                                                        key={`${order.id}-${index}`} // Sửa: Key duy nhất
                                                         className={`border-b border-purple-700/20 hover:bg-purple-800/10 transition-colors ${index > 0 && userOrders[index - 1].date === order.date ? '' : 'border-t-4 border-t-purple-800'}`}
                                                     >
                                                         <td className="py-4 px-4 text-white font-medium">{order.id}</td>
@@ -808,8 +749,17 @@ async function onSubmit(values) {
                                                         </td>
                                                         <td className="py-4 px-4 text-purple-200">{order.date}</td>
                                                         <td className="py-4 px-4">
-                                                            <span className="inline-block px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-xs">
-                                                                {order.status}
+                                                            {/* Sửa: Hiển thị Status từ backend */}
+                                                            <span className={`inline-block px-3 py-1 rounded-full text-xs ${
+                                                                order.status === 'COMPLETED' 
+                                                                    ? 'bg-green-500/20 text-green-300' 
+                                                                    : order.status === 'PENDING' 
+                                                                    ? 'bg-yellow-500/20 text-yellow-300'
+                                                                    : 'bg-red-500/20 text-red-300'
+                                                            }`}>
+                                                                {order.status === 'COMPLETED' ? 'Hoàn thành' 
+                                                                : order.status === 'PENDING' ? 'Đang xử lý'
+                                                                : 'Bị hủy'}
                                                             </span>
                                                         </td>
                                                         <td className="py-4 px-4 text-right text-white font-medium">

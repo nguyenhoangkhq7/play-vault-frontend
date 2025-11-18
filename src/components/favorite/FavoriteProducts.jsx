@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from "react"
-import { Search, Filter, Grid, List, Heart, LogIn } from "lucide-react"
+import { Search, Filter, Grid, List, Heart, HeartOff, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { getGames } from "../../api/games.js"
 import { getWishlist, updateWishlist } from "../../api/wishlist.js"
 
 export default function FavoriteProducts() {
@@ -16,7 +15,6 @@ export default function FavoriteProducts() {
     const [filterTag, setFilterTag] = useState("all")
     const [statusFilter, setStatusFilter] = useState("all")
     const [games, setGames] = useState([])
-    const [wishlist, setWishlist] = useState(null)
     const [user, setUser] = useState(null)
     const [loading, setLoading] = useState(true)
     const [wishlistLoading, setWishlistLoading] = useState(false)
@@ -48,52 +46,32 @@ export default function FavoriteProducts() {
         return () => window.removeEventListener("storage", checkLoggedIn)
     }, [])
 
-    // Fetch data from json-server (chỉ thực hiện khi đã đăng nhập)
     const fetchData = async () => {
-        if (!user || !user.id) return
+        if (!user) return
 
         try {
             setLoading(true)
-            const [gamesResponse, wishlistResponse] = await Promise.all([getGames(), getWishlist()])
+            setError(null)
+            const favoriteGamesResponse = await getWishlist()
 
-            let userWishlist = wishlistResponse.find((item) => {
-                const userId = user.id ? String(user.id) : null
-                const itemUserId = item.user_id ? String(item.user_id) : item.userId ? String(item.userId) : null
-                return userId && itemUserId && (itemUserId === userId || Number(itemUserId) === Number(userId))
-            })
-
-            if (!userWishlist) {
+            if (!favoriteGamesResponse || !Array.isArray(favoriteGamesResponse) || favoriteGamesResponse.length === 0) {
                 setGames([])
-                setWishlist(null)
                 setLoading(false)
-                setError("Không tìm thấy danh sách yêu thích cho tài khoản của bạn.")
                 return
             }
 
-            setWishlist(userWishlist)
-            const fav_game_ids = userWishlist.fav_game_id || userWishlist.favGameId || []
-            const favoriteGames = gamesResponse.filter((game) => {
-                const gameId = Number(game.id)
-                return (
-                    Array.isArray(fav_game_ids) &&
-                    fav_game_ids.some(
-                        (id) => Number(id) === gameId || id === game.id || id.toString() === game.id.toString()
-                    )
-                )
-            })
-
-            const gamesWithStatus = favoriteGames.map((game) => ({
+            const gamesWithStatus = favoriteGamesResponse.map((game) => ({
                 ...game,
                 status: "not_purchased",
                 downloadProgress: 0,
                 price: `${game.price?.toLocaleString() || 0}đ`,
                 tags: game.tags || [],
-                thumbnailImage: game.thumbnail_image,
+                thumbnailImage: game.thumbnail_image || "https://placehold.co/400x200/3a1a5e/ffffff?text=No+Image",
                 ageRating: game.details?.["age-limit"] || "N/A",
                 releaseDate: game.details?.published_date?.$date
                     ? new Date(game.details.published_date.$date).toLocaleDateString("vi-VN")
                     : "N/A",
-                publisher: game.details?.publisher || "N/A",
+                publisher: game.details?.publisher || "Valve Corporation",
                 description: game.details?.describe || "",
                 minRequirements: {
                     os: game.minimum_configuration?.os || "N/A",
@@ -117,11 +95,19 @@ export default function FavoriteProducts() {
             }))
 
             setGames(gamesWithStatus)
-            setError(null)
             setLoading(false)
         } catch (err) {
             console.error("Error fetching data:", err)
-            setError(err.message || "Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.")
+            let errorMessage = "Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau."
+            if (err.message.includes("Unexpected token '<'") && err.message.includes("DOCTYPE")) {
+                errorMessage = "Server không phản hồi đúng định dạng dữ liệu (có thể backend chưa chạy hoặc proxy chưa config)."
+            } else if (err.message.includes("ERR_CONNECTION_REFUSED") || err.message.includes("Failed to fetch")) {
+                errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend (port 3001)."
+            } else {
+                errorMessage = err.message || errorMessage
+            }
+            setError(errorMessage)
+            setGames([])
             setLoading(false)
         }
     }
@@ -141,25 +127,26 @@ export default function FavoriteProducts() {
 
     // Xóa game khỏi wishlist
     const handleRemoveFromFavorites = async (gameId) => {
-        if (!user || !user.id || !wishlist) return
+        if (!user) {
+            alert("Vui lòng đăng nhập để thực hiện hành động này.")
+            return
+        }
 
         try {
             setWishlistLoading(true)
-            const favGameIds = wishlist.fav_game_id || wishlist.favGameId || []
-            const updatedFavGameIds = favGameIds.filter(
-                (id) => Number(id) !== Number(gameId) && id.toString() !== gameId.toString()
-            )
+            console.log("Removing gameId:", gameId) // Debug log
+            await updateWishlist(gameId) // Gọi DELETE API
 
-            // Cập nhật wishlist qua API
-            await updateWishlist(wishlist.id, { ...wishlist, fav_game_id: updatedFavGameIds })
+            // Cập nhật UI ngay lập tức (optimistic update)
+            const updatedGames = games.filter((game) => String(game.id) !== String(gameId))
+            setGames(updatedGames)
 
-            // Cập nhật state
-            setGames(games.filter((game) => Number(game.id) !== Number(gameId)))
+            // Trigger refetch để sync với server
             window.dispatchEvent(new Event("wishlistUpdated"))
             alert("Đã xóa game khỏi danh sách yêu thích!")
         } catch (err) {
-            console.error("Error removing from wishlist:", err)
-            alert("Không thể xóa game khỏi danh sách yêu thích. Vui lòng thử lại sau.")
+            console.error("Error removing from wishlist:", err) // Debug log
+            alert(`Lỗi: ${err.message || "Không thể xóa game. Vui lòng thử lại."}`)
         } finally {
             setWishlistLoading(false)
         }
@@ -209,6 +196,15 @@ export default function FavoriteProducts() {
         navigate("/login")
     }
 
+    // Helper để format tên user an toàn
+    const getUserDisplayName = () => {
+        if (!user) return ""
+        const firstName = user.f_name || user.firstName || ""
+        const lastName = user.l_name || user.lastName || ""
+        const displayName = [firstName, lastName].filter(Boolean).join(" ").trim() || user.email || "Người dùng"
+        return displayName
+    }
+
     if (loading) {
         return (
             <div className="bg-zinc-900/90 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-purple-800/50 flex justify-center items-center h-64">
@@ -231,7 +227,7 @@ export default function FavoriteProducts() {
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Danh sách game yêu thích của bạn</h2>
                     <p className="text-purple-300 max-w-md mb-6">
-                        Đăng nhập để xem và quản lý danh sách các game yêu thích của bạn. Bạn có thể lưu các game ưa thích và theo dõi chúng.
+                        Đăng nhập để xem và quản lý danh sách các game yêu thích của bạn.
                     </p>
                     <Button
                         className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white py-2 px-4 rounded-lg shadow transition-all duration-300 flex items-center gap-2 hover:shadow-md hover:shadow-purple-500/20"
@@ -263,7 +259,7 @@ export default function FavoriteProducts() {
                         <h1 className="text-3xl md:text-4xl font-bold text-white">Game Ưa Thích</h1>
                     </div>
                     <p className="text-purple-300 mt-2">
-                        {user && `${user.f_name} ${user.l_name} • `}{filteredGames.length} game yêu thích
+                        {getUserDisplayName()} • {filteredGames.length} game yêu thích
                     </p>
                 </div>
                 <div className="flex items-center gap-3 mt-4 md:mt-0 w-full md:w-auto justify-end">
@@ -272,8 +268,7 @@ export default function FavoriteProducts() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setViewMode("grid")}
-                            className={`rounded-none px-3 py-2 h-9 hover:bg-purple-700 hover:text-purple-200 ${viewMode === "grid" ? "bg-purple-700 text-white" : "text-purple-400"
-                                }`}
+                            className={`rounded-none px-3 py-2 h-9 hover:bg-purple-700 hover:text-purple-200 ${viewMode === "grid" ? "bg-purple-700 text-white" : "text-purple-400"}`}
                         >
                             <Grid className="h-4 w-4" />
                             <span className="sr-only">Grid view</span>
@@ -282,21 +277,12 @@ export default function FavoriteProducts() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setViewMode("list")}
-                            className={`rounded-none px-3 py-2 h-9 hover:bg-purple-700 hover:text-purple-200 ${viewMode === "list" ? "bg-purple-700 text-white" : "text-purple-400"
-                                }`}
+                            className={`rounded-none px-3 py-2 h-9 hover:bg-purple-700 hover:text-purple-200 ${viewMode === "list" ? "bg-purple-700 text-white" : "text-purple-400"}`}
                         >
                             <List className="h-4 w-4" />
                             <span className="sr-only">List view</span>
                         </Button>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 hover:bg-purple-700 hover:text-purple-200 bg-purple-800/80 border-purple-700/50 shadow-lg text-purple-200"
-                    >
-                        <Filter className="h-4 w-4 mr-2" />
-                        Quản lý
-                    </Button>
                 </div>
             </div>
 
@@ -402,8 +388,7 @@ export default function FavoriteProducts() {
                                     <div
                                         className="h-44 bg-cover bg-center relative"
                                         style={{
-                                            backgroundImage: `url(${game.thumbnailImage || "https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image"
-                                                })`,
+                                            backgroundImage: `url(${game.thumbnailImage || "https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image"})`,
                                         }}
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 to-transparent"></div>
@@ -424,9 +409,16 @@ export default function FavoriteProducts() {
                                                 onClick={() => handleRemoveFromFavorites(game.id)}
                                                 disabled={wishlistLoading}
                                                 aria-label={`Xóa ${game.name} khỏi danh sách yêu thích`}
-                                                className="h-8 w-8 rounded-full bg-purple-800/50 hover:bg-red-600/70 backdrop-blur-sm text-white hover:text-white border border-purple-700/50"
+                                                className="h-8 w-8 rounded-full bg-purple-800/50 hover:bg-red-600/70 backdrop-blur-sm text-white hover:text-white border border-purple-700/50 group"
                                             >
-                                                <Heart className="h-4 w-4 fill-white" />
+                                                {wishlistLoading ? (
+                                                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <Heart className="h-4 w-4 fill-current group-hover:hidden" />
+                                                        <HeartOff className="h-4 w-4 hidden group-hover:block" />
+                                                    </>
+                                                )}
                                                 <span className="sr-only">Remove from favorites</span>
                                             </Button>
                                         </div>
@@ -446,12 +438,11 @@ export default function FavoriteProducts() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex bg-purple-900/40 border border-purple-700/50 rounded-lg hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 overflow-hidden">
+                                <div className="flex bg-purple-900/40 border border-purple-700/50 rounded-lg hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 overflow-hidden group">
                                     <div
                                         className="w-32 h-24 bg-cover bg-center flex-shrink-0"
                                         style={{
-                                            backgroundImage: `url(${game.thumbnailImage || "https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image"
-                                                })`,
+                                            backgroundImage: `url(${game.thumbnailImage || "https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image"})`,
                                         }}
                                     ></div>
                                     <div className="flex-1 p-4 flex justify-between">
@@ -474,9 +465,16 @@ export default function FavoriteProducts() {
                                                     onClick={() => handleRemoveFromFavorites(game.id)}
                                                     disabled={wishlistLoading}
                                                     aria-label={`Xóa ${game.name} khỏi danh sách yêu thích`}
-                                                    className="h-8 w-8 rounded-full bg-purple-800/50 hover:bg-red-600/70 text-white"
+                                                    className="h-8 w-8 rounded-full bg-purple-800/50 hover:bg-red-600/70 text-white group"
                                                 >
-                                                    <Heart className="h-4 w-4 fill-white" />
+                                                    {wishlistLoading ? (
+                                                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            <Heart className="h-4 w-4 fill-current group-hover:hidden" />
+                                                            <HeartOff className="h-4 w-4 hidden group-hover:block" />
+                                                        </>
+                                                    )}
                                                     <span className="sr-only">Remove from favorites</span>
                                                 </Button>
                                                 <Button

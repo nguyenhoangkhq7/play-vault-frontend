@@ -1,180 +1,121 @@
-import {API_BASE_URL} from "../config/api.js"
+import { API_BASE_URL } from "../config/api.js"; // Import cấu hình API base
 
+const API_CART_URL = "/api/cart"; // Đường dẫn API cho giỏ hàng
 
-export async function getCart(userId) {
+/**
+ * Tạo headers chuẩn cho request
+ * @returns {Headers}
+ */
+function getAuthHeaders() {
+  const accessToken = localStorage.getItem("accessToken");
+  if (!accessToken) {
+    throw new Error("No access token found.");
+  }
+
+  const headers = new Headers();
+  headers.append("Authorization", `Bearer ${accessToken}`);
+  headers.append("Content-Type", "application/json");
+  return headers;
+}
+
+/**
+ * Xử lý phản hồi (response) chung
+ */
+async function handleResponse(response) {
+  if (!response.ok) {
+    // Nếu lỗi, thử đọc text
+    const errorText = await response.text();
+    console.error('API Error:', errorText);
+    throw new Error(errorText || `Error: ${response.status} ${response.statusText}`);
+  }
+  // Nếu response là 204 No Content (thường gặp khi delete), trả về object rỗng
+  if (response.status === 204) {
+    return {}; 
+  }
+  return await response.json(); // Trả về JSON
+}
+
+// ===================================================================
+// Các hàm API
+// ===================================================================
+
+/**
+ * Lấy giỏ hàng.
+ * Trả về toàn bộ object CartResponse từ backend.
+ */
+export async function getCart() {
+  const url = `${API_BASE_URL}${API_CART_URL}`;
+  
   try {
-    const response = await fetch(`${API_BASE_URL}/cart?user_id=${userId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch cart: ${response.statusText}`);
-    }
-    const data = await response.json();
-    if (data.length > 0) {
-      return data[0].cart_items || [];
-    }
-    return [];
+    const response = await fetch(url, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    return await handleResponse(response);
   } catch (error) {
     console.error('Error fetching cart:', error);
     throw new Error('Không thể tải giỏ hàng.');
   }
 }
 
-export async function addToCart(userId, gameId) {
-  try {
-    const cartResponse = await fetch(`${API_BASE_URL}/cart?user_id=${userId}`);
-    if (!cartResponse.ok) {
-      throw new Error(`Failed to fetch cart: ${cartResponse.statusText}`);
-    }
-    const cartData = await cartResponse.json();
-    let cart = cartData[0];
+/**
+ * Thêm sản phẩm vào giỏ hàng bằng gameId.
+ * Trả về object CartResponse đã cập nhật.
+ */
+export async function addToCart(gameId) {
+  const url = `${API_BASE_URL}${API_CART_URL}/items/${gameId}`;
 
-    if (!cart) {
-      const newCart = {
-        user_id: userId,
-        cart_items: [{ id: gameId }],
-      };
-      const response = await fetch(`${API_BASE_URL}/cart`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newCart),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to create cart: ${response.statusText}`);
-      }
-      const newCartData = await response.json();
-      return newCartData.cart_items;
-    } else {
-      if (!cart.cart_items.some(item => item.id === gameId)) {
-        cart.cart_items.push({ id: gameId });
-        const response = await fetch(`${API_BASE_URL}/cart/${cart.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(cart),
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to update cart: ${response.statusText}`);
-        }
-        const updatedCart = await response.json();
-        return updatedCart.cart_items;
-      }
-      return cart.cart_items;
-    }
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: null, // Giống như code gốc của bạn
+    });
+
+    return await handleResponse(response);
   } catch (error) {
     console.error('Error adding to cart:', error);
-    throw new Error('Không thể thêm game vào giỏ hàng.');
+    throw new Error('Không thể thêm vào giỏ hàng.');
   }
 }
 
-export async function removeFromCart(userId, gameId) {
-  try {
-    const cartResponse = await fetch(`${API_BASE_URL}/cart?user_id=${userId}`);
-    if (!cartResponse.ok) {
-      throw new Error(`Failed to fetch cart: ${cartResponse.statusText}`);
-    }
-    const cartData = await cartResponse.json();
-    const cart = cartData[0];
+/**
+ * Xóa 1 item khỏi giỏ hàng bằng cartItemId.
+ * Trả về object CartResponse đã cập nhật.
+ */
+export async function removeFromCart(cartItemId) {
+  const url = `${API_BASE_URL}${API_CART_URL}/items/${cartItemId}`;
 
-    if (cart && cart.cart_items) {
-      cart.cart_items = cart.cart_items.filter(item => item.id !== gameId);
-      const response = await fetch(`${API_BASE_URL}/cart/${cart.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cart),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to update cart: ${response.statusText}`);
-      }
-      const updatedCart = await response.json();
-      return updatedCart.cart_items;
-    }
-    return [];
+  try {
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    return await handleResponse(response);
   } catch (error) {
     console.error('Error removing from cart:', error);
-    throw new Error('Không thể xóa game khỏi giỏ hàng.');
+    throw new Error('Không thể xóa khỏi giỏ hàng.');
   }
 }
 
-export async function checkoutCart(userId, selectedGameIds) {
+/**
+ * Xóa toàn bộ giỏ hàng.
+ * Trả về object CartResponse đã cập nhật (thường là rỗng).
+ */
+export async function clearCart() {
+  const url = `${API_BASE_URL}${API_CART_URL}/clear`;
+
   try {
-    const boughtResponse = await fetch(`${API_BASE_URL}/bought?user_id=${userId}`);
-    if (!boughtResponse.ok) {
-      throw new Error(`Failed to fetch bought items: ${boughtResponse.statusText}`);
-    }
-    const boughtData = await boughtResponse.json();
-    let bought = boughtData[0];
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
 
-    if (!bought) {
-      const newBought = {
-        user_id: userId,
-        bought_game_id: selectedGameIds,
-      };
-      const response = await fetch(`${API_BASE_URL}/bought`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newBought),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to create bought entry: ${response.statusText}`);
-      }
-    } else {
-      const updatedGameIds = [...new Set([...bought.bought_game_id, ...selectedGameIds])];
-      const response = await fetch(`${API_BASE_URL}/bought/${bought.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...bought,
-          bought_game_id: updatedGameIds,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to update bought entry: ${response.statusText}`);
-      }
-    }
-
-    const cartResponse = await fetch(`${API_BASE_URL}/cart?user_id=${userId}`);
-    if (!cartResponse.ok) {
-      throw new Error(`Failed to fetch cart: ${cartResponse.statusText}`);
-    }
-    const cartData = await cartResponse.json();
-    const cart = cartData[0];
-
-    if (cart && cart.cart_items) {
-      cart.cart_items = cart.cart_items.filter(item => !selectedGameIds.includes(item.id));
-      const response = await fetch(`${API_BASE_URL}/cart/${cart.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cart),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to update cart: ${response.statusText}`);
-      }
-    }
-
-    return { success: true };
+    return await handleResponse(response);
   } catch (error) {
-    console.error('Error during checkout:', error);
-    throw new Error('Không thể thực hiện thanh toán.');
-  }
-}
-
-export async function checkoutAllCart(userId) {
-  try {
-    const cartItems = await getCart(userId);
-    const gameIds = cartItems.map(item => item.id);
-    return await checkoutCart(userId, gameIds);
-  } catch (error) {
-    console.error('Error during checkout all:', error);
-    throw new Error('Không thể thanh toán toàn bộ giỏ hàng.');
+    console.error('Error clearing cart:', error);
+    throw new Error('Không thể xóa toàn bộ giỏ hàng.');
   }
 }

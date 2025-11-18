@@ -7,11 +7,13 @@ import { motion } from "framer-motion"
 import GameConfig from "../components/GameConfig"
 import { Button } from "../components/ui/Button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { getGameById, getGames } from "../api/games.js"
+import { getGameById, getGames, getRalatedGameWithCategoryName, getReviewByGameId } from "../api/games.js"
 import { getCommentsByGameIdWithUsers } from "../api/comments.js"
 import { getWishlist, updateWishlist, createWishlist } from "../api/wishlist.js"
 import { getCart, addToCart, removeFromCart } from "../api/cart.js"
 import { Badge } from "../components/ui/badge"
+import { useUser } from "../store/UserContext.jsx"
+import { API_BASE_URL } from "../config/api.js"
 
 function GameDetail() {
   const { id } = useParams()
@@ -25,36 +27,10 @@ function GameDetail() {
   const [cartLoading, setCartLoading] = useState(false)
   const [error, setError] = useState(null)
   const [reviews, setReviews] = useState([])
-  const [user, setUser] = useState(null)
+  // const [user, setUser] = useState(null)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const {user}= useUser();
 
-  // Tính rating trung bình và số lượt review
-  const averageRating =
-    reviews.length > 0 ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : 0
-  const reviewCount = reviews.length
-
-  // Kiểm tra trạng thái đăng nhập
-  useEffect(() => {
-    const checkLoggedIn = () => {
-      try {
-        const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user")
-        const accessToken = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken")
-        if (storedUser && accessToken) {
-          const parsedUser = JSON.parse(storedUser)
-          setUser(parsedUser)
-        } else {
-          setUser(null)
-        }
-      } catch (err) {
-        console.error("Error checking user login:", err)
-        setUser(null)
-      }
-    }
-
-    checkLoggedIn()
-  }, [])
-
-  // Fetch game details, wishlist, và cart
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -64,44 +40,47 @@ function GameDetail() {
         const gameData = await getGameById(id)
         setGame(gameData)
 
-        // Fetch comments with user info
-        const reviewData = await getCommentsByGameIdWithUsers(gameData.id)
-        setReviews(reviewData)
+        const reviewData= await getReviewByGameId(id);
+        setReviews(reviewData);
+
+        const relatedData= await getRalatedGameWithCategoryName(gameData.categoryName);
+        const filteredRelated  = relatedData.filter(g => g.id !== gameData.id);
+        setRelatedGames(filteredRelated.slice(0,4));
 
         // Fetch related games
-        const allGames = await getGames()
-        const filtered = allGames
-          .filter((g) => g.id !== gameData.id && g.thumbnail_image)
-          .filter((g) => g.tags.some((tag) => gameData.tags.includes(tag)))
-          .slice(0, 4)
-        setRelatedGames(filtered)
+        // const allGames = await getGames()
+        // const filtered = allGames
+        //   .filter((g) => g.id !== gameData.id && g.thumbnail_image)
+        //   .filter((g) => g.tags.some((tag) => gameData.tags.includes(tag)))
+        //   .slice(0, 4)
+        // setRelatedGames(filtered)
 
         // Fetch wishlist và kiểm tra trạng thái favorite
-        if (user && user.id) {
-          const wishlistData = await getWishlist()
-          const userWishlist = wishlistData.find((item) => {
-            const userId = user.id ? String(user.id) : null
-            const itemUserId = item.user_id ? String(item.user_id) : item.userId ? String(item.userId) : null
-            return userId && itemUserId && (itemUserId === userId || Number(itemUserId) === Number(userId))
-          })
+        // if (user && user.customerId) {
+        //   const wishlistData = await getWishlist()
+        //   const userWishlist = wishlistData.find((item) => {
+        //     const userId = user.customerId ? String(user.customerId) : null
+        //     const itemUserId = item.user_id ? String(item.user_id) : item.userId ? String(item.userId) : null
+        //     return userId && itemUserId && (itemUserId === userId || Number(itemUserId) === Number(userId))
+        //   })
 
-          if (userWishlist) {
-            const favGameIds = userWishlist.fav_game_id || userWishlist.favGameId || []
-            setIsFavorite(
-              favGameIds.some(
-                (favId) => Number(favId) === Number(gameData.id) || favId.toString() === gameData.id.toString(),
-              ),
-            )
-          }
+        //   if (userWishlist) {
+        //     const favGameIds = userWishlist.fav_game_id || userWishlist.favGameId || []
+        //     setIsFavorite(
+        //       favGameIds.some(
+        //         (favId) => Number(favId) === Number(gameData.id) || favId.toString() === gameData.id.toString(),
+        //       ),
+        //     )
+        //   }
 
-          // Fetch cart và kiểm tra trạng thái in cart
-          const cartItems = await getCart(Number(user.id))
-          setIsInCart(
-            cartItems.some(
-              (item) => Number(item.id) === Number(gameData.id) || item.id.toString() === gameData.id.toString(),
-            ),
-          )
-        }
+        //   // Fetch cart và kiểm tra trạng thái in cart
+        //   const cartItems = await getCart(Number(user.customerId))
+        //   setIsInCart(
+        //     cartItems.some(
+        //       (item) => Number(item.id) === Number(gameData.id) || item.id.toString() === gameData.id.toString(),
+        //     ),
+        //   )
+        // }
 
         setLoading(false)
       } catch (err) {
@@ -115,7 +94,7 @@ function GameDetail() {
   }, [id, user, navigate])
 
   const handleFavoriteToggle = async () => {
-    if (!user || !user.id) {
+    if (!user || !user.customerId) {
       alert("Vui lòng đăng nhập để thêm game vào danh sách yêu thích!")
       navigate("/login")
       return
@@ -123,9 +102,9 @@ function GameDetail() {
 
     try {
       setWishlistLoading(true)
-      const wishlistData = await getWishlist()
+      // const wishlistData = await getWishlist()
       let userWishlist = wishlistData.find((item) => {
-        const userId = user.id ? String(user.id) : null
+        const userId = user.customerId ? String(user.customerId) : null
         const itemUserId = item.user_id ? String(item.user_id) : item.userId ? String(item.userId) : null
         return userId && itemUserId && (itemUserId === userId || Number(itemUserId) === Number(userId))
       })
@@ -133,12 +112,12 @@ function GameDetail() {
       // Nếu không có wishlist cho người dùng, tạo mới
       if (!userWishlist) {
         userWishlist = {
-          user_id: Number(user.id),
+          user_id: Number(user.customerId),
           fav_game_id: [Number(game.id)],
         }
         await createWishlist(userWishlist)
         setIsFavorite(true)
-        alert(`${game.name} đã được thêm vào danh sách yêu thích!`)
+        alert(`${game.gameBasicInfos.name} đã được thêm vào danh sách yêu thích!`)
         window.dispatchEvent(new Event("wishlistUpdated"))
         setWishlistLoading(false)
         return
@@ -153,12 +132,12 @@ function GameDetail() {
           (favId) => Number(favId) !== Number(game.id) && favId.toString() !== game.id.toString(),
         )
         setIsFavorite(false)
-        alert(`${game.name} đã được xóa khỏi danh sách yêu thích!`)
+        alert(`${game.gameBasicInfos.name} đã được xóa khỏi danh sách yêu thích!`)
       } else {
         // Thêm game vào wishlist
         updatedFavGameIds = [...favGameIds, Number(game.id)]
         setIsFavorite(true)
-        alert(`${game.name} đã được thêm vào danh sách yêu thích!`)
+        alert(`${game.gameBasicInfos.name} đã được thêm vào danh sách yêu thích!`)
       }
 
       // Cập nhật wishlist qua API
@@ -178,7 +157,7 @@ function GameDetail() {
   }
 
   const handleToggleCart = async () => {
-    if (!user || !user.id) {
+    if (!user || !user.customerId) {
       alert("Vui lòng đăng nhập để thêm game vào giỏ hàng!")
       navigate("/login")
       return
@@ -188,14 +167,14 @@ function GameDetail() {
       setCartLoading(true)
       if (isInCart) {
         // Xóa game khỏi giỏ hàng
-        await removeFromCart(Number(user.id), Number(game.id))
+        await removeFromCart(Number(user.customerId), Number(game.id))
         setIsInCart(false)
-        alert(`${game.name} đã được xóa khỏi giỏ hàng!`)
+        alert(`${game.gameBasicInfos.name} đã được xóa khỏi giỏ hàng!`)
       } else {
         // Thêm game vào giỏ hàng
-        await addToCart(Number(user.id), Number(game.id))
+        await addToCart(Number(user.customerId), Number(game.id))
         setIsInCart(true)
-        alert(`${game.name} đã được thêm vào giỏ hàng!`)
+        alert(`${game.gameBasicInfos.name} đã được thêm vào giỏ hàng!`)
       }
       setCartLoading(false)
     } catch (err) {
@@ -255,7 +234,7 @@ function GameDetail() {
     )
   }
 
-  const releaseDate = new Date(game.details.published_date.$date).toLocaleDateString("vi-VN")
+  // const releaseDate = new Date(game.details.published_date.$date).toLocaleDateString("vi-VN")
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-950 via-purple-900 to-indigo-950 text-white pb-16">
@@ -267,17 +246,17 @@ function GameDetail() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {game.name}
+          {game.gameBasicInfos.name}
         </motion.h1>
 
         {/* Main Content - Steam-like Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Left Column - Carousel */}
           <div className="lg:col-span-2">
-            {game.images && game.images.length > 0 && (
+            {game.previewImages && game.previewImages.length > 0 && (
               <div className="relative rounded-xl overflow-hidden shadow-[0_5px_30px_rgba(109,40,217,0.5)]">
                 <div className="relative h-[400px] md:h-[500px]">
-                  {game.images.map((image, index) => (
+                  {game.previewImages.map((image, index) => (
                     <motion.div
                       key={index}
                       className="absolute inset-0"
@@ -289,8 +268,9 @@ function GameDetail() {
                       transition={{ duration: 0.8 }}
                     >
                       <img
-                        src={image || "/placeholder.svg"}
-                        alt={`${game.name} screenshot ${index + 1}`}
+                        // src={`${API_BASE_URL}${image}` || "/placeholder.svg"}
+                         src={image || "/placeholder.svg"}
+                        alt={`${game.gameBasicInfos.name} screenshot ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
                     </motion.div>
@@ -300,7 +280,7 @@ function GameDetail() {
 
                 <button
                   className="absolute left-4 top-1/2 -translate-y-1/2 bg-purple-900/60 hover:bg-purple-800 p-3 rounded-full text-white z-10 backdrop-blur-sm border border-purple-700/50 transition-colors"
-                  onClick={() => setActiveImageIndex((prev) => (prev === 0 ? game.images.length - 1 : prev - 1))}
+                  onClick={() => setActiveImageIndex((prev) => (prev === 0 ? game.previewImages.length - 1 : prev - 1))}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -318,7 +298,7 @@ function GameDetail() {
                 </button>
                 <button
                   className="absolute right-4 top-1/2 -translate-y-1/2 bg-purple-900/60 hover:bg-purple-800 p-3 rounded-full text-white z-10 backdrop-blur-sm border border-purple-700/50 transition-colors"
-                  onClick={() => setActiveImageIndex((prev) => (prev === game.images.length - 1 ? 0 : prev + 1))}
+                  onClick={() => setActiveImageIndex((prev) => (prev === game.previewImages.length - 1 ? 0 : prev + 1))}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -336,7 +316,7 @@ function GameDetail() {
                 </button>
 
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-                  {game.images.map((_, idx) => (
+                  {game.previewImages.map((_, idx) => (
                     <button
                       key={idx}
                       className={`w-2 h-2 rounded-full ${activeImageIndex === idx ? "bg-white" : "bg-white/50"}`}
@@ -349,8 +329,8 @@ function GameDetail() {
 
             {/* Thumbnail Gallery */}
             <div className="grid grid-cols-5 gap-2 mt-2">
-              {game.images &&
-                game.images.slice(0, 5).map((image, index) => (
+              {game.previewImages &&
+                game.previewImages.slice(0, 5).map((image, index) => (
                   <button
                     key={index}
                     className={`rounded-md overflow-hidden border-2 transition-all ${activeImageIndex === index
@@ -360,8 +340,9 @@ function GameDetail() {
                     onClick={() => setActiveImageIndex(index)}
                   >
                     <img
-                      src={image || "/placeholder.svg"}
-                      alt={`${game.name} thumbnail ${index + 1}`}
+                      // src={`${API_BASE_URL}${image}` || "/placeholder.svg"}
+                      src={image|| "/placeholder.svg"}
+                      alt={`${game.gameBasicInfos.name} thumbnail ${index + 1}`}
                       className="w-full h-16 object-cover"
                     />
                   </button>
@@ -373,37 +354,34 @@ function GameDetail() {
           <div className="bg-purple-950/40 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-purple-800/50">
             {/* Game Description */}
             <div className="mb-6">
-              <p className="text-purple-200">{game.details.describe}</p>
+              <p className="text-purple-200">{game.gameBasicInfos.description}</p>
             </div>
 
             {/* Game Metadata */}
             <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
               <div className="flex items-center">
                 <span className="text-purple-300 w-24">Publisher:</span>
-                <span className="text-white font-medium">{game.details.publisher}</span>
+                <span className="text-white font-medium">{game.publisherName}</span>
               </div>
               <div className="flex items-center">
                 <span className="text-purple-300 w-24">Release Date:</span>
-                <span className="text-white font-medium">{releaseDate}</span>
+                <span className="text-white font-medium">{game.releaseDate}</span>
               </div>
               <div className="flex items-center">
                 <span className="text-purple-300 w-24">Age Limit:</span>
                 <Badge className="bg-black/60 text-white border border-purple-700/50 backdrop-blur-sm">
-                  {game.details["age-limit"]}
+                  {game.requiredAge ? "18+" : "All Ages"}
                 </Badge>
               </div>
               <div className="flex items-center">
                 <span className="text-purple-300 w-24">Tags:</span>
                 <div className="flex flex-wrap gap-1">
-                  {game.tags.map((tag, index) => (
-                    <span
-                      key={index}
+                  <span
                       className="bg-purple-800/50 text-purple-200 px-2 py-1 rounded-full text-xs flex items-center"
                     >
-                      {getTagIcon(tag)}
-                      {tag}
+                      {getTagIcon(game.categoryName)}
+                      {game.categoryName}
                     </span>
-                  ))}
                 </div>
               </div>
             </div>
@@ -411,19 +389,19 @@ function GameDetail() {
             {/* Rating */}
             <div className="flex items-center gap-4 mb-6 p-4 bg-purple-900/30 rounded-lg border border-purple-700/30">
               <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)]">
-                <span className="text-2xl font-bold">{averageRating}</span>
+                <span className="text-2xl font-bold">{game.avgRating}</span>
               </div>
               <div>
                 <div className="flex mb-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-5 h-5 ${i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-gray-500"}`}
+                      className={`w-5 h-5 ${i < Math.round(game.avgRating) ? "text-yellow-400 fill-yellow-400" : "text-gray-500"}`}
                     />
                   ))}
                 </div>
                 <p className="text-purple-300 text-sm">
-                  <span className="font-medium text-white">{reviewCount}</span> reviews
+                  <span className="font-medium text-white">{game.reviewCount}</span> reviews
                 </p>
               </div>
             </div>
@@ -431,9 +409,19 @@ function GameDetail() {
             {/* Price and Buttons */}
             <div className="border-t border-purple-700/30 pt-6">
               <div className="mb-4">
-                <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
+                {/* <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
                   {game.price === 0 ? "Free" : `${formatPrice(game.price)} VND`}
-                </p>
+                </p> */}
+                
+                <div>
+                  <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">${game.gameBasicInfos.price}</span>
+                  {game.discount>0 && (
+                  <div className="flex items-center space-x-2">
+                  <span className="text-gray-400 text-sm line-through">${game.gameBasicInfos.price - game.discount}</span>
+                    </div>
+                  )}
+                </div>
+
               </div>
 
               <div className="flex flex-col gap-3">
@@ -452,8 +440,8 @@ function GameDetail() {
                     disabled={wishlistLoading}
                     aria-label={
                       isFavorite
-                        ? `Xóa ${game.name} khỏi danh sách yêu thích`
-                        : `Thêm ${game.name} vào danh sách yêu thích`
+                        ? `Xóa ${game.gameBasicInfos.name} khỏi danh sách yêu thích`
+                        : `Thêm ${game.gameBasicInfos.name} vào danh sách yêu thích`
                     }
                     className={`flex items-center justify-center ${isFavorite
                         ? "bg-purple-800 hover:bg-purple-700 text-white"
@@ -468,7 +456,7 @@ function GameDetail() {
                     variant={isInCart ? "default" : "outline"}
                     onClick={handleToggleCart}
                     disabled={cartLoading}
-                    aria-label={isInCart ? `Xóa ${game.name} khỏi giỏ hàng` : `Thêm ${game.name} vào giỏ hàng`}
+                    aria-label={isInCart ? `Xóa ${game.gameBasicInfos.name} khỏi giỏ hàng` : `Thêm ${game.gameBasicInfos.name} vào giỏ hàng`}
                     className={`flex items-center justify-center ${isInCart
                         ? "bg-purple-800 hover:bg-purple-700 text-white"
                         : "border-purple-700/50 text-purple-200 hover:bg-purple-800/80 hover:text-white"
@@ -513,10 +501,9 @@ function GameDetail() {
             <h3 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300">
               About This Game
             </h3>
-            <p className="text-purple-200 mb-4">{game.details.describe}</p>
+            <p className="text-purple-200 mb-4">{game.gameBasicInfos.shortDescription}</p>
             <p className="text-purple-200">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt,
-              nisl nisl adipiscing elit.
+              {game.gameBasicInfos.description}
             </p>
           </TabsContent>
 
@@ -524,7 +511,7 @@ function GameDetail() {
             value="system"
             className="bg-purple-950/40 backdrop-blur-sm rounded-b-xl shadow-lg mt-0 border border-purple-800/50"
           >
-            <GameConfig minimum={game.minimum_configuration} recommended={game.recommended_configuration} />
+            <GameConfig recommended={game.systemRequirement} />
           </TabsContent>
 
           <TabsContent
@@ -550,25 +537,27 @@ function GameDetail() {
                       <div className="bg-purple-800 rounded-full p-1.5 mr-2">
                         <User className="w-4 h-4" />
                       </div>
-                      <span className="font-semibold">{review.user ? review.user.username : "Unknown User"}</span>
+                      <span className="font-semibold">{review.customerName ? review.customerName : "Unknown User"}</span>
                       <div className="flex items-center ml-auto text-purple-300 text-sm">
                         <Clock className="w-4 h-4 mr-1" />
                         <span>
-                          {review.date ? new Date(review.date.$date).toLocaleDateString("vi-VN") : "Unknown Date"}
+                          {review.createdAt 
+                            ? new Date(review.createdAt).toLocaleDateString("vi-VN") 
+                            : "Unknown Date"}
                         </span>
                       </div>
                     </div>
                     <p className="text-purple-200 mb-3 pl-8">{review.comment}</p>
                     <div className="flex items-center text-sm text-purple-300 pl-8">
                       <div
-                        className={`flex items-center mr-4 ${review.isPositive ? "text-green-400" : "text-red-400"}`}
+                        className={`flex items-center mr-4 ${review.rating>3  ? "text-green-400" : "text-red-400"}`}
                       >
-                        {review.isPositive ? (
+                        {review.rating>3 ? (
                           <ThumbsUp className="w-4 h-4 mr-1" />
                         ) : (
                           <ThumbsDown className="w-4 h-4 mr-1" />
                         )}
-                        {review.isPositive ? "Recommended" : "Not Recommended"}
+                        {review.rating>3 ? "Recommended" : "Not Recommended"}
                       </div>
                       <div className="flex items-center mr-4">
                         <div className="flex">
@@ -580,12 +569,12 @@ function GameDetail() {
                           ))}
                         </div>
                       </div>
-                      {review.hoursPlayed && (
+                      {/* {review.hoursPlayed && (
                         <div className="flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
                           {review.hoursPlayed} hours played
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </motion.div>
                 ))}
@@ -617,17 +606,19 @@ function GameDetail() {
                   >
                     <div className="relative h-40 overflow-hidden">
                       <img
-                        src={relatedGame.thumbnail_image || "/placeholder.svg"}
-                        alt={relatedGame.name}
+                        // src={`${API_BASE_URL}/${relatedGame.gameBasicInfos.thumbnail}` || "http://localhost:8080/images/game.jpg"}
+                        src={relatedGame.gameBasicInfos.thumbnail|| "http://localhost:8080/images/game.jpg"}
+                        // src={"http://localhost:8080/images/game.jpg"}
+                        alt={relatedGame.gameBasicInfos.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-purple-950 via-purple-900/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
                     <div className="p-4">
-                      <h4 className="font-semibold text-white text-lg line-clamp-1">{relatedGame.name}</h4>
-                      <p className="text-purple-300 text-sm">{relatedGame.details.publisher}</p>
-                      <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300 mt-2">
-                        {formatPrice(relatedGame.price)} ₫
+                      <h4 className="font-semibold text-white text-lg line-clamp-1">{relatedGame.gameBasicInfos.name}</h4>
+                      <p className="text-purple-300 text-sm">{relatedGame.publisherName}</p>
+                      <p className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-40npm0 to-purple-300 mt-2">
+                        {formatPrice(relatedGame.gameBasicInfos.price)} $
                       </p>
                     </div>
                   </div>

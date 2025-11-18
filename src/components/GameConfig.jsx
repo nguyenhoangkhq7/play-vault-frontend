@@ -1,7 +1,7 @@
-function GameConfig({ minimum, recommended }) {
+function GameConfig({ recommended }) {
     return (
       <div className="grid md:grid-cols-2 gap-8 p-6">
-        <div className="space-y-4">
+        {/* <div className="space-y-4">
           <h3 className="text-xl font-bold text-white flex items-center">
             <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2"></span>
             Minimum Configuration
@@ -24,11 +24,11 @@ function GameConfig({ minimum, recommended }) {
               <span>{minimum.gpu}</span>
             </li>
             <li className="flex">
-              <span className="text-purple-300 font-medium w-20">Disk:</span>
-              <span>{minimum.disk}</span>
+              <span className="text-purple-300 font-medium w-20">Storage:</span>
+              <span>{minimum.storage}</span>
             </li>
           </ul>
-        </div>
+        </div> */}
         <div className="space-y-4">
           <h3 className="text-xl font-bold text-white flex items-center">
             <span className="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
@@ -52,8 +52,8 @@ function GameConfig({ minimum, recommended }) {
               <span>{recommended.gpu}</span>
             </li>
             <li className="flex">
-              <span className="text-purple-300 font-medium w-20">Disk:</span>
-              <span>{recommended.disk}</span>
+              <span className="text-purple-300 font-medium w-20">Storage:</span>
+              <span>{recommended.storage}</span>
             </li>
           </ul>
         </div>

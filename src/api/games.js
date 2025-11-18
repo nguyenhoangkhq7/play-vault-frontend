@@ -127,3 +127,61 @@ export async function getRalatedGameWithCategoryName(categoryName) {
     throw error
   }
 }
+
+/**
+ * Lấy danh sách games của publisher hiện tại
+ * @param {function} setAccessToken - Function để update access token
+ * @returns {Promise<Array>} Danh sách games
+ */
+export async function getMyGames(setAccessToken) {
+  try {
+    const accessToken = localStorage.getItem('accessToken')
+    console.log('🎮 Fetching my games...')
+    
+    const response = await fetch(`${API_URL}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+    
+    if (response.status === 401) {
+      // Token expired, try to refresh
+      console.log('Token expired, refreshing...')
+      const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+      
+      if (refreshResponse.ok) {
+        const { accessToken: newToken } = await refreshResponse.json()
+        localStorage.setItem('accessToken', newToken)
+        setAccessToken(newToken)
+        
+        // Retry with new token
+        const retryResponse = await fetch(`${API_URL}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${newToken}`
+          }
+        })
+        
+        if (!retryResponse.ok) {
+          throw new Error(`Failed to fetch games: ${retryResponse.statusText}`)
+        }
+        return await retryResponse.json()
+      }
+    }
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch games: ${response.statusText}`)
+    }
+    
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching my games:', error)
+    throw error
+  }
+}

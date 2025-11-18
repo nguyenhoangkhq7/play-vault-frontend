@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Filter } from "lucide-react"
+import { Plus, Filter, Link as LinkIcon } from "lucide-react"
 import { useUser } from "../store/UserContext"
 import {
   searchPromotions,
   createPromotion,
+  applyPromotionToGames,
 } from "../api/promotions"
+import { getMyGames } from "../api/games"
 
 export default function PublisherManagerDiscount() {
   const { user, setAccessToken } = useUser()
@@ -35,6 +37,16 @@ export default function PublisherManagerDiscount() {
     status: "ALL",
   })
 
+  // State tạm cho input search (chỉ update filters khi nhấn Enter)
+  const [searchInput, setSearchInput] = useState("")
+
+  // State cho modal gắn khuyến mãi vào games
+  const [showGameSelectModal, setShowGameSelectModal] = useState(false)
+  const [selectedPromotionId, setSelectedPromotionId] = useState(null)
+  const [publisherGames, setPublisherGames] = useState([])
+  const [selectedGameIds, setSelectedGameIds] = useState([])
+  const [loadingGames, setLoadingGames] = useState(false)
+
   // Fetch promotions khi component mount
   useEffect(() => {
     if (!user) {
@@ -45,12 +57,19 @@ export default function PublisherManagerDiscount() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  // Fetch promotions khi filters thay đổi
+  // Fetch promotions khi filters thay đổi (trừ keyword vì keyword chỉ update khi Enter)
   useEffect(() => {
     if (!user) return
     fetchPromotionsWithFilters()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, user])
+  }, [filters.fromDate, filters.toDate, filters.status, filters.keyword, user])
+
+  // Handle Enter key để search
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      setFilters({ ...filters, keyword: searchInput })
+    }
+  }
 
   // Fetch tất cả promotions
   const fetchPromotions = async () => {
@@ -166,6 +185,59 @@ export default function PublisherManagerDiscount() {
     return new Date(dateString).toLocaleDateString("vi-VN")
   }
 
+  // Fetch danh sách game của publisher
+  const fetchMyGames = async () => {
+    try {
+      setLoadingGames(true)
+      const games = await getMyGames(setAccessToken)
+      setPublisherGames(games)
+    } catch (err) {
+      console.error("Error fetching games:", err)
+      alert("Không thể tải danh sách game")
+    } finally {
+      setLoadingGames(false)
+    }
+  }
+
+  // Mở modal áp dụng khuyến mãi cho games
+  const handleApplyToGames = async (promotionId) => {
+    setSelectedPromotionId(promotionId)
+    setSelectedGameIds([])
+    setShowGameSelectModal(true)
+    await fetchMyGames()
+  }
+
+  // Toggle chọn game
+  const toggleGameSelection = (gameId) => {
+    setSelectedGameIds(prev => 
+      prev.includes(gameId) 
+        ? prev.filter(id => id !== gameId)
+        : [...prev, gameId]
+    )
+  }
+
+  // Xác nhận áp dụng khuyến mãi cho các games đã chọn
+  const handleConfirmApply = async () => {
+    if (selectedGameIds.length === 0) {
+      alert("Vui lòng chọn ít nhất một game")
+      return
+    }
+
+    try {
+      setLoading(true)
+      await applyPromotionToGames(setAccessToken, selectedPromotionId, selectedGameIds)
+      alert(`Đã áp dụng khuyến mãi cho ${selectedGameIds.length} game(s)!`)
+      setShowGameSelectModal(false)
+      setSelectedPromotionId(null)
+      setSelectedGameIds([])
+    } catch (err) {
+      console.error("Error applying promotion:", err)
+      alert(err.response?.data || "Không thể áp dụng khuyến mãi")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Không cần filter ở client vì đã filter ở backend
   const filteredPromotions = promotions
 
@@ -209,12 +281,15 @@ export default function PublisherManagerDiscount() {
           <div className="rounded-xl bg-white/10 backdrop-blur-sm p-6 mb-8 border border-white/10">
             <h2 className="text-xl font-semibold text-white mb-4">Bộ lọc nâng cao</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <input
-                placeholder="Tìm kiếm theo tên khuyến mãi..."
-                value={filters.keyword}
-                onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
-                className="bg-purple-800/50 border border-purple-600 text-white placeholder:text-white/50 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              />
+              <div>
+                <input
+                  placeholder="Tìm kiếm theo tên khuyến mãi... (Nhấn Enter)"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  className="bg-purple-800/50 border border-purple-600 text-white placeholder:text-white/50 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-400 w-full"
+                />
+              </div>
               
               <div>
                 <label className="block text-white/80 text-sm mb-1">Từ ngày</label>
@@ -320,19 +395,22 @@ export default function PublisherManagerDiscount() {
                         <p className="line-clamp-2">{promotion.description || 'Không có mô tả'}</p>
                       </td>
                       <td className="py-5 text-center">
-                        <div className="flex justify-center gap-3">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => handleApplyToGames(promotion.id)}
+                            className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition-all flex items-center gap-1"
+                            title="Áp dụng cho games"
+                          >
+                            <LinkIcon className="w-4 h-4" />
+                            Gắn game
+                          </button>
                           <button
                             onClick={() => handleOpenDialog(promotion)}
-                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-all"
+                            className="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-all"
                           >
                             Sửa
                           </button>
-                          <button
-                            onClick={() => handleDelete(promotion.id)}
-                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all"
-                          >
-                            Xóa
-                          </button>
+
                         </div>
                       </td>
                     </tr>
@@ -343,6 +421,94 @@ export default function PublisherManagerDiscount() {
           )}
         </div>
       </div>
+
+      {/* Modal chọn games */}
+      {showGameSelectModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-800 to-purple-900 rounded-2xl shadow-2xl border border-purple-600 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              <h2 className="text-3xl font-bold text-white mb-6">
+                Chọn games để áp dụng khuyến mãi
+              </h2>
+
+              {loadingGames ? (
+                <div className="text-center py-12">
+                  <p className="text-white/60 text-lg">Đang tải danh sách game...</p>
+                </div>
+              ) : publisherGames.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-white/60 text-lg">Bạn chưa có game nào</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {publisherGames.map(game => (
+                      <div 
+                        key={game.id}
+                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                          selectedGameIds.includes(game.id) 
+                            ? 'border-green-500 bg-green-500/20 shadow-lg' 
+                            : 'border-purple-600 hover:border-purple-400'
+                        }`}
+                        onClick={() => toggleGameSelection(game.id)}
+                      >
+                        <div className="relative mb-2">
+                          <img 
+                            src={game.gameBasicInfos?.thumbnail || game.thumbnail_image || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game'} 
+                            alt={game.gameBasicInfos?.name || game.name}
+                            className="w-full h-32 object-cover rounded"
+                          />
+                          {selectedGameIds.includes(game.id) && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                              ✓
+                            </div>
+                          )}
+                        </div>
+                        <h3 className="text-white font-bold truncate">
+                          {game.gameBasicInfos?.name || game.name}
+                        </h3>
+                        <p className="text-purple-300 text-sm">
+                          {game.gameBasicInfos?.price?.toLocaleString('vi-VN') || game.price?.toLocaleString('vi-VN') || 0}đ
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-purple-600 pt-4 mb-4">
+                    <p className="text-white text-center">
+                      Đã chọn: <span className="font-bold text-green-400">{selectedGameIds.length}</span> game(s)
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-end gap-4 mt-6">
+                <button
+                  onClick={() => {
+                    setShowGameSelectModal(false)
+                    setSelectedGameIds([])
+                    setSelectedPromotionId(null)
+                  }}
+                  className="px-6 py-3 border border-white/30 text-white rounded-lg hover:bg-white/10 transition-all"
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  onClick={handleConfirmApply}
+                  disabled={selectedGameIds.length === 0}
+                  className={`px-8 py-3 rounded-lg font-bold transition-all ${
+                    selectedGameIds.length === 0
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600'
+                  }`}
+                >
+                  Áp dụng cho {selectedGameIds.length} game(s)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Thêm/Sửa */}
       {isDialogOpen && (

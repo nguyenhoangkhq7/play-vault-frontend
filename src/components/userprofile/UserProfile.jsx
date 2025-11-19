@@ -65,15 +65,22 @@ const formSchema = z
     { message: "Vui lòng chọn đầy đủ ngày tháng năm sinh", path: ["birthDay"] }
   );
 
-// Helper: ISO → Parts
+// Helper: ISO → Parts (HOÀN HẢO cho LocalDate 2000-01-01)
 function parseIsoDateToParts(iso) {
   if (!iso) return { day: "", month: "", year: "" };
-  try {
-    const [y, m, d] = iso.split("T")[0].split("-");
-    return { day: d, month: m, year: y };
-  } catch {
-    return { day: "", month: "", year: "" };
-  }
+
+  // LocalDate → Jackson trả về đúng định dạng "2000-01-01"
+  const dateStr = String(iso).trim();
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) return { day: "", month: "", year: "" };
+
+  const [, year, month, day] = match;
+  return {
+    day: day.replace(/^0/, ""), // bỏ số 0 đầu: "01" → "1"
+    month: month.replace(/^0/, ""), // "01" → "1"
+    year,
+  };
 }
 
 // Helper: Parts → ISO
@@ -137,31 +144,34 @@ export default function UserProfile() {
 
       try {
         const profile = await getProfile(userId);
-        const data = profile?.data || profile;
+        const data = profile?.data || profile; // tùy response wrapper
 
-        const dobParts = parseIsoDateToParts(data?.dateOfBirth || data?.dob);
+        const dobParts = parseIsoDateToParts(data?.dateOfBirth);
 
         form.reset({
-          name:
-            data?.fullName ||
-            data?.full_name ||
-            storedUser.fullName ||
-            "Unknown",
+          name: data?.fullName || storedUser.fullName || "Unknown",
           phone: data?.phone || storedUser.phone || "",
           email: data?.email || storedUser.email || "",
-          gender: data?.gender || storedUser.gender || "male",
-          address: data?.address || storedUser.address || "",
-          birthDay: dobParts.day,
-          birthMonth: dobParts.month,
-          birthYear: dobParts.year,
+          gender: storedUser.gender || "male", // backend chưa có → lấy từ localStorage
+          address: storedUser.address || "", // backend chưa có → lấy từ localStorage
+          birthDay: dobParts.day || "",
+          birthMonth: dobParts.month || "",
+          birthYear: dobParts.year || "",
         });
 
-        const avatar = data?.avatarUrl || data?.avatar_url || storedUser.avatar;
-        if (avatar) setAvatarUrl(avatar);
-        else if (data?.fullName) {
+        const avatar =
+          data?.avatarUrl || storedUser.avatarUrl || storedUser.avatar;
+        if (
+          avatar &&
+          !avatar.includes("ui-avatars") &&
+          !avatar.includes("placeholder")
+        ) {
+          setAvatarUrl(avatar);
+        } else if (data?.fullName || storedUser.fullName) {
+          const name = (data?.fullName || storedUser.fullName || "U").trim();
           setAvatarUrl(
             `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              data.fullName
+              name
             )}&background=9333ea&color=fff&size=200`
           );
         }
@@ -287,7 +297,7 @@ export default function UserProfile() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white">Hồ sơ người dùng</h2>
             <p className="text-purple-300">
-              Quản lý thông tin cá nhân và theo dõidon hàng
+              Quản lý thông tin cá nhân và theo dõi đơn hàng
             </p>
           </div>
 

@@ -48,6 +48,7 @@ export default function PurchasedProducts() {
     const [priceFilter, setPriceFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const [searchInput, setSearchInput] = useState(""); // Input tạm, chỉ update searchQuery khi Enter
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -162,6 +163,13 @@ export default function PurchasedProducts() {
         fetchFilteredData();
     }, [user, setAccessToken, categoryFilter, priceFilter, searchQuery]);
 
+    // Handle Enter key để tìm kiếm
+    const handleSearchKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            setSearchQuery(searchInput);
+        }
+    };
+
     // Filter theo status (client-side vì backend chưa hỗ trợ)
     const filteredProducts = products.filter((product) => {
         const matchesStatus = statusFilter === "all" || product.status === statusFilter;
@@ -272,9 +280,10 @@ export default function PurchasedProducts() {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
                         <Input
                             type="text"
-                            placeholder="Tìm kiếm game..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Tìm kiếm game... (Nhấn Enter)"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
                             className="pl-10 bg-purple-900/80 border-purple-700/50 hover:border-purple-600 focus:border-purple-500 shadow-lg rounded-lg text-white placeholder:text-purple-400"
                         />
                     </div>
@@ -346,6 +355,7 @@ export default function PurchasedProducts() {
                             setPriceFilter("all");
                             setCategoryFilter("all");
                             setSearchQuery("");
+                            setSearchInput("");
                         }}
                     >
                         Đặt lại bộ lọc
@@ -378,6 +388,7 @@ export default function PurchasedProducts() {
                                     setPriceFilter("all");
                                     setCategoryFilter("all");
                                     setSearchQuery("");
+                                    setSearchInput("");
                                 }}
                             >
                                 Đặt lại bộ lọc
@@ -389,7 +400,11 @@ export default function PurchasedProducts() {
                         {view === "grid" ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredProducts.map((product) => (
-                                    <div key={product.id} className="bg-purple-900/40 border border-purple-700/50 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 group">
+                                    <div 
+                                        key={product.id} 
+                                        onClick={() => navigate(`/games/${product.id}`)}
+                                        className="bg-purple-900/40 border border-purple-700/50 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 group cursor-pointer"
+                                    >
                                         <div
                                             className="h-44 bg-cover bg-center relative"
                                             style={{ backgroundImage: `url(${product.thumbnail_image || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image'})` }}
@@ -421,6 +436,11 @@ export default function PurchasedProducts() {
                                             <div className="mt-3 flex justify-between items-center">
                                                 <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
                                                 <Button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // TODO: Implement download functionality
+                                                        console.log('Download game:', product.id);
+                                                    }}
                                                     className="text-xs h-8 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg hover:shadow-purple-500/30"
                                                 >
                                                     Tải lại game
@@ -433,7 +453,11 @@ export default function PurchasedProducts() {
                         ) : (
                             <div className="space-y-4">
                                 {filteredProducts.map((product) => (
-                                    <div key={product.id} className="flex bg-purple-900/40 border border-purple-700/50 rounded-lg hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 overflow-hidden">
+                                    <div 
+                                        key={product.id} 
+                                        onClick={() => navigate(`/game/${product.id}`)}
+                                        className="flex bg-purple-900/40 border border-purple-700/50 rounded-lg hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 overflow-hidden cursor-pointer"
+                                    >
                                         <div
                                             className="w-32 h-24 bg-cover bg-center flex-shrink-0"
                                             style={{ backgroundImage: `url(${product.thumbnail_image || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image'})` }}
@@ -456,6 +480,11 @@ export default function PurchasedProducts() {
                                                 <div className="text-right">
                                                     <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
                                                     <Button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // TODO: Implement download functionality
+                                                            console.log('Download game:', product.id);
+                                                        }}
                                                         className="text-xs h-8 mt-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
                                                     >
                                                         Tải lại game

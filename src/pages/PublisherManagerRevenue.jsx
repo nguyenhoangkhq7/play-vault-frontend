@@ -1,51 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area, Tooltip } from "recharts"
 import { TrendingUpIcon, TrendingDownIcon, EyeIcon } from "lucide-react"
-import { saveAs } from 'file-saver'
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useUser } from "../store/UserContext"
+import { getRevenueSummary, getRevenueByGame, getMonthlyRevenue } from "../api/revenue"
 
 
-
-// Mock data
-const monthlyRevenueData = [
-  { month: "T1", revenue: 48500 },
-  { month: "T2", revenue: 52300 },
-  { month: "T3", revenue: 55800 },
-  { month: "T4", revenue: 58200 },
-  { month: "T5", revenue: 62100 },
-  { month: "T6", revenue: 68500 },
-  { month: "T7", revenue: 71200 },
-  { month: "T8", revenue: 73800 },
-  { month: "T9", revenue: 76500 },
-  { month: "T10", revenue: 82300 },
-  { month: "T11", revenue: 89100 },
-  { month: "T12", revenue: 95200 },
-]
-
-const gamesData = [
-  {
-    id: 1,
-    name: "Puzzle Master",
-    revenue: 156780,
-    players: 15600,
-    conversionRate: 12.5,
-    trend: 8.2,
-    status: "Hoạt động",
-    monthlyData: monthlyRevenueData,
-  },
-  {
-    id: 2,
-    name: "Racing Thunder",
-    revenue: 234500,
-    players: 28900,
-    conversionRate: 15.8,
-    trend: 12.5,
-    status: "Hoạt động",
-    monthlyData: monthlyRevenueData,
-  },
-]
 
 const timeRanges = [
   { value: "7days", label: "7 ngày qua" },
@@ -58,25 +20,147 @@ const timeRanges = [
 
 
 export default function PublisherManagerRevenue() {
+  const { user, setAccessToken } = useUser()
+  
+  // State cho data từ API
+  const [summary, setSummary] = useState(null)
+  const [monthlyRevenueData, setMonthlyRevenueData] = useState([])
+  const [gamesData, setGamesData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // State cho filters
+  const [selectedGame, setSelectedGame] = useState("all")
+  const [selectedTimeRange, setSelectedTimeRange] = useState("year")
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [selectedGameDetail, setSelectedGameDetail] = useState(null)
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Tính toán date range dựa trên selectedTimeRange
+  const getDateRange = () => {
+    const today = new Date()
+    let fromDate = null
+    let toDate = today.toISOString().split('T')[0]
+    
+    switch(selectedTimeRange) {
+      case '7days':
+        fromDate = new Date(today.setDate(today.getDate() - 7)).toISOString().split('T')[0]
+        break
+      case '30days':
+        fromDate = new Date(today.setDate(today.getDate() - 30)).toISOString().split('T')[0]
+        break
+      case '3months':
+        fromDate = new Date(today.setMonth(today.getMonth() - 3)).toISOString().split('T')[0]
+        break
+      case '6months':
+        fromDate = new Date(today.setMonth(today.getMonth() - 6)).toISOString().split('T')[0]
+        break
+      case 'year':
+        fromDate = `${new Date().getFullYear()}-01-01`
+        break
+      case 'all':
+        fromDate = null
+        toDate = null
+        break
+      default:
+        fromDate = `${new Date().getFullYear()}-01-01`
+    }
+    
+    return { from: fromDate, to: toDate }
+  }
+
+  // Fetch data từ API
+  const fetchRevenueData = async () => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const { from, to } = getDateRange()
+      const currentYear = new Date().getFullYear()
+
+      // Fetch tất cả data song song
+      const [summaryData, monthlyData, gamesDataRaw] = await Promise.all([
+        getRevenueSummary(setAccessToken, { from, to }),
+        getMonthlyRevenue(setAccessToken, currentYear),
+        getRevenueByGame(setAccessToken, { from, to })
+      ])
+
+      setSummary(summaryData)
+      
+      // Transform monthly data để hiển thị trên chart
+      const transformedMonthly = monthlyData.map(item => ({
+        month: `T${item.month}`,
+        revenue: parseFloat(item.revenue || 0)
+      }))
+      
+      // Đảm bảo có đủ 12 tháng (fill 0 cho tháng chưa có data)
+      const fullYearData = []
+      for (let i = 1; i <= 12; i++) {
+        const existing = transformedMonthly.find(m => m.month === `T${i}`)
+        fullYearData.push(existing || { month: `T${i}`, revenue: 0 })
+      }
+      setMonthlyRevenueData(fullYearData)
+
+      // Transform games data - group by game và tính tổng
+      const gameMap = new Map()
+      gamesDataRaw.forEach(item => {
+        const gameId = item.gameId
+        if (!gameMap.has(gameId)) {
+          gameMap.set(gameId, {
+            id: gameId,
+            name: item.gameTitle,
+            revenue: 0,
+            players: new Set(),
+            orders: 0,
+            monthlyData: fullYearData // Dùng chung monthly data
+          })
+        }
+        
+        const game = gameMap.get(gameId)
+        game.revenue += parseFloat(item.price || 0)
+        game.players.add(item.orderId)
+        game.orders += 1
+      })
+
+      // Convert Map to Array và tính thêm metrics
+      const transformedGames = Array.from(gameMap.values()).map(game => ({
+        ...game,
+        players: game.players.size,
+        conversionRate: game.orders > 0 ? ((game.orders / game.players.size) * 100).toFixed(1) : 0,
+        trend: 8.2, // TODO: Cần tính từ data kỳ trước
+        status: "Hoạt động"
+      }))
+
+      setGamesData(transformedGames)
+      
+    } catch (err) {
+      console.error("Error fetching revenue data:", err)
+      setError(err.message || "Không thể tải dữ liệu doanh thu")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch data khi component mount hoặc filters thay đổi
+  useEffect(() => {
+    fetchRevenueData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, selectedTimeRange])
+
+  // Tính toán thống kê từ summary
+  const totalRevenue = summary?.totalRevenue ? parseFloat(summary.totalRevenue) : 0
+  const totalPlayers = summary?.totalPlayers || 0
+  const totalGames = summary?.totalGames || 0
+  const avgRevenuePerGame = summary?.avgRevenuePerGame ? parseFloat(summary.avgRevenuePerGame) : 0
+  const growthPercent = summary?.growthPercent ? parseFloat(summary.growthPercent) : 0
+
     // Bên trong component PublisherManagerRevenue(), thêm hàm:
-const handleExportCSV = () => {
-  const header = ["Tên game", "Doanh thu", "Người chơi", "Tỷ lệ chuyển đổi", "Xu hướng"]
-  const rows = filteredGames.map(g => [
-    g.name,
-    g.revenue,
-    g.players,
-    g.conversionRate,
-    g.trend
-  ])
 
-  const csvContent =
-    [header, ...rows]
-      .map(e => e.join(","))
-      .join("\n")
-
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-  saveAs(blob, "bao_cao_doanh_thu.csv")
-}
 const exportToCSV = () => {
   const csvRows = []
 
@@ -171,28 +255,39 @@ const exportToExcel = async () => {
   XLSX.writeFile(wb, `bao-cao-doanh-thu-${new Date().toISOString().split("T")[0]}.xlsx`)
 }
 
-  const [selectedGame, setSelectedGame] = useState("all")
-  const [selectedTimeRange, setSelectedTimeRange] = useState("year")
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
-  const [selectedGameDetail, setSelectedGameDetail] = useState(null)
-  const [searchQuery, setSearchQuery] = useState("") // thêm sau các state khác
-
-  const totalRevenue = gamesData.reduce((sum, g) => sum + g.revenue, 0)
-  const totalPlayers = gamesData.reduce((sum, g) => sum + g.players, 0)
-  const totalGames = gamesData.length
-  const avgRevenuePerGame = totalRevenue / totalGames
-
   const filteredGames = gamesData
-  .filter((g) => selectedGame === "all" || g.id.toString() === selectedGame)
-  .filter((g) => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
-
+    .filter((g) => selectedGame === "all" || g.id.toString() === selectedGame)
+    .filter((g) => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const handleViewDetail = (game) => {
     setSelectedGameDetail(game)
     setDetailDialogOpen(true)
   }
-  
 
+  // Show loading/error states
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-purple-900 p-6 flex items-center justify-center">
+        <div className="text-white text-xl">Vui lòng đăng nhập để xem báo cáo doanh thu</div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-purple-900 p-6 flex items-center justify-center">
+        <div className="text-white text-xl">Đang tải dữ liệu...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-purple-900 p-6 flex items-center justify-center">
+        <div className="text-red-400 text-xl">{error}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-purple-900 p-6">
@@ -281,18 +376,16 @@ const exportToExcel = async () => {
           <div className="rounded-lg bg-white/10 p-6 backdrop-blur-sm">
             <p className="text-sm text-white/80">Tổng doanh thu</p>
             <p className="mt-2 text-3xl font-bold text-white">{totalRevenue.toLocaleString()}đ</p>
-            <p className="mt-1 flex items-center gap-1 text-sm text-green-300">
-              <TrendingUpIcon className="w-4 h-4" />
-              +12.5%
+            <p className={`mt-1 flex items-center gap-1 text-sm ${
+              growthPercent >= 0 ? 'text-green-300' : 'text-red-300'
+            }`}>
+              {growthPercent >= 0 ? <TrendingUpIcon className="w-4 h-4" /> : <TrendingDownIcon className="w-4 h-4" />}
+              {growthPercent >= 0 ? '+' : ''}{growthPercent.toFixed(1)}%
             </p>
           </div>
           <div className="rounded-lg bg-white/10 p-6 backdrop-blur-sm">
             <p className="text-sm text-white/80">Tổng người chơi</p>
             <p className="mt-2 text-3xl font-bold text-white">{totalPlayers.toLocaleString()}</p>
-            <p className="mt-1 flex items-center gap-1 text-sm text-green-300">
-              <TrendingUpIcon className="w-4 h-4" />
-              +5.2%
-            </p>
           </div>
           <div className="rounded-lg bg-white/10 p-6 backdrop-blur-sm">
             <p className="text-sm text-white/80">Số lượng game</p>
@@ -398,12 +491,7 @@ const exportToExcel = async () => {
 
             
 
-  <button
-    onClick={handleExportCSV}
-    className="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-600"
-  >
-    Xuất CSV
-  </button>
+
 </div>
         </div>
 

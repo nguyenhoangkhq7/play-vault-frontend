@@ -30,9 +30,17 @@ export function UserProvider({ children }) {
     window.location.href = "/login";
   };
 
+  const updateUser = (updatedUserData) => {
+    const newUser = typeof updatedUserData === 'function' 
+      ? updatedUserData(user) 
+      : updatedUserData;
+    setUser(newUser);
+    localStorage.setItem("user", JSON.stringify(newUser));
+  };
+
   return (
     <UserContext.Provider
-      value={{ user, accessToken, login, logout, setAccessToken }}
+      value={{ user, accessToken, login, logout, setAccessToken, setUser: updateUser }}
     >
       {children}
     </UserContext.Provider>

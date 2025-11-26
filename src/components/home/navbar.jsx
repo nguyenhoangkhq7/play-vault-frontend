@@ -9,11 +9,13 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const dropdownRef = useRef(null);
+  
 
   const { user, logout, setUser } = useUser(); // setUser là hàm cập nhật toàn bộ user object
   const navigate = useNavigate();
   const location = useLocation();
   const role = user?.role;
+  
 
   // Đóng dropdown khi click ngoài
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function Navbar() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -52,8 +54,9 @@ export default function Navbar() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN").format(amount || 0);
-  };
+  const num = Number(amount);
+  return isNaN(num) ? "0" : new Intl.NumberFormat("vi-VN").format(num);
+};
 
   return (
     <>
@@ -129,7 +132,7 @@ export default function Navbar() {
                       <Coins className="w-3 h-3 text-white fill-yellow-200" />
                     </div>
                     <span className="text-green-400 font-bold text-xs tracking-wide">
-                      {formatCurrency(user.balance)}
+                      {formatCurrency(user?.balance)} GCoin
                     </span>
                   </div>
                 </div>

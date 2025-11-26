@@ -13,8 +13,8 @@ import { useCart } from "../store/CartContext"; // Thay đổi: Import context
 
 function CartPage() {
   const navigate = useNavigate();
-  // Thay đổi: Lấy user và setAccessToken từ Context
-  const { user, setAccessToken } = useUser(); 
+  // Thay đổi: Lấy user, setUser, setAccessToken từ Context
+  const { user, setUser, setAccessToken } = useUser(); 
   
   // Thay đổi: 'cart' sẽ chứa toàn bộ DTO CartResponse từ backend
   const [cart, setCart] = useState(null); 
@@ -104,8 +104,7 @@ function CartPage() {
     );
   };
 
-  // ✅ Xử lý thanh toán (Đã cập nhật)
-  // Logic này giữ nguyên, nhưng dùng localBalance thay vì state balance cũ
+  // ✅ Xử lý thanh toán
   const handleCheckout = (mode) => {
     // Tính tổng tiền cho tất cả item (nếu cần)
     const totalForAll = (cart?.items || []).reduce(
@@ -120,22 +119,41 @@ function CartPage() {
       return;
     }
 
-    // Thay đổi: Dùng localBalance
+    // Kiểm tra balance
     if (total > localBalance) {
+      // Balance không đủ → yêu cầu nạp tiền
+      toast.warning(`Số dư không đủ! Cần thêm ${(total - localBalance).toLocaleString("vi-VN")} G-Coin`);
       setCheckoutMode(mode);
+      setPendingAmount(total);
       setShowPaymentModal(true);
     } else {
+      // Balance đủ → hiển thị confirm modal
       setPendingAmount(total);
+      setCheckoutMode(mode);
       setShowConfirmModal(true);
     }
   };
 
-  // ✅ Xử lý nạp tiền thành công (Đã cập nhật)
-  const handlePaymentSuccess = (amount) => {
-    // Thay đổi: Cập nhật localBalance
-    setLocalBalance((prev) => prev + amount);
+  // ✅ Xử lý nạp tiền thành công
+  const handlePaymentSuccess = (newBalance) => {
+    // Cập nhật localBalance
+    setLocalBalance(newBalance);
     setShowPaymentModal(false);
-    // Modal SuccessModal sẽ tự hiển thị
+    toast.success(`Nạp tiền thành công! Số dư mới: ${newBalance.toLocaleString("vi-VN")} G-Coin`);
+    
+    // Tính lại tổng tiền dựa trên checkout mode
+    const totalForAll = (cart?.items || []).reduce(
+      (sum, item) => sum + (item.finalPrice || 0),
+      0
+    );
+    const total = (checkoutMode === "all") ? totalForAll : totalPrice;
+
+    // Nếu balance đã đủ, tự động mở confirm modal
+    if (newBalance >= total) {
+      setTimeout(() => {
+        setShowConfirmModal(true);
+      }, 500);
+    }
   };
 
   // ✅ Xử lý xác nhận thanh toán (Mock)
@@ -145,27 +163,62 @@ function CartPage() {
 
 const handleConfirmPayment = async () => {
   try {
-    // 1. Gọi API thanh toán thật (khi backend có)
-    // const response = await api.post("/api/orders/checkout", {
-    //   // cartItemIds: selectedItems.map(id => Number(id))
-    // });
-
-    // 2. Cập nhật số dư
-    setLocalBalance((prev) => prev - pendingAmount);
-
-    // 3. Lấy danh sách gameId đã thanh toán thành công
+    // 0. Lấy danh sách gameId TRƯỚC khi cập nhật cart
+    // (vì sau này ta sẽ không biết item nào đã được xóa)
     const purchasedGameIds = (cart?.items || [])
       .filter((item) => selectedItems.includes(String(item.cartItemId)))
-      .map((item) => item.gameId); // ← quan trọng: gameId của game thật
+      .map((item) => item.gameId);
 
-    // 4. Xóa các game đã mua khỏi giỏ hàng
-    setCart((prev) => ({
-      ...prev,
-      items: prev.items.filter((item) => !selectedItems.includes(String(item.cartItemId))),
-    }));
+    // 1. Gọi API thanh toán - tuỳ vào mode (selected/all)
+    let endpoint = "";
+    let requestBody = null;
+
+    if (checkoutMode === "all") {
+      // Thanh toán toàn bộ giỏ hàng
+      endpoint = "/api/orders/checkout/all";
+      // Không cần body
+    } else {
+      // Thanh toán các item đã chọn
+      endpoint = "/api/orders/checkout/selected";
+      const cartItemIds = selectedItems.map(id => Number(id));
+      requestBody = { itemIds: cartItemIds }; // Backend expect "itemIds"
+    }
+
+    const response = await api.post(
+      endpoint,
+      requestBody,
+      setAccessToken
+    );
+
+    const data = response.data; // CheckoutResponseDto { success, message, newBalance, cart }
+
+    // 2. Kiểm tra response thành công
+    if (!data.success) {
+      toast.error(data.message || "Thanh toán thất bại");
+      return;
+    }
+
+    // 3. Cập nhật số dư từ newBalance (backend trả chính xác)
+    if (data.newBalance !== null && data.newBalance !== undefined) {
+      setLocalBalance(data.newBalance);
+      // 🔥 QUAN TRỌNG: Cập nhật UserContext để navbar hiển thị balance mới
+      setUser(prev => ({ ...prev, balance: data.newBalance }));
+      console.log("Checkout response:", data);
+    } else {
+      // Fallback nếu backend không trả newBalance
+      const newBalance = localBalance - pendingAmount;
+      setLocalBalance(newBalance);
+      setUser(prev => ({ ...prev, balance: newBalance }));
+    }
+
+    // 4. Cập nhật cart từ response
+    if (data.cart) {
+      setCart(data.cart); // Backend trả CartResponse mới
+    }
+    
     setSelectedItems([]);
 
-    toast.success(`Thanh toán thành công ${pendingAmount.toLocaleString()} GCoin!`);
+    toast.success(data.message || `Thanh toán thành công ${pendingAmount.toLocaleString("vi-VN")} G-Coin!`);
 
     // 5. CHUYỂN HƯỚNG THÔNG MINH
     if (purchasedGameIds.length === 1) {
@@ -173,15 +226,21 @@ const handleConfirmPayment = async () => {
       const gameId = purchasedGameIds[0];
       navigate(`/product/${gameId}?tab=download`);
     } else if (purchasedGameIds.length > 1) {
-      // Nếu mua nhiều game → về trang thư viện hoặc thông báo
+      // Nếu mua nhiều game → về trang thư viện
       toast.success("Đã thêm tất cả game vào thư viện của bạn!");
-      navigate("/library"); // hoặc "/my-games"
+      navigate("/library");
     }
 
     setShowConfirmModal(false);
   } catch (error) {
     console.error("Lỗi thanh toán:", error);
-    toast.error("Thanh toán thất bại. Vui lòng thử lại.");
+    let message = "Thanh toán thất bại. Vui lòng thử lại.";
+    if (error.response?.data?.message) {
+      message = error.response.data.message;
+    } else if (error.response?.status === 400) {
+      message = "Số dư không đủ hoặc sản phẩm không khả dụng";
+    }
+    toast.error(message);
   }
 };
 

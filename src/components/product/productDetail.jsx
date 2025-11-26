@@ -6,19 +6,42 @@ import { motion, AnimatePresence } from "framer-motion";
 import searchApi from "../../api/searchApi"; 
 import { toast } from "sonner";
 import { useCart } from "../../store/CartContext";
+import { useUser } from "../../store/UserContext";
+import { api } from "../../api/authApi";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, addToCart } = useCart();
+  const { addToCart } = useCart(); // Chỉ lấy addToCart
+  const { user, accessToken } = useUser(); // User từ UserContext
 
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOwned, setIsOwnedState] = useState(false);
 
   // UI
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeTab, setActiveTab] = useState("about");
+
+  // Kiểm tra game đã mua hay chưa
+  const checkIfOwned = async (gameId) => {
+  if (!accessToken) return false;
+  try {
+    const response = await api.get(`/api/games/${gameId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const owned = response.data?.isOwned || response.data?.owned || false;
+    setIsOwnedState(owned);
+    return owned;
+  } catch (error) {
+    console.error("Lỗi kiểm tra game đã mua:", error);
+    setIsOwnedState(false);
+    return false;
+  }
+};
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -26,20 +49,35 @@ export default function ProductDetailPage() {
         setLoading(true);
         const response = await searchApi.getGameDetail(id);
         setGame(response);
-      } catch (err) {
-        console.error(err);
+        
+        // Kiểm tra xem user đã mua game này hay chưa
+        if (user) {
+          await checkIfOwned(id);
+        } else {
+          setIsOwnedState(false);
+        }
+      } catch (error) {
+        console.error(error);
         setGame(null);
       } finally {
         setLoading(false);
       }
     };
     if (id) fetchDetail();
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
 
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
-    if (tabFromUrl === "download") setActiveTab("download");
-  }, [searchParams]);
+    if (tabFromUrl === "download") {
+      setActiveTab("download");
+      // Khi mở tab download, kiểm tra lại trạng thái owned
+      if (user && id) {
+        checkIfOwned(id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, user, id]);
 
   const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
   const slides = game ? [
@@ -52,36 +90,55 @@ export default function ProductDetailPage() {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
   const handleAddToCart = async () => {
-    if (!user) {
-      toast.warning("Vui lòng đăng nhập để mua game.");
-      navigate("/login");
-      return;
-    }
+  if (!user || !accessToken) {
+    toast.warning("Vui lòng đăng nhập để mua game.");
+    navigate("/login");
+    return;
+  }
 
-    const updatedCart = await addToCart(game.id);
+  try {
+    const updatedCart = await addToCart(game.id, accessToken); // nếu addToCart cần token
     if (updatedCart) {
+      toast.success("Đã thêm vào giỏ hàng!");
       navigate("/cart");
     }
-  };
+  } catch (error) {
+    console.error("Thêm game vào giỏ hàng thất bại:", error);
+    toast.error("Thêm game vào giỏ hàng thất bại");
+  }
+};
 
-  const handleBuyNow = async () => {
-    if (!user) {
-      toast.warning("Vui lòng đăng nhập để mua game.");
-      navigate("/login");
-      return;
+// Mua ngay
+const handleBuyNow = async () => {
+  if (!user || !accessToken) {
+    toast.warning("Vui lòng đăng nhập để mua game.");
+    navigate("/login");
+    return;
+  }
+
+  if (game.price === 0) {
+    // Game miễn phí
+    try {
+      await api.post(
+        "/api/orders/free",
+        { gameId: game.id },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      toast.success("Đã thêm vào thư viện của bạn!");
+      setIsOwnedState(true);
+    } catch (error) {
+      console.error("Lỗi mua game miễn phí:", error);
+      toast.error("Lỗi mua game miễn phí");
     }
-    if (game.price === 0) {
-      try {
-        await api.post("/api/orders/free", { gameId: game.id });
-        toast.success("Đã thêm vào thư viện của bạn!");
-        setGame(prev => ({ ...prev, purchased: true }));
-      } catch (err) {
-        toast.error("Lỗi mua game miễn phí");
-      }
-    } else {
-      await handleAddToCart();
-    }
-  };
+  } else {
+    // Game trả phí -> thêm vào giỏ hàng
+    await handleAddToCart();
+  }
+};
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-purple-800 to-purple-900 flex justify-center items-center text-white">
@@ -163,9 +220,10 @@ export default function ProductDetailPage() {
                 )}
                 {activeTab==="download" && (
                   <motion.div key="download" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-6">
-                    {!game.isOwned ? (
+                    {!isOwned ? (
                       <div className="text-center py-10 text-purple-200">
                         <p className="text-xl font-bold text-white mb-4">Bạn chưa sở hữu game này</p>
+                        <p className="text-sm text-purple-300 mb-6">Vui lòng mua game để tải xuống</p>
                         <button onClick={handleBuyNow} className="bg-purple-700 text-white font-bold px-8 py-3 rounded-lg hover:bg-purple-600 transition">Mua ngay để tải xuống</button>
                       </div>
                     ) : (
@@ -191,7 +249,7 @@ export default function ProductDetailPage() {
               <div className="flex justify-between"><span>Giá:</span> <span className="font-semibold text-white">{game.price>0?`${game.price.toLocaleString()} đ`:'Miễn Phí'}</span></div>
             </div>
             <div className="space-y-3 pt-4 border-t border-purple-700">
-              <button onClick={handleBuyNow} className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"><ShoppingCart size={20}/> Mua Ngay</button>
+              <button onClick={handleAddToCart} className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"><ShoppingCart size={20}/> Mua Ngay</button>
               <button className="w-full bg-transparent hover:bg-purple-800 text-white font-semibold py-3 rounded-lg border border-purple-600 transition flex items-center justify-center gap-2"><Heart size={20}/> Yêu Thích</button>
             </div>
           </div>

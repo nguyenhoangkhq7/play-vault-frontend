@@ -1,6 +1,6 @@
 // pages/ProductDetailPage.jsx
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Star, Heart, ShoppingCart, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import searchApi from "../../api/searchApi"; 
@@ -11,7 +11,6 @@ import { api } from "../../api/authApi";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { addToCart } = useCart(); // Chỉ lấy addToCart
   const { user, accessToken } = useUser(); // User từ UserContext
@@ -24,60 +23,44 @@ export default function ProductDetailPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeTab, setActiveTab] = useState("about");
 
-  // Kiểm tra game đã mua hay chưa
-  const checkIfOwned = async (gameId) => {
-  if (!accessToken) return false;
-  try {
-    const response = await api.get(`/api/games/${gameId}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    const owned = response.data?.isOwned || response.data?.owned || false;
-    setIsOwnedState(owned);
-    return owned;
-  } catch (error) {
-    console.error("Lỗi kiểm tra game đã mua:", error);
-    setIsOwnedState(false);
-    return false;
-  }
-};
-
   useEffect(() => {
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
-        const response = await searchApi.getGameDetail(id);
-        setGame(response);
-        
-        // Kiểm tra xem user đã mua game này hay chưa
-        if (user) {
-          await checkIfOwned(id);
-        } else {
-          setIsOwnedState(false);
-        }
-      } catch (error) {
-        console.error(error);
-        setGame(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) fetchDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user]);
+  const fetchDetail = async () => {
+    if (!id) return;
 
-  useEffect(() => {
-    const tabFromUrl = searchParams.get("tab");
-    if (tabFromUrl === "download") {
-      setActiveTab("download");
-      // Khi mở tab download, kiểm tra lại trạng thái owned
-      if (user && id) {
-        checkIfOwned(id);
+    try {
+      setLoading(true);
+
+      const response = await api.get(`/api/games/${id}`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+      });
+
+      const gameData = response.data;
+      setGame(gameData);
+
+      const owned = gameData.isOwned === true;
+      setIsOwnedState(owned);
+
+      // Chỉ tự chuyển sang tab download khi người dùng vừa mua xong
+      if (owned && activeTab !== "download") {
+        setActiveTab("download");
       }
+
+    } catch (error) {
+      console.error("Lỗi tải chi tiết game:", error);
+      setGame(null);
+      setIsOwnedState(false);
+    } finally {
+      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, user, id]);
+  };
+
+  fetchDetail();
+
+// Dùng pathname để đảm bảo reload khi điều hướng từ trang khác trở lại
+}, [location.pathname, accessToken]);
+ // user không cần nữa vì accessToken đã đủ
+
+  // Loại bỏ useEffect kiểm tra searchParams vì redirect không còn dùng ?tab=download
 
   const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
   const slides = game ? [
@@ -130,6 +113,8 @@ const handleBuyNow = async () => {
       );
       toast.success("Đã thêm vào thư viện của bạn!");
       setIsOwnedState(true);
+      // 🔥 TRIGGER REFETCH trong PurchasedProducts
+      window.dispatchEvent(new Event('purchasedGamesUpdated'));
     } catch (error) {
       console.error("Lỗi mua game miễn phí:", error);
       toast.error("Lỗi mua game miễn phí");
@@ -249,7 +234,7 @@ const handleBuyNow = async () => {
               <div className="flex justify-between"><span>Giá:</span> <span className="font-semibold text-white">{game.price>0?`${game.price.toLocaleString()} đ`:'Miễn Phí'}</span></div>
             </div>
             <div className="space-y-3 pt-4 border-t border-purple-700">
-              <button onClick={handleAddToCart} className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"><ShoppingCart size={20}/> Mua Ngay</button>
+              <button onClick={handleAddToCart} className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"><ShoppingCart size={20}/> Mua Ngay</button> 
               <button className="w-full bg-transparent hover:bg-purple-800 text-white font-semibold py-3 rounded-lg border border-purple-600 transition flex items-center justify-center gap-2"><Heart size={20}/> Yêu Thích</button>
             </div>
           </div>

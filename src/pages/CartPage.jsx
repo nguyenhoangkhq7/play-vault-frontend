@@ -97,12 +97,18 @@ function CartPage() {
   };
 
   // ✅ Chọn hoặc bỏ chọn sản phẩm (Đã cập nhật)
-  const handleToggleSelect = (cartItemId) => { // Thay đổi: Nhận cartItemId
+  // Chỉ chọn 1 game mỗi lần
+  const handleToggleSelect = (cartItemId) => {
     const id = String(cartItemId);
-    setSelectedItems((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    if (selectedItems.includes(id)) {
+      // Nếu click lại game đã chọn → bỏ chọn
+      setSelectedItems([]);
+    } else {
+      // Chọn game mới, bỏ chọn các game khác
+      setSelectedItems([id]);
+    }
   };
+
 
   // ✅ Xử lý thanh toán
   const handleCheckout = (mode) => {
@@ -125,7 +131,7 @@ function CartPage() {
       toast.warning(`Số dư không đủ! Cần thêm ${(total - localBalance).toLocaleString("vi-VN")} G-Coin`);
       setCheckoutMode(mode);
       setPendingAmount(total);
-      setShowPaymentModal(true);
+      setShowPaymentModal(false);
     } else {
       // Balance đủ → hiển thị confirm modal
       setPendingAmount(total);
@@ -168,6 +174,12 @@ const handleConfirmPayment = async () => {
     const purchasedGameIds = (cart?.items || [])
       .filter((item) => selectedItems.includes(String(item.cartItemId)))
       .map((item) => item.gameId);
+
+    // ✅ KIỂM TRA BALANCE TRƯỚC KHI THANH TOÁN
+    if (pendingAmount > localBalance) {
+      toast.error(`Số dư không đủ! Vui lòng nạp thêm ${(pendingAmount - localBalance).toLocaleString("vi-VN")} G-Coin`);
+      return;
+    }
 
     // 1. Gọi API thanh toán - tuỳ vào mode (selected/all)
     let endpoint = "";
@@ -220,15 +232,26 @@ const handleConfirmPayment = async () => {
 
     toast.success(data.message || `Thanh toán thành công ${pendingAmount.toLocaleString("vi-VN")} G-Coin!`);
 
+    // 🔥 TRIGGER REFETCH trong PurchasedProducts
+    window.dispatchEvent(new CustomEvent('purchasedGamesUpdated', {
+      detail: { gameIds: purchasedGameIds }
+    }));
+
     // 5. CHUYỂN HƯỚNG THÔNG MINH
+    const gameId = purchasedGameIds[0];
     if (purchasedGameIds.length === 1) {
-      // Nếu chỉ mua 1 game → chuyển thẳng đến trang chi tiết + mở tab download
-      const gameId = purchasedGameIds[0];
-      navigate(`/product/${gameId}?tab=download`);
-    } else if (purchasedGameIds.length > 1) {
-      // Nếu mua nhiều game → về trang thư viện
-      toast.success("Đã thêm tất cả game vào thư viện của bạn!");
+      toast.success("Mua thành công! Đang chuyển đến trang tải game...");
+      // Delay để đảm bảo backend đã save xong
+      setTimeout(() => {
+        navigate(`/product/${gameId}`);
+      }, 1000);
+    } else {
+      toast.success("Đã thêm tất cả game vào thư viện!");
       navigate("/library");
+      // Trigger refetch ngay cả khi đã ở /library
+      setTimeout(() => {
+        window.dispatchEvent(new Event('purchasedGamesUpdated'));
+      }, 1500);
     }
 
     setShowConfirmModal(false);
@@ -396,31 +419,39 @@ const handleConfirmPayment = async () => {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button
-                    onClick={() => handleCheckout("selected")}
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(34,197,94,0.5)] hover:shadow-[0_0_20px_rgba(34,197,94,0.8)] transition-all"
-                    disabled={selectedItems.length === 0} // Thêm disabled
-                  >
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    Thanh Toán Các Mục Đã Chọn
-                  </Button>
-                  <Button
-                    onClick={() => handleCheckout("all")}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(168,85,247,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] transition-all"
-                    disabled={cart?.items?.length === 0} // Thêm disabled
-                  >
-                    <CheckCircle className="h-5 w-5 mr-2" />
-                    Thanh Toán Toàn Bộ
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-transparent border-purple-400 text-purple-200 hover:bg-purple-700 hover:text-white"
-                    onClick={() => navigate("/products")}
-                  >
-                    <XCircle className="h-5 w-5 mr-2" />
-                    Tiếp Tục Mua Sắm
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => handleCheckout("selected")}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(34,197,94,0.5)] hover:shadow-[0_0_20px_rgba(34,197,94,0.8)] transition-all"
+                  disabled={
+                    selectedItems.length === 0 || totalPrice > localBalance
+                  }
+                >
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  Thanh Toán Game Đã Chọn
+                </Button>
+
+                {/* <Button
+                  onClick={() => handleCheckout("all")}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(168,85,247,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] transition-all"
+                  disabled={
+                    (cart?.items?.length === 0) ||
+                    ((cart?.items || []).reduce((sum, item) => sum + (item.finalPrice || 0), 0) > localBalance)
+                  }
+                >
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Thanh Toán Toàn Bộ
+                </Button> */}
+
+                <Button
+                  variant="outline"
+                  className="bg-transparent border-purple-400 text-purple-200 hover:bg-purple-700 hover:text-white"
+                  onClick={() => navigate("/products")}
+                >
+                  <XCircle className="h-5 w-5 mr-2" />
+                  Tiếp Tục Mua Sắm
+                </Button>
+              </div>
+
               </div>
             </div>
           </div>

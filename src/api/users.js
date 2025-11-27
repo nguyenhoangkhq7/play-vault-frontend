@@ -70,6 +70,7 @@ export async function registerUser(userData) {
     throw error;
   }
 }
+
 export async function getUsers() {
   try {
     const response = await fetch(API_URL);

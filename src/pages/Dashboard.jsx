@@ -25,9 +25,8 @@ export default function Dashboard() {
 
         if (orderItems && orderItems.length > 0) {
           // Derive dailyRevenue từ orderItems (giữ float)
-          const uniqueOrders = new Set(orderItems.map(item => item.orderId))
-          const transactions = uniqueOrders.size
-          const revenue = orderItems.reduce((sum, item) => sum + (item.total || item.price || 0), 0)
+          const revenue = orderItems.reduce((sum, item) => sum + (item.gameBasicInfos?.price || 0), 0)
+          const transactions = orderItems.length  // Giả sử mỗi item là một order riêng biệt (không có orderId)
           const avgOrderValue = transactions > 0 ? revenue / transactions : 0
 
           setDailyRevenue({
@@ -38,7 +37,7 @@ export default function Dashboard() {
           })
 
           // Derive STATS (bao gồm new accounts)
-          const uniqueGames = new Set(orderItems.map(item => item.gameId)).size
+          const uniqueGames = new Set(orderItems.map(item => item.id)).size  // Sử dụng item.id làm gameId
           const newAccountsToday = Array.isArray(accountsToday) ? accountsToday.length : (accountsToday || 0)
 
           setStats([
@@ -48,13 +47,13 @@ export default function Dashboard() {
             { icon: Activity, label: "Items Sold", value: orderItems.length }
           ])
 
-          // Derive TOP 5 GAMES từ orderItems – GROUP duplicate names, SUM total/price CHÍNH XÁC (float), SORT cao nhất, SLICE top 5
+          // Derive TOP 5 GAMES từ orderItems – GROUP duplicate names, SUM price CHÍNH XÁC (float), SORT cao nhất, SLICE top 5
           const gamesMap = orderItems.reduce((acc, item) => {
-            const key = item.gameTitle || `Game ${item.gameId}`  // Key: Tên game (duplicate → tổng hợp)
+            const key = item.gameBasicInfos?.name || `Game ${item.id}`  // Key: Tên game (duplicate → tổng hợp)
             if (!acc[key]) {
               acc[key] = { name: key, sales: 0 }  // sales = doanh thu tổng (float)
             }
-            acc[key].sales += (item.total || item.price || 0)  // Sum chính xác từ API (e.g., 59.99)
+            acc[key].sales += (item.gameBasicInfos?.price || 0)  // Sum chính xác từ API (e.g., 59.99)
             return acc
           }, {})
 

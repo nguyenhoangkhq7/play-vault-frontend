@@ -66,7 +66,7 @@ export default function FavoriteProducts() {
                 downloadProgress: 0,
                 price: `${game.price?.toLocaleString() || 0}đ`,
                 tags: game.tags || [],
-                thumbnailImage: game.thumbnail_image || "https://placehold.co/400x200/3a1a5e/ffffff?text=No+Image",
+                thumbnailImage: game.trailerUrl,
                 ageRating: game.details?.["age-limit"] || "N/A",
                 releaseDate: game.details?.published_date?.$date
                     ? new Date(game.details.published_date.$date).toLocaleDateString("vi-VN")

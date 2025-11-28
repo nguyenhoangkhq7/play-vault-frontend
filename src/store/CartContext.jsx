@@ -1,125 +1,19 @@
 // store/CartContext.js
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState } from "react";
 import { api } from "../api/authApi";
 import { toast } from "sonner";
 
-const CartContext = createContext(null);
+const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
   const [cart, setCart] = useState(null);
-  const [balance, setBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [refreshingToken, setRefreshingToken] = useState(false);
-  const [queue, setQueue] = useState([]);
 
-  const setAccessToken = (token) => {
-    if (token) {
-      localStorage.setItem("access_token", token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    } else {
-      localStorage.removeItem("access_token");
-      delete api.defaults.headers.common["Authorization"];
-    }
-  };
-
-  const refreshToken = async () => {
-    if (refreshingToken) {
-      return new Promise((resolve, reject) => {
-        setQueue((prev) => [...prev, { resolve, reject }]);
+  const refreshCart = async (token) => {
+    if (!token) return;
+    try {
+      const res = await api.get("/api/cart", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-    }
-    setRefreshingToken(true);
-    try {
-      const res = await api.post("/api/auth/refresh", {}, { withCredentials: true });
-      const newToken = res.data.access_token;
-      setAccessToken(newToken);
-      queue.forEach(q => q.resolve(newToken));
-      setQueue([]);
-      return newToken;
-    } catch (err) {
-      console.error("Refresh token thất bại", err);
-      logout();
-      queue.forEach(q => q.reject(err));
-      setQueue([]);
-      throw err;
-    } finally {
-      setRefreshingToken(false);
-    }
-  };
-
-  const callApi = async (apiFunc) => {
-    try {
-      return await apiFunc();
-    } catch (err) {
-      if (err.response?.status === 401) {
-        // eslint-disable-next-line no-useless-catch
-        try {
-          await refreshToken();
-          return await apiFunc();
-        } catch (refreshErr) {
-          throw refreshErr;
-        }
-      }
-      throw err;
-    }
-  };
-
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-      try {
-        setAccessToken(token);
-        const userRes = await callApi(() => api.get("/api/auth/me"));
-        setUser(userRes.data);
-        setBalance(userRes.data.balance || 0);
-        const cartRes = await callApi(() => api.get("/api/cart"));
-        setCart(cartRes.data);
-      } catch (err) {
-        console.error("Không thể load dữ liệu ban đầu", err);
-        toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    initAuth();
-  }, []);
-
-  const login = async (token, userData) => {
-    setAccessToken(token);
-    setUser(userData);
-    setBalance(userData.balance || 0);
-    try {
-      const cartRes = await callApi(() => api.get("/api/cart"));
-      setCart(cartRes.data);
-      toast.success("Đăng nhập thành công!");
-    } catch (err) {
-      console.error("Không thể tải giỏ hàng sau login", err);
-      setCart({ items: [] });
-    }
-  };
-
-  const logout = () => {
-    setAccessToken(null);
-    setUser(null);
-    setCart(null);
-    setBalance(0);
-    toast.success("Đã đăng xuất");
-  };
-
-  const updateBalance = (newBalance) => {
-    setBalance(newBalance);
-    if (user) setUser(prev => ({ ...prev, balance: newBalance }));
-  };
-
-  const refreshCart = async () => {
-    if (!user) return;
-    try {
-      const res = await callApi(() => api.get("/api/cart"));
       setCart(res.data);
     } catch (err) {
       console.error("Không thể cập nhật giỏ hàng", err);
@@ -127,13 +21,15 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const addToCart = async (gameId) => {
+  const addToCart = async (gameId, user, token) => {
     if (!user) {
       toast.warning("Vui lòng đăng nhập để mua game.");
       return null;
     }
     try {
-      const res = await callApi(() => api.post(`/api/cart/items/${gameId}`));
+      const res = await api.post(`/api/cart/items/${gameId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setCart(res.data);
       toast.success("Đã thêm vào giỏ hàng!");
       return res.data;
@@ -148,10 +44,12 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const removeFromCart = async (cartItemId) => {
-    if (!user) return;
+  const removeFromCart = async (cartItemId, token) => {
+    if (!token) return;
     try {
-      const res = await callApi(() => api.delete(`/api/cart/items/${cartItemId}`));
+      const res = await api.delete(`/api/cart/items/${cartItemId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setCart(res.data);
       toast.success("Đã xóa game khỏi giỏ hàng.");
     } catch (err) {
@@ -161,27 +59,12 @@ export const CartProvider = ({ children }) => {
   };
 
   return (
-    <CartContext.Provider value={{
-      user,
-      setUser,
-      cart,
-      setCart,
-      balance,
-      setBalance: updateBalance,
-      loading,
-      login,
-      logout,
-      refreshCart,
-      addToCart,
-      removeFromCart,
-      setAccessToken
-    }}>
+    <CartContext.Provider value={{ cart, setCart, addToCart, removeFromCart, refreshCart }}>
       {children}
     </CartContext.Provider>
   );
 };
 
-// --- Export tách riêng, không dùng default ---
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) throw new Error("useCart must be used within CartProvider");

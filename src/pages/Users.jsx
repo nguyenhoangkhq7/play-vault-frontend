@@ -1,149 +1,355 @@
 import React, { useState, useRef, useEffect } from 'react';
 import UsersTable from '../components/admin/users/UsersTable';
 import PublishersTable from '../components/admin/users/PublishersTable';
-import DetailModal from '../components/admin/users/DetailModal'; // Modal xem chi tiết
-import UserDetail from '../components/admin/users/UserDetail'; 
+import PublishersReviewTable from '../components/admin/users/PublishersReviewTable';
+import DetailModal from '../components/admin/users/DetailModal';
+import { getAllPublisher, blockPublisher, unblockPublisher } from '../api/publisher';
+import { getAllCustomers } from '../api/customer';
+import { blockCustomer, unblockCustomer } from '../api/customer';
+import { getBlockRecordByUserName, blockUser, unblockUser } from '../api/block-record';
+import { getPublisherReuqestByUserName } from '../api/publisher-request';
+import { approvePublisherRequest, rejectPublisherRequest } from '../api/publisher-request';
+import { useUser } from '../store/UserContext';
 
-// --- Main App Component ---
 export default function Users() {
-  const [activeTab, setActiveTab] = useState('user');
+  // Cập nhật trạng thái tab để bao gồm 'pending_review'
+  const [activeTab, setActiveTab] = useState('user'); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [view, setView] = useState('list'); 
 
-  const [users, setUsers] = useState([
-    { id: 'U-10111', name: 'Nguyễn Văn A', email: 'nguyenvana@gmail.com', date: '20-10-2024', status: 'Active', blockHistory: [] },
-    { id: 'U-10112', name: 'Trần Thị B', email: 'tranthib@gmail.com', date: '21-10-2024', status: 'Active', blockHistory: [] },
-    { id: 'U-10113', name: 'Lê Văn C', email: 'levanc@gmail.com', date: '22-10-2024', status: 'Blocked', blockHistory: [{ date: '23-10-2024', reason: 'Vi phạm quy tắc cộng đồng' }] },
-  ]);
+  const { setAccessToken } = useUser();
 
-const [publishers, setPublishers] = useState([
-    { id: 'P-10111', name: 'GameDev Studio X', email: 'contact@x.com', date: '20-10-2024', games: 12, status: 'Active', blockHistory: [] },
-    { id: 'P-10112', name: 'Indie Creators', email: 'support@indie.com', date: '19-10-2024', games: 5, status: 'Blocked', blockHistory: [{ date: '20-10-2024', reason: 'Chậm báo cáo doanh thu' }] },
-    { id: 'P-10113', name: 'AAA Games Inc.', email: 'press@aaa.com', date: '18-10-2024', games: 25, status: 'Pending review', blockHistory: [] },
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState(null);
+  const [userActionLoading, setUserActionLoading] = useState({});
+  
+
+  const [publishers, setPublishers] = useState([
+    
   ]);
+  const [publisherActionLoading, setPublisherActionLoading] = useState({});
 
   const userTabRef = useRef(null);
   const publisherTabRef = useRef(null);
+  const reviewTabRef = useRef(null); // Ref cho tab mới
   const [underlineStyle, setUnderlineStyle] = useState({});
 
+  // Lọc dữ liệu Publisher đang chờ duyệt
+  const pendingPublishers = publishers.filter(p => p.status === 'Pending review');
+
   useEffect(() => {
-    if (activeTab === 'user' && userTabRef.current) {
+    // fetch users (customers) from backend
+    const fetchUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        setUsersError(null);
+        const data = await getAllCustomers(setAccessToken);
+
+        // normalize response (api.get returns axios response with .data)
+        const list = (data && data.data) || (Array.isArray(data) ? data : []);
+
+        // map backend customer objects to frontend shape
+        const usersWithHistory = await Promise.all((list || []).map(async (cust) => {
+          // cust expected: { id, fullName, email, date, status, username }
+          let records = [];
+          try {
+            const recResp = await getBlockRecordByUserName(cust.username, setAccessToken);
+            records = (recResp && recResp.data) || recResp || [];
+          } catch (e) {
+            // ignore block record errors for now
+            console.warn('Failed to fetch block records for', cust.username, e);
+          }
+
+          return {
+            id: cust.id,
+            name: cust.fullName || cust.username,
+            email: cust.email,
+            date: cust.date || '',
+            status: cust.status === 'ACTIVE' ? 'Active' : (cust.status === 'BLOCKED' ? 'Blocked' : cust.status),
+            username: cust.username,
+            blockHistory: records || []
+          };
+        }));
+
+        setUsers(usersWithHistory);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setUsersError('Không thể tải danh sách user.');
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+
+  const fetchPublishers = async () => {
+    try {
+      const data = await getAllPublisher(setAccessToken);
+
+      const publishersWithHistory = await Promise.all(
+        (data && data.data ? data.data : (Array.isArray(data) ? data : []))
+          .map(async (pub) => {
+          const [recordsResp, requestResp] = await Promise.all([
+            getBlockRecordByUserName(pub.username, setAccessToken),
+            getPublisherReuqestByUserName(pub.username, setAccessToken)
+          ]);
+
+          const records = (recordsResp && recordsResp.data) || recordsResp || [];
+          const request = (requestResp && requestResp.data) || requestResp || null;
+
+          const newStatus = request && (request.status === "PENDING" || request.status === "PENDING")
+            ? "Pending review"
+            : pub.status;
+
+          return {
+            ...pub,
+            status: newStatus,
+            blockHistory: Array.isArray(records) ? records : [],
+            publisherRequestId: request?.id || null
+          };
+        })
+      );
+
+      console.log(publishersWithHistory);
+      
+      setPublishers(publishersWithHistory);
+
+    } catch (error) {
+      console.error("Error fetching publishers:", error);
+    }
+  };
+
+  fetchPublishers();
+}, [setAccessToken]);
+
+
+  // Logic cập nhật gạch chân
+  useEffect(() => {
+    let currentRef = null;
+    if (activeTab === 'user') {
+      currentRef = userTabRef.current;
+    } else if (activeTab === 'publisher') {
+      currentRef = publisherTabRef.current;
+    } else if (activeTab === 'pending_review') { // Logic cho tab mới
+      currentRef = reviewTabRef.current;
+    }
+
+    if (currentRef) {
       setUnderlineStyle({
-        left: userTabRef.current.offsetLeft,
-        width: userTabRef.current.offsetWidth,
-      });
-    } else if (activeTab === 'publisher' && publisherTabRef.current) {
-      setUnderlineStyle({
-        left: publisherTabRef.current.offsetLeft,
-        width: publisherTabRef.current.offsetWidth,
+        left: currentRef.offsetLeft,
+        width: currentRef.offsetWidth,
       });
     }
   }, [activeTab]);
 
-  // --- Toggle trạng thái ---
-  const handleUserStatusToggle = (userId, reason) => {
-    setUsers(users.map(user => {
-      if (user.id === userId) {
-        const newStatus = user.status === 'Active' ? 'Blocked' : 'Active';
-        const newBlockHistory = [...user.blockHistory];
-        if (newStatus === 'Blocked' && reason) {
-          newBlockHistory.push({ date: new Date().toLocaleDateString('vi-VN'), reason });
-        }
-        return { ...user, status: newStatus, blockHistory: newBlockHistory };
+  // Toggle status (Block/Unblock) cho User
+  const handleUserStatusToggle = async (userId, reason) => {
+    setUserActionLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      const isActive = user.status === 'Active' || user.status === 'ACTIVE';
+      let success;
+      if (isActive) {
+        success = await blockUser(user.username, reason, setAccessToken);
+      } else {
+        success = await unblockUser(user.username, setAccessToken);
       }
-      return user;
-    }));
+
+      if (success) {
+        setUsers(prev => prev.map(u => {
+          if (u.id === userId) {
+            const newStatus = isActive ? 'Blocked' : 'Active';
+            const newBlockHistory = [...(u.blockHistory || [])];
+            if (isActive && reason) {
+              newBlockHistory.push({ date: new Date().toLocaleDateString('vi-VN'), reason });
+            }
+            return { ...u, status: newStatus, blockHistory: newBlockHistory };
+          }
+          return u;
+        }));
+        alert(isActive ? '✅ Chặn user thành công!' : '✅ Bỏ chặn user thành công!');
+      } else {
+        alert('❌ Thao tác thất bại.');
+      }
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      alert('❌ Lỗi khi thực hiện thao tác.');
+    } finally {
+      setUserActionLoading(prev => ({ ...prev, [userId]: false }));
+    }
   };
 
-  const handlePublisherStatusToggle = (pubId) => {
-    setPublishers(publishers.map(pub =>
-      pub.id === pubId ? { ...pub, status: pub.status === 'Active' ? 'Blocked' : 'Active' } : pub
-    ));
+  // Toggle status (Block/Unblock) cho Publisher
+  const handlePublisherStatusToggle = async (pubId, reason) => {
+    setPublisherActionLoading(prev => ({ ...prev, [pubId]: true }));
+    try {
+      const pub = publishers.find(p => p.id === pubId || p.publisherRequestId === pubId);
+      if (!pub) return;
+
+      const isActive = pub.status === 'Active' || pub.status === 'ACTIVE';
+      let success;
+      if (isActive) {
+        success = await blockUser(pub.username, reason, setAccessToken);
+      } else {
+        success = await unblockUser(pub.username, setAccessToken);
+      }
+
+      if (success) {
+        setPublishers(prev => prev.map(p => {
+          if (p.id === pubId || p.publisherRequestId === pubId) {
+            const newStatus = isActive ? 'Blocked' : 'Active';
+            const newHistory = [...(p.blockHistory || [])];
+            if (isActive && reason) {
+              newHistory.push({ date: new Date().toLocaleDateString('vi-VN'), reason });
+            }
+            return { ...p, status: newStatus, blockHistory: newHistory };
+          }
+          return p;
+        }));
+        alert(isActive ? '✅ Chặn publisher thành công!' : '✅ Bỏ chặn publisher thành công!');
+      } else {
+        alert('❌ Thao tác thất bại.');
+      }
+    } catch (error) {
+      console.error('Error toggling publisher status:', error);
+      alert('❌ Lỗi khi thực hiện thao tác.');
+    } finally {
+      setPublisherActionLoading(prev => ({ ...prev, [pubId]: false }));
+    }
   };
+  
+// Xử lý Cấp quyền Publisher (chuyển từ Pending review sang Active)
+const handlePublisherApprove = async (publisherRequestId) => {
+  setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: true }));
+  try {
+    const success = await approvePublisherRequest(publisherRequestId, setAccessToken);
+    if (success) {
+      setPublishers(prev => prev.map(pub => pub.publisherRequestId === publisherRequestId ? { ...pub, status: 'Active', publisherRequestId: null } : pub));
+      // optional user feedback
+      alert('✅ Duyệt Publisher thành công!');
+    } else {
+      // server reported failure
+      alert('❌ Duyệt Publisher thất bại: server trả về không thành công.');
+    }
+  } catch (error) {
+    console.error('Error approving publisher request:', error);
+    alert('❌ Lỗi khi gọi API duyệt publisher.');
+  } finally {
+    setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: false }));
+  }
+};
 
-  // --- Xem chi tiết ---
-  // const handleViewDetails = (account) => {
-  //   setSelectedAccount(account);
-  //   setIsModalOpen(true);
-  // };
+// Xử lý Từ chối Publisher
+const handlePublisherReject = async (publisherRequestId) => {
+  setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: true }));
+  try {
+    const success = await rejectPublisherRequest(publisherRequestId, setAccessToken);
+    if (success) {
+      setPublishers(prev => prev.map(pub => pub.publisherRequestId === publisherRequestId ? { ...pub, status: 'Rejected', publisherRequestId: null } : pub));
+      alert('✅ Từ chối Publisher thành công!');
+    } else {
+      alert('❌ Từ chối Publisher thất bại: server trả về không thành công.');
+    }
+  } catch (error) {
+    console.error('Error rejecting publisher request:', error);
+    alert('❌ Lỗi khi gọi API từ chối publisher.');
+  } finally {
+    setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: false }));
+  }
+};
 
-    const handleViewDetails = (account) => {
+  // VIEW DETAILS -> mở modal
+  const handleViewDetails = (account) => {
     setSelectedAccount(account);
-    setView('detail'); // chuyển sang trang chi tiết
+    setIsModalOpen(true);
   };
+
+  // Hàm render Table dựa trên activeTab
+  const renderTable = () => {
+    switch (activeTab) {
+      case 'user':
+        return (
+          <UsersTable
+            users={users}
+            onStatusToggle={handleUserStatusToggle}
+            onViewDetails={handleViewDetails}
+          />
+        );
+      case 'publisher':
+        // Hiển thị tất cả Publisher (trừ Pending review, vì đã có tab riêng)
+        const activeAndBlockedPublishers = publishers.filter(p => p.status !== 'Pending review');
+        return (
+          <PublishersTable
+            publishers={activeAndBlockedPublishers}
+            onStatusToggle={handlePublisherStatusToggle}
+            onViewDetails={handleViewDetails}
+          />
+        );
+      case 'pending_review':
+        return (
+          <PublishersReviewTable
+            publishers={pendingPublishers}
+            onApprove={handlePublisherApprove}
+            onReject={handlePublisherReject}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
 
   return (
     <div className="min-h-screen text-gray-300 font-sans">
-      <div className="flex-1">
-        <main>
-          {view==='list'? (
-            <>
-              <h1 className="text-3xl font-bold text-white mb-6">Admin quản lý tài khoản</h1>
-          
-          <div className="relative flex border-b border-purple-500/50 mb-6">
-            <button 
-              ref={userTabRef}
-              onClick={() => setActiveTab('user')}
-              className={`py-2 px-6 text-lg font-semibold transition-colors duration-300 ${activeTab === 'user' ? 'text-white' : 'text-gray-400'}`}
-            >
-              Người dùng (User)
-            </button>
-            <button 
-              ref={publisherTabRef}
-              onClick={() => setActiveTab('publisher')}
-              className={`py-2 px-6 text-lg font-semibold transition-colors duration-300 ${activeTab === 'publisher' ? 'text-white' : 'text-gray-400'}`}
-            >
-              Nhà phát hành (Publisher)
-            </button>
-            <div 
-              className="absolute bottom-[-1px] h-0.5 bg-pink-500 transition-all duration-300 ease-in-out"
-              style={underlineStyle}
-            ></div>
-          </div>
+      <main>
+        <h1 className="text-3xl font-bold text-white mb-6">Admin quản lý tài khoản</h1>
 
-          {/* Search bar */}
-          <div className="relative mb-6">
-            <input 
-              type="text" 
-              placeholder="Tìm theo ID, Tên, Email..."
-              className="w-full bg-[#3D1778]/80 border border-purple-500/50 rounded-lg py-3 pl-4 pr-12 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
+        {/* --- TAB NAVIGATION --- */}
+        <div className="relative flex border-b border-purple-500/50 mb-6">
+          <button ref={userTabRef} onClick={() => setActiveTab('user')}
+            className={`py-2 px-6 text-lg font-semibold ${activeTab === 'user' ? 'text-white' : 'text-gray-400'}`}>
+            Người dùng (User)
+          </button>
 
-          {/* Tables */}
-          {activeTab === 'user' ? (
-            <UsersTable 
-              users={users} 
-              onStatusToggle={handleUserStatusToggle} 
-              onViewDetails={handleViewDetails} 
-            />
-          ) : (
-            <PublishersTable 
-              publishers={publishers} 
-              onStatusToggle={handlePublisherStatusToggle} 
-              onViewDetails={handleViewDetails} 
-            />
-          )}
-            </>
-          ):(
-            <>
-            <UserDetail 
-              account={selectedAccount} 
-              onBack={() => setView('list')} 
-            />
-            </>
-          )}
+          <button ref={publisherTabRef} onClick={() => setActiveTab('publisher')}
+            className={`py-2 px-6 text-lg font-semibold ${activeTab === 'publisher' ? 'text-white' : 'text-gray-400'}`}>
+            Nhà phát hành (Publisher)
+          </button>
           
-        </main>
-      </div>
-      
-      {/* Modal xem chi tiết */}
-      <DetailModal
-        isOpen={isModalOpen}
-        account={selectedAccount}
-        onClose={() => setIsModalOpen(false)}
-      />
+          {/* TAB MỚI: DUYỆT PUBLISHER */}
+          <button ref={reviewTabRef} onClick={() => setActiveTab('pending_review')}
+            className={`py-2 px-6 text-lg font-semibold ${activeTab === 'pending_review' ? 'text-pink-500' : 'text-yellow-400'}`}>
+            Duyệt Publisher ({pendingPublishers.length})
+          </button>
+
+          <div className="absolute bottom-[-1px] h-0.5 bg-pink-500 transition-all duration-300 ease-in-out"
+            style={underlineStyle}></div>
+        </div>
+        {/* --- END TAB NAVIGATION --- */}
+
+        <div className="relative mb-6">
+          <input
+            type="text"
+            placeholder="Tìm theo ID, Tên, Email..."
+            className="w-full bg-[#3D1778]/80 border border-purple-500/50 rounded-lg py-3 pl-4 pr-12 text-white"
+          />
+        </div>
+
+        {/* HIỂN THỊ BẢNG DỰA TRÊN TRẠNG THÁI */}
+        <div className="table-container">
+          {renderTable()}
+        </div>
+
+        {/* MODAL */}
+        <DetailModal
+          isOpen={isModalOpen}
+          account={selectedAccount}
+          onClose={() => setIsModalOpen(false)}
+        />
+      </main>
     </div>
   );
 }

@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import UsersTable from '../components/admin/users/UsersTable';
 import PublishersTable from '../components/admin/users/PublishersTable';
+import PublishersReviewTable from '../components/admin/users/PublishersReviewTable';
 import DetailModal from '../components/admin/users/DetailModal';
-import { getAllPublisher } from '../api/publisher';
-import { getBlockRecordByUserName } from '../api/block-record';
+import { getAllPublisher, blockPublisher, unblockPublisher } from '../api/publisher';
+import { getAllCustomers } from '../api/customer';
+import { blockCustomer, unblockCustomer } from '../api/customer';
+import { getBlockRecordByUserName, blockUser, unblockUser } from '../api/block-record';
 import { getPublisherReuqestByUserName } from '../api/publisher-request';
-import { updatePublisherRequestStatus } from '../api/publisher-request';
+import { approvePublisherRequest, rejectPublisherRequest } from '../api/publisher-request';
+import { useUser } from '../store/UserContext';
 
 export default function Users() {
   // Cập nhật trạng thái tab để bao gồm 'pending_review'
@@ -13,19 +17,18 @@ export default function Users() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
 
-  const [users, setUsers] = useState([
-    { id: 'U-10111', name: 'Nguyễn Văn A', email: 'nguyenvana@gmail.com', date: '20-10-2024', status: 'Active', blockHistory: [] },
-    { id: 'U-10112', name: 'Trần Thị B', email: 'tranthib@gmail.com', date: '21-10-2024', status: 'Active', blockHistory: [] },
-    { id: 'U-10113', name: 'Lê Văn C', email: 'levanc@gmail.com', date: '22-10-2024', status: 'Blocked', blockHistory: [{ date: '23-10-2024', reason: 'Vi phạm quy tắc cộng đồng' }] },
-  ]);
-  // { id: 'P-10111', name: 'GameDev Studio X', email: 'contact@x.com', date: '20-10-2024', games: 12, status: 'Active', blockHistory: [] },
-  //   { id: 'P-10112', name: 'Indie Creators', email: 'support@indie.com', date: '19-10-2024', games: 5, status: 'Blocked', blockHistory: [{ date: '20-10-2024', reason: 'Chậm báo cáo doanh thu' }] },
-  //   { id: 'P-10113', name: 'AAA Games Inc.', email: 'press@aaa.com', date: '18-10-2024', games: 25, status: 'Pending review', blockHistory: [] },
-  //   { id: 'P-10114', name: 'New Request Games', email: 'new@request.com', date: '25-11-2025', games: 0, status: 'Pending review', blockHistory: [] },
+  const { setAccessToken } = useUser();
+
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState(null);
+  const [userActionLoading, setUserActionLoading] = useState({});
+  
 
   const [publishers, setPublishers] = useState([
     
   ]);
+  const [publisherActionLoading, setPublisherActionLoading] = useState({});
 
   const userTabRef = useRef(null);
   const publisherTabRef = useRef(null);
@@ -36,26 +39,73 @@ export default function Users() {
   const pendingPublishers = publishers.filter(p => p.status === 'Pending review');
 
   useEffect(() => {
+    // fetch users (customers) from backend
+    const fetchUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        setUsersError(null);
+        const data = await getAllCustomers(setAccessToken);
+
+        // normalize response (api.get returns axios response with .data)
+        const list = (data && data.data) || (Array.isArray(data) ? data : []);
+
+        // map backend customer objects to frontend shape
+        const usersWithHistory = await Promise.all((list || []).map(async (cust) => {
+          // cust expected: { id, fullName, email, date, status, username }
+          let records = [];
+          try {
+            const recResp = await getBlockRecordByUserName(cust.username, setAccessToken);
+            records = (recResp && recResp.data) || recResp || [];
+          } catch (e) {
+            // ignore block record errors for now
+            console.warn('Failed to fetch block records for', cust.username, e);
+          }
+
+          return {
+            id: cust.id,
+            name: cust.fullName || cust.username,
+            email: cust.email,
+            date: cust.date || '',
+            status: cust.status === 'ACTIVE' ? 'Active' : (cust.status === 'BLOCKED' ? 'Blocked' : cust.status),
+            username: cust.username,
+            blockHistory: records || []
+          };
+        }));
+
+        setUsers(usersWithHistory);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setUsersError('Không thể tải danh sách user.');
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+
   const fetchPublishers = async () => {
     try {
-      const data = await getAllPublisher();
+      const data = await getAllPublisher(setAccessToken);
 
       const publishersWithHistory = await Promise.all(
-        data.map(async (pub) => {
-          const [records, request] = await Promise.all([
-            getBlockRecordByUserName(pub.username),
-            getPublisherReuqestByUserName(pub.username)
+        (data && data.data ? data.data : (Array.isArray(data) ? data : []))
+          .map(async (pub) => {
+          const [recordsResp, requestResp] = await Promise.all([
+            getBlockRecordByUserName(pub.username, setAccessToken),
+            getPublisherReuqestByUserName(pub.username, setAccessToken)
           ]);
 
-          const newStatus = 
-              request && request.status === "PENDING"
-                ? "Pending review"
-                : pub.status;
+          const records = (recordsResp && recordsResp.data) || recordsResp || [];
+          const request = (requestResp && requestResp.data) || requestResp || null;
+
+          const newStatus = request && (request.status === "PENDING" || request.status === "PENDING")
+            ? "Pending review"
+            : pub.status;
 
           return {
             ...pub,
             status: newStatus,
-            blockHistory: records,
+            blockHistory: Array.isArray(records) ? records : [],
             publisherRequestId: request?.id || null
           };
         })
@@ -71,7 +121,7 @@ export default function Users() {
   };
 
   fetchPublishers();
-}, []);
+}, [setAccessToken]);
 
 
   // Logic cập nhật gạch chân
@@ -94,74 +144,122 @@ export default function Users() {
   }, [activeTab]);
 
   // Toggle status (Block/Unblock) cho User
-  const handleUserStatusToggle = (userId, reason) => {
-    setUsers(users.map(user => {
-      if (user.id === userId) {
-        const newStatus = user.status === 'Active' ? 'Blocked' : 'Active';
-        const newBlockHistory = [...user.blockHistory];
-        if (newStatus === 'Blocked' && reason) {
-          newBlockHistory.push({ date: new Date().toLocaleDateString('vi-VN'), reason });
-        }
-        return { ...user, status: newStatus, blockHistory: newBlockHistory };
+  const handleUserStatusToggle = async (userId, reason) => {
+    setUserActionLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      const isActive = user.status === 'Active' || user.status === 'ACTIVE';
+      let success;
+      if (isActive) {
+        success = await blockUser(user.username, reason, setAccessToken);
+      } else {
+        success = await unblockUser(user.username, setAccessToken);
       }
-      return user;
-    }));
+
+      if (success) {
+        setUsers(prev => prev.map(u => {
+          if (u.id === userId) {
+            const newStatus = isActive ? 'Blocked' : 'Active';
+            const newBlockHistory = [...(u.blockHistory || [])];
+            if (isActive && reason) {
+              newBlockHistory.push({ date: new Date().toLocaleDateString('vi-VN'), reason });
+            }
+            return { ...u, status: newStatus, blockHistory: newBlockHistory };
+          }
+          return u;
+        }));
+        alert(isActive ? '✅ Chặn user thành công!' : '✅ Bỏ chặn user thành công!');
+      } else {
+        alert('❌ Thao tác thất bại.');
+      }
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      alert('❌ Lỗi khi thực hiện thao tác.');
+    } finally {
+      setUserActionLoading(prev => ({ ...prev, [userId]: false }));
+    }
   };
 
   // Toggle status (Block/Unblock) cho Publisher
-  const handlePublisherStatusToggle = (pubId) => {
-    setPublishers(publishers.map(pub =>
-      pub.id === pubId ? { ...pub, status: pub.status === 'Active' ? 'Blocked' : 'Active' } : pub
-    ));
+  const handlePublisherStatusToggle = async (pubId, reason) => {
+    setPublisherActionLoading(prev => ({ ...prev, [pubId]: true }));
+    try {
+      const pub = publishers.find(p => p.id === pubId || p.publisherRequestId === pubId);
+      if (!pub) return;
+
+      const isActive = pub.status === 'Active' || pub.status === 'ACTIVE';
+      let success;
+      if (isActive) {
+        success = await blockUser(pub.username, reason, setAccessToken);
+      } else {
+        success = await unblockUser(pub.username, setAccessToken);
+      }
+
+      if (success) {
+        setPublishers(prev => prev.map(p => {
+          if (p.id === pubId || p.publisherRequestId === pubId) {
+            const newStatus = isActive ? 'Blocked' : 'Active';
+            const newHistory = [...(p.blockHistory || [])];
+            if (isActive && reason) {
+              newHistory.push({ date: new Date().toLocaleDateString('vi-VN'), reason });
+            }
+            return { ...p, status: newStatus, blockHistory: newHistory };
+          }
+          return p;
+        }));
+        alert(isActive ? '✅ Chặn publisher thành công!' : '✅ Bỏ chặn publisher thành công!');
+      } else {
+        alert('❌ Thao tác thất bại.');
+      }
+    } catch (error) {
+      console.error('Error toggling publisher status:', error);
+      alert('❌ Lỗi khi thực hiện thao tác.');
+    } finally {
+      setPublisherActionLoading(prev => ({ ...prev, [pubId]: false }));
+    }
   };
   
 // Xử lý Cấp quyền Publisher (chuyển từ Pending review sang Active)
 const handlePublisherApprove = async (publisherRequestId) => {
-  // Update local state nhanh
-  setPublishers(prev =>
-    prev.map(pub =>
-      pub.publisherRequestId === publisherRequestId
-        ? { ...pub, status: 'ACTIVE' }
-        : pub
-    )
-  );
-
+  setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: true }));
   try {
-    // Gọi API backend để duyệt
-    const updated = await updatePublisherRequestStatus(publisherRequestId);
-    if (updated) {
-      // Thông báo thành công
+    const success = await approvePublisherRequest(publisherRequestId, setAccessToken);
+    if (success) {
+      setPublishers(prev => prev.map(pub => pub.publisherRequestId === publisherRequestId ? { ...pub, status: 'Active', publisherRequestId: null } : pub));
+      // optional user feedback
       alert('✅ Duyệt Publisher thành công!');
     } else {
-      console.warn(`Không tìm thấy PublisherRequest với id ${publisherRequestId} trên server`);
-      // revert nếu server không update
-      setPublishers(prev =>
-        prev.map(pub =>
-          pub.publisherRequestId === publisherRequestId
-            ? { ...pub, status: 'Pending review' }
-            : pub
-        )
-      );
+      // server reported failure
+      alert('❌ Duyệt Publisher thất bại: server trả về không thành công.');
     }
   } catch (error) {
-    console.error('Lỗi khi cập nhật status PublisherRequest:', error);
-    // revert nếu lỗi
-    setPublishers(prev =>
-      prev.map(pub =>
-        pub.publisherRequestId === publisherRequestId
-          ? { ...pub, status: 'Pending review' }
-          : pub
-      )
-    );
-    alert('❌ Duyệt Publisher thất bại!');
+    console.error('Error approving publisher request:', error);
+    alert('❌ Lỗi khi gọi API duyệt publisher.');
+  } finally {
+    setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: false }));
   }
 };
 
-
-
-
-
-
+// Xử lý Từ chối Publisher
+const handlePublisherReject = async (publisherRequestId) => {
+  setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: true }));
+  try {
+    const success = await rejectPublisherRequest(publisherRequestId, setAccessToken);
+    if (success) {
+      setPublishers(prev => prev.map(pub => pub.publisherRequestId === publisherRequestId ? { ...pub, status: 'Rejected', publisherRequestId: null } : pub));
+      alert('✅ Từ chối Publisher thành công!');
+    } else {
+      alert('❌ Từ chối Publisher thất bại: server trả về không thành công.');
+    }
+  } catch (error) {
+    console.error('Error rejecting publisher request:', error);
+    alert('❌ Lỗi khi gọi API từ chối publisher.');
+  } finally {
+    setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: false }));
+  }
+};
 
   // VIEW DETAILS -> mở modal
   const handleViewDetails = (account) => {
@@ -192,13 +290,10 @@ const handlePublisherApprove = async (publisherRequestId) => {
         );
       case 'pending_review':
         return (
-          // Dùng PublishersTable để hiển thị, nhưng truyền vào action Approve
-          <PublishersTable
+          <PublishersReviewTable
             publishers={pendingPublishers}
-            // Truyền handler duyệt thay vì handler toggle status
-            onStatusToggle={handlePublisherApprove} 
-            onViewDetails={handleViewDetails}
-            isReviewMode={true} // Báo cho component Table biết đây là chế độ Duyệt
+            onApprove={handlePublisherApprove}
+            onReject={handlePublisherReject}
           />
         );
       default:

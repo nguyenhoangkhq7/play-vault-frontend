@@ -1,22 +1,30 @@
-import {API_BASE_URL} from "../config/api.js"
+import { api } from './authApi.js';
 
-const API_URL = `${API_BASE_URL}/api/block-records`
-
-export async function getBlockRecordByUserName(username) {
+export async function getBlockRecordByUserName(username, setAccessToken) {
   try {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch(`${API_URL}/${username}`,{
-        headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
-    })
-    if (!response.ok) {
-      throw new Error(`Failed to fetch block record: ${response.statusText}`)
-    }
-    return await response.json()
+    return await api.get(`/api/block-records/${username}`, setAccessToken);
   } catch (error) {
-    console.error('Error fetching block record:', error)
-    throw error
+    console.error('Error fetching block record:', error);
+    throw error;
+  }
+}
+
+export async function blockUser(username, reason, setAccessToken) {
+  try {
+    await api.post(`/api/block-records/${username}/block`, { reason }, setAccessToken);
+    return true;
+  } catch (error) {
+    console.error('Error blocking user:', error);
+    return false;
+  }
+}
+
+export async function unblockUser(username, setAccessToken) {
+  try {
+    await api.post(`/api/block-records/${username}/unblock`, {}, setAccessToken);
+    return true;
+  } catch (error) {
+    console.error('Error unblocking user:', error);
+    return false;
   }
 }

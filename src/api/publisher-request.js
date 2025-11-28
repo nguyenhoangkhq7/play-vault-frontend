@@ -1,23 +1,9 @@
-import {API_BASE_URL} from "../config/api.js"
+import { api } from './authApi.js';
 
-const API_URL = `${API_BASE_URL}/api/publisher-requests`
-
-export async function getPublisherReuqestByUserName(username) {
+export async function getPublisherReuqestByUserName(username, setAccessToken) {
   try {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch(`${API_URL}/${username}`, {
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
-    });
-
-    // Nếu response trả về body rỗng → không parse
-    const text = await response.text();
-    if (!text) return null;   // ******** quan trọng ********
-
-    return JSON.parse(text);
-
+    const response = await api.get(`/api/publisher-requests/${username}`, setAccessToken);
+    return response || null;
   } catch (error) {
     console.error('Error fetching publisherRequest:', error);
     return null;
@@ -25,22 +11,23 @@ export async function getPublisherReuqestByUserName(username) {
 }
 
 
-export async function updatePublisherRequestStatus(id) {
+export async function approvePublisherRequest(id, setAccessToken) {
   try {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch(`${API_BASE_URL}/api/publisher-requests/${id}/approve`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) return false;
-
+    await api.put(`/api/publisher-requests/${id}/approve`, {}, setAccessToken);
     return true;
   } catch (error) {
     console.error("Error updating publisher request status:", error);
+    return false;
+  }
+}
+
+// 3. Từ chối
+export async function rejectPublisherRequest(id, setAccessToken) {
+  try {
+    await api.put(`/api/publisher-requests/${id}/reject`, {}, setAccessToken);
+    return true;
+  } catch (error) {
+    console.error("Error rejecting publisher request:", error);
     return false;
   }
 }

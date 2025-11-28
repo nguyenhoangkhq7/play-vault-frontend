@@ -37,7 +37,9 @@ const formSchema = z
     name: z.string().min(2, { message: "Tên phải có ít nhất 2 ký tự" }),
     phone: z
       .string()
-      .regex(/^[0-9]{10,11}$/, { message: "Số điện thoại phải có 10-11 chữ số" })
+      .regex(/^[0-9]{10,11}$/, {
+        message: "Số điện thoại phải có 10-11 chữ số",
+      })
       .optional()
       .or(z.literal("")),
     email: z
@@ -63,15 +65,22 @@ const formSchema = z
     { message: "Vui lòng chọn đầy đủ ngày tháng năm sinh", path: ["birthDay"] }
   );
 
-// Helper: ISO → Parts
+// Helper: ISO → Parts (HOÀN HẢO cho LocalDate 2000-01-01)
 function parseIsoDateToParts(iso) {
   if (!iso) return { day: "", month: "", year: "" };
-  try {
-    const [y, m, d] = iso.split("T")[0].split("-");
-    return { day: d, month: m, year: y };
-  } catch {
-    return { day: "", month: "", year: "" };
-  }
+
+  // LocalDate → Jackson trả về đúng định dạng "2000-01-01"
+  const dateStr = String(iso).trim();
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) return { day: "", month: "", year: "" };
+
+  const [, year, month, day] = match;
+  return {
+    day: day.replace(/^0/, ""), // bỏ số 0 đầu: "01" → "1"
+    month: month.replace(/^0/, ""), // "01" → "1"
+    year,
+  };
 }
 
 // Helper: Parts → ISO
@@ -83,7 +92,9 @@ function partsToIsoDate({ day, month, year }) {
 }
 
 export default function UserProfile() {
-  const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg?height=200&width=200");
+  const [avatarUrl, setAvatarUrl] = useState(
+    "/placeholder.svg?height=200&width=200"
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
@@ -104,7 +115,9 @@ export default function UserProfile() {
   });
 
   // Lấy userId từ localStorage
-  const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
+  const storedUser = JSON.parse(
+    localStorage.getItem("user") || sessionStorage.getItem("user") || "{}"
+  );
   const userId = storedUser.id || storedUser.customerId || storedUser._id;
 
   // Dùng hook useUserOrders (chỉ bật khi tab = orders)
@@ -131,26 +144,35 @@ export default function UserProfile() {
 
       try {
         const profile = await getProfile(userId);
-        const data = profile?.data || profile;
+        const data = profile?.data || profile; // tùy response wrapper
 
-        const dobParts = parseIsoDateToParts(data?.dateOfBirth || data?.dob);
+        const dobParts = parseIsoDateToParts(data?.dateOfBirth);
 
         form.reset({
-          name: data?.fullName || data?.full_name || storedUser.fullName || "Unknown",
+          name: data?.fullName || storedUser.fullName || "Unknown",
           phone: data?.phone || storedUser.phone || "",
           email: data?.email || storedUser.email || "",
-          gender: data?.gender || storedUser.gender || "male",
-          address: data?.address || storedUser.address || "",
-          birthDay: dobParts.day,
-          birthMonth: dobParts.month,
-          birthYear: dobParts.year,
+          gender: storedUser.gender || "male", // backend chưa có → lấy từ localStorage
+          address: storedUser.address || "", // backend chưa có → lấy từ localStorage
+          birthDay: dobParts.day || "",
+          birthMonth: dobParts.month || "",
+          birthYear: dobParts.year || "",
         });
 
-        const avatar = data?.avatarUrl || data?.avatar_url || storedUser.avatar;
-        if (avatar) setAvatarUrl(avatar);
-        else if (data?.fullName) {
+        const avatar =
+          data?.avatarUrl || storedUser.avatarUrl || storedUser.avatar;
+        if (
+          avatar &&
+          !avatar.includes("ui-avatars") &&
+          !avatar.includes("placeholder")
+        ) {
+          setAvatarUrl(avatar);
+        } else if (data?.fullName || storedUser.fullName) {
+          const name = (data?.fullName || storedUser.fullName || "U").trim();
           setAvatarUrl(
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(data.fullName)}&background=9333ea&color=fff&size=200`
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              name
+            )}&background=9333ea&color=fff&size=200`
           );
         }
       } catch (err) {
@@ -171,7 +193,11 @@ export default function UserProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+    if (
+      !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
+        file.type
+      )
+    ) {
       toast.error("Chỉ hỗ trợ JPG, PNG, WEBP, GIF");
       return;
     }
@@ -219,7 +245,10 @@ export default function UserProfile() {
         gender: values.gender,
         dateOfBirth,
         address: values.address || null,
-        avatarUrl: avatarUrl.includes("ui-avatars") || avatarUrl.includes("placeholder") ? null : avatarUrl,
+        avatarUrl:
+          avatarUrl.includes("ui-avatars") || avatarUrl.includes("placeholder")
+            ? null
+            : avatarUrl,
       };
 
       const result = await updateProfile(userId, payload);
@@ -263,15 +292,20 @@ export default function UserProfile() {
 
   return (
     <div className="container mx-auto max-w-4xl py-8">
- generations
       <Card className="bg-purple-950/60 backdrop-blur-xl border border-purple-700 shadow-[0_0_30px_rgba(168,85,247,0.4)] rounded-2xl overflow-hidden">
         <CardContent className="p-8">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white">Hồ sơ người dùng</h2>
-            <p className="text-purple-300">Quản lý thông tin cá nhân và theo dõidon hàng</p>
+            <p className="text-purple-300">
+              Quản lý thông tin cá nhân và theo dõi đơn hàng
+            </p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-purple-900/40 mb-8">
               <TabsTrigger
                 value="profile"
@@ -323,13 +357,18 @@ export default function UserProfile() {
 
                 <div className="flex-1">
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-6"
+                    >
                       <FormField
                         control={form.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-purple-200">Họ và tên</FormLabel>
+                            <FormLabel className="text-purple-200">
+                              Họ và tên
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="Nhập họ và tên"
@@ -348,7 +387,9 @@ export default function UserProfile() {
                           name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-purple-200">Email</FormLabel>
+                              <FormLabel className="text-purple-200">
+                                Email
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="email@example.com"
@@ -365,7 +406,9 @@ export default function UserProfile() {
                           name="phone"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-purple-200">Số điện thoại</FormLabel>
+                              <FormLabel className="text-purple-200">
+                                Số điện thoại
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="0123456789"
@@ -380,53 +423,91 @@ export default function UserProfile() {
                       </div>
 
                       <div className="space-y-2">
-                        <FormLabel className="text-purple-200">Ngày sinh</FormLabel>
+                        <FormLabel className="text-purple-200">
+                          Ngày sinh
+                        </FormLabel>
                         <div className="grid grid-cols-3 gap-3">
-                          <FormField control={form.control} name="birthDay" render={({ field }) => (
-                            <FormItem>
-                              <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger className="bg-purple-900/40 border-purple-600 text-white">
-                                  <SelectValue placeholder="Ngày" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                                    <SelectItem key={d} value={String(d)}>{d}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name="birthMonth" render={({ field }) => (
-                            <FormItem>
-                              <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger className="bg-purple-900/40 border-purple-600 text-white">
-                                  <SelectValue placeholder="Tháng" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                                    <SelectItem key={m} value={String(m)}>{m}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name="birthYear" render={({ field }) => (
-                            <FormItem>
-                              <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger className="bg-purple-900/40 border-purple-600 text-white">
-                                  <SelectValue placeholder="Năm" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
+                          <FormField
+                            control={form.control}
+                            name="birthDay"
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <SelectTrigger className="bg-purple-900/40 border-purple-600 text-white">
+                                    <SelectValue placeholder="Ngày" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from(
+                                      { length: 31 },
+                                      (_, i) => i + 1
+                                    ).map((d) => (
+                                      <SelectItem key={d} value={String(d)}>
+                                        {d}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="birthMonth"
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <SelectTrigger className="bg-purple-900/40 border-purple-600 text-white">
+                                    <SelectValue placeholder="Tháng" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from(
+                                      { length: 12 },
+                                      (_, i) => i + 1
+                                    ).map((m) => (
+                                      <SelectItem key={m} value={String(m)}>
+                                        {m}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="birthYear"
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <SelectTrigger className="bg-purple-900/40 border-purple-600 text-white">
+                                    <SelectValue placeholder="Năm" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from(
+                                      { length: 100 },
+                                      (_, i) => new Date().getFullYear() - i
+                                    ).map((y) => (
+                                      <SelectItem key={y} value={String(y)}>
+                                        {y}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
                       </div>
 
@@ -459,12 +540,21 @@ export default function UserProfile() {
                   </div>
                 ) : ordersError ? (
                   <div className="text-center py-12 text-red-400">
-                    Không thể tải đơn hàng. <Button onClick={refetch} variant="link" className="text-purple-400">Thử lại</Button>
+                    Không thể tải đơn hàng.{" "}
+                    <Button
+                      onClick={refetch}
+                      variant="link"
+                      className="text-purple-400"
+                    >
+                      Thử lại
+                    </Button>
                   </div>
                 ) : orders.length === 0 ? (
                   <div className="text-center py-12">
                     <ShoppingCart className="mx-auto h-16 w-16 text-purple-400 mb-4" />
-                    <h3 className="text-xl font-medium text-white mb-2">Chưa có đơn hàng nào</h3>
+                    <h3 className="text-xl font-medium text-white mb-2">
+                      Chưa có đơn hàng nào
+                    </h3>
                     <p className="text-purple-300">Bạn chưa mua trò chơi nào</p>
                   </div>
                 ) : (
@@ -472,11 +562,21 @@ export default function UserProfile() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-purple-700/40 text-left">
-                          <th className="py-3 px-4 text-purple-300 font-medium">Mã đơn</th>
-                          <th className="py-3 px-4 text-purple-300 font-medium">Trò chơi</th>
-                          <th className="py-3 px-4 text-purple-300 font-medium">Ngày mua</th>
-                          <th className="py-3 px-4 text-purple-300 font-medium">Trạng thái</th>
-                          <th className="py-3 px-4 text-purple-300 font-medium text-right">Giá</th>
+                          <th className="py-3 px-4 text-purple-300 font-medium">
+                            Mã đơn
+                          </th>
+                          <th className="py-3 px-4 text-purple-300 font-medium">
+                            Trò chơi
+                          </th>
+                          <th className="py-3 px-4 text-purple-300 font-medium">
+                            Ngày mua
+                          </th>
+                          <th className="py-3 px-4 text-purple-300 font-medium">
+                            Trạng thái
+                          </th>
+                          <th className="py-3 px-4 text-purple-300 font-medium text-right">
+                            Giá
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -485,27 +585,45 @@ export default function UserProfile() {
                             key={order.id || idx}
                             className="border-b border-purple-700/20 hover:bg-purple-800/10 transition-colors"
                           >
-                            <td className="py-4 px-4 text-white font-medium">{order.id || `ORD-${idx + 1}`}</td>
+                            <td className="py-4 px-4 text-white font-medium">
+                              {order.id || `ORD-${idx + 1}`}
+                            </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-3">
                                 {order.image && (
-                                  <img src={order.image} alt={order.name} className="w-10 h-10 rounded object-cover" />
+                                  <img
+                                    src={order.image}
+                                    alt={order.name}
+                                    className="w-10 h-10 rounded object-cover"
+                                  />
                                 )}
-                                <span className="text-purple-200 font-medium">{order.name || "Unknown Game"}</span>
+                                <span className="text-purple-200 font-medium">
+                                  {order.name || "Unknown Game"}
+                                </span>
                               </div>
                             </td>
-                            <td className="py-4 px-4 text-purple-200">{order.date || "N/A"}</td>
+                            <td className="py-4 px-4 text-purple-200">
+                              {order.date || "N/A"}
+                            </td>
                             <td className="py-4 px-4">
-                              <span className={`px-3 py-1 rounded-full text-xs ${
-                                order.status === "COMPLETED" || order.status === "Hoàn thành"
-                                  ? "bg-green-500/20 text-green-300"
-                                  : "bg-yellow-500/20 text-yellow-300"
-                              }`}>
-                                {order.status === "COMPLETED" ? "Hoàn thành" : "Đang xử lý"}
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs ${
+                                  order.status === "COMPLETED" ||
+                                  order.status === "Hoàn thành"
+                                    ? "bg-green-500/20 text-green-300"
+                                    : "bg-yellow-500/20 text-yellow-300"
+                                }`}
+                              >
+                                {order.status === "COMPLETED"
+                                  ? "Hoàn thành"
+                                  : "Đang xử lý"}
                               </span>
                             </td>
                             <td className="py-4 px-4 text-right text-white font-medium">
-                              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(order.price || 0)}
+                              {new Intl.NumberFormat("vi-VN", {
+                                style: "currency",
+                                currency: "VND",
+                              }).format(order.price || 0)}
                             </td>
                           </tr>
                         ))}

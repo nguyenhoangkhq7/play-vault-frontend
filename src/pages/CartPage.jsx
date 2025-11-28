@@ -97,15 +97,15 @@ function CartPage() {
   };
 
   // ✅ Chọn hoặc bỏ chọn sản phẩm (Đã cập nhật)
-  // Chỉ chọn 1 game mỗi lần
+  // Cho phép chọn nhiều game
   const handleToggleSelect = (cartItemId) => {
     const id = String(cartItemId);
     if (selectedItems.includes(id)) {
       // Nếu click lại game đã chọn → bỏ chọn
-      setSelectedItems([]);
+      setSelectedItems((prev) => prev.filter((item) => item !== id));
     } else {
-      // Chọn game mới, bỏ chọn các game khác
-      setSelectedItems([id]);
+      // Chọn game mới, giữ lại các game khác
+      setSelectedItems((prev) => [...prev, id]);
     }
   };
 
@@ -238,20 +238,25 @@ const handleConfirmPayment = async () => {
     }));
 
     // 5. CHUYỂN HƯỚNG THÔNG MINH
-    const gameId = purchasedGameIds[0];
+    // Trong handleConfirmPayment, thay đoạn chuyển hướng cuối cùng thành:
     if (purchasedGameIds.length === 1) {
+      toast.success({
+        title: "Thanh toán thành công!",
+        description: `Đã thêm ${purchasedGameIds.length} game vào thư viện của bạn`,
+        duration: 5000,
+      });
       toast.success("Mua thành công! Đang chuyển đến trang tải game...");
-      // Delay để đảm bảo backend đã save xong
       setTimeout(() => {
-        navigate(`/product/${gameId}`);
+        navigate(`/product/${purchasedGameIds[0]}`);
       }, 1000);
     } else {
-      toast.success("Đã thêm tất cả game vào thư viện!");
-      navigate("/library");
-      // Trigger refetch ngay cả khi đã ở /library
+      toast.success(`Đã mua thành công ${purchasedGameIds.length} game! Đang chuyển đến thư viện...`);
+      navigate("/bought");
+      
+      // Đảm bảo refetch ngay cả khi đã ở /library
       setTimeout(() => {
         window.dispatchEvent(new Event('purchasedGamesUpdated'));
-      }, 1500);
+      }, 800);
     }
 
     setShowConfirmModal(false);
@@ -430,7 +435,7 @@ const handleConfirmPayment = async () => {
                   Thanh Toán Game Đã Chọn
                 </Button>
 
-                {/* <Button
+                <Button
                   onClick={() => handleCheckout("all")}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(168,85,247,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] transition-all"
                   disabled={
@@ -440,7 +445,7 @@ const handleConfirmPayment = async () => {
                 >
                   <CheckCircle className="h-5 w-5 mr-2" />
                   Thanh Toán Toàn Bộ
-                </Button> */}
+                </Button>
 
                 <Button
                   variant="outline"

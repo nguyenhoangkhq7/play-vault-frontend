@@ -1,4 +1,7 @@
-// src/pages/FavoriteProducts.jsx hoặc components/FavoriteProducts.jsx
+// ✅ Version đã sửa cú pháp, fix lỗi thừa dấu ngoặc, thiếu biến, lỗi không đóng hàm
+// ĐÃ CHỈNH: fetchWishlist thừa dấu ngoặc, thiếu favoriteGamesResponse, thiếu setError
+// GHI CHÚ: Cần thay favoriteGamesResponse bằng processedGames vì bạn không có API nào trả favoriteGamesResponse
+
 import { useState, useEffect, useMemo } from "react";
 import { Search, Grid, List, Heart, HeartOff, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,26 +13,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { api } from "../../api/authApi.js"; // Đảm bảo đường dẫn đúng
+import { api } from "../../api/authApi.js";
 import { toast } from "sonner";
 
-export default function FavoriteProducts() {
+
+  export default function FavoriteProducts() {
   const [viewMode, setViewMode] = useState("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [filterTag, setFilterTag] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [games, setGames] = useState([]);
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
-  // Kiểm tra user đăng nhập
+  // Kiểm tra đăng nhập
   useEffect(() => {
     const checkUser = () => {
       const stored =
@@ -37,25 +40,25 @@ export default function FavoriteProducts() {
       const token =
         localStorage.getItem("accessToken") ||
         sessionStorage.getItem("accessToken");
-      if (stored && token) {
-        setUser(JSON.parse(stored));
-      } else {
-        setUser(null);
-      }
+
+      if (stored && token) setUser(JSON.parse(stored));
+      else setUser(null);
+
       setLoading(false);
     };
+
     checkUser();
     window.addEventListener("storage", checkUser);
     return () => window.removeEventListener("storage", checkUser);
   }, []);
 
-  // Load wishlist
+  // Fetch wishlist
   const fetchWishlist = async () => {
     if (!user) return;
-
     try {
       setLoading(true);
-      const response = await api.get("/api/wishlist", null); // api wrapper tự thêm token + refresh
+
+      const response = await api.get("/api/wishlist", null);
       const wishlistGames = response.data?.games || response.data || [];
 
       const processedGames = wishlistGames.map((game) => ({
@@ -69,56 +72,25 @@ export default function FavoriteProducts() {
         publisher: game.publisher || game.details?.publisher || "Unknown",
       }));
 
-            const gamesWithStatus = favoriteGamesResponse.map((game) => ({
-                ...game,
-                status: "not_purchased",
-                downloadProgress: 0,
-                price: `${game.price?.toLocaleString() || 0}đ`,
-                tags: game.tags || [],
-                thumbnailImage: game.trailerUrl,
-                ageRating: game.details?.["age-limit"] || "N/A",
-                releaseDate: game.details?.published_date?.$date
-                    ? new Date(game.details.published_date.$date).toLocaleDateString("vi-VN")
-                    : "N/A",
-                publisher: game.details?.publisher || "Valve Corporation",
-                description: game.details?.describe || "",
-                minRequirements: {
-                    os: game.minimum_configuration?.os || "N/A",
-                    cpu: game.minimum_configuration?.cpu || "N/A",
-                    ram: game.minimum_configuration?.ram || "N/A",
-                    gpu: game.minimum_configuration?.gpu || "N/A",
-                    storage: game.minimum_configuration?.disk || "N/A",
-                },
-                recRequirements: {
-                    os: game.recommended_configuration?.os || "N/A",
-                    cpu: game.recommended_configuration?.cpu || "N/A",
-                    ram: game.recommended_configuration?.ram || "N/A",
-                    gpu: game.recommended_configuration?.gpu || "N/A",
-                    storage: game.recommended_configuration?.disk || "N/A",
-                },
-                friends: [],
-                achievements: {
-                    completed: 0,
-                    total: 0,
-                },
-            }))
+      setGames(processedGames);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching wishlist:", err);
 
-            setGames(gamesWithStatus)
-            setLoading(false)
-        } catch (err) {
-            console.error("Error fetching data:", err)
-            let errorMessage = "Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau."
-            if (err.message.includes("Unexpected token '<'") && err.message.includes("DOCTYPE")) {
-                errorMessage = "Server không phản hồi đúng định dạng dữ liệu (có thể backend chưa chạy hoặc proxy chưa config)."
-            } else if (err.message.includes("ERR_CONNECTION_REFUSED") || err.message.includes("Failed to fetch")) {
-                errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend (port 3001)."
-            } else {
-                errorMessage = err.message || errorMessage
-            }
-            setError(errorMessage)
-            setGames([])
-            setLoading(false)
-        }
+      let errorMessage = "Đã xảy ra lỗi khi tải dữ liệu.";
+      if (err.message.includes("DOCTYPE"))
+        errorMessage = "Server trả dữ liệu không hợp lệ (backend có thể chưa chạy).";
+
+      if (
+        err.message.includes("ERR_CONNECTION_REFUSED") ||
+        err.message.includes("Failed to fetch")
+      ) {
+        errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend.";
+      }
+
+      setError(errorMessage);
+      setGames([]);
+      setLoading(false);
     }
   };
 
@@ -126,12 +98,9 @@ export default function FavoriteProducts() {
     if (user) fetchWishlist();
   }, [user]);
 
-  // Xóa khỏi wishlist
+  // Xóa game khỏi wishlist
   const handleRemoveFromFavorites = async (gameId) => {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập");
-      return;
-    }
+    if (!user) return toast.error("Vui lòng đăng nhập");
 
     setWishlistLoading(true);
     try {
@@ -140,8 +109,8 @@ export default function FavoriteProducts() {
       toast.success("Đã xóa khỏi danh sách yêu thích");
       window.dispatchEvent(new Event("wishlistUpdated"));
     } catch (err) {
-      toast.error("Xóa thất bại");
       console.error(err);
+      toast.error("Xóa thất bại");
     } finally {
       setWishlistLoading(false);
     }
@@ -149,19 +118,19 @@ export default function FavoriteProducts() {
 
   // Filter + Sort
   const filteredGames = useMemo(() => {
-    let filtered = games.filter(
-      (game) =>
-        game.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        (filterTag === "all" || game.tags.includes(filterTag))
+    let filtered = games.filter((g) =>
+      g.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    if (sortBy === "name") {
-      filtered.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "price") {
+    if (filterTag !== "all")
+      filtered = filtered.filter((g) => g.tags.includes(filterTag));
+
+    if (sortBy === "name") filtered.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === "price") {
       filtered.sort((a, b) => {
-        const priceA = parseInt(a.price.replace(/\D/g, "") || 0);
-        const priceB = parseInt(b.price.replace(/\D/g, "") || 0);
-        return priceA - priceB;
+        const pa = parseInt(a.price.replace(/\D/g, "")) || 0;
+        const pb = parseInt(b.price.replace(/\D/g, "")) || 0;
+        return pa - pb;
       });
     }
 
@@ -179,16 +148,17 @@ export default function FavoriteProducts() {
     return map[tag] || tag;
   };
 
-  if (loading) {
+  // Loading UI
+  if (loading)
     return (
       <div className="bg-zinc-900/90 backdrop-blur-sm rounded-xl p-12 text-center border border-purple-800/50">
         <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
         <p className="text-purple-300 mt-4">Đang tải danh sách yêu thích...</p>
       </div>
     );
-  }
 
-  if (!user) {
+  // Not logged in
+  if (!user)
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -197,9 +167,7 @@ export default function FavoriteProducts() {
       >
         <Heart className="h-16 w-16 text-pink-500 mb-6" />
         <h2 className="text-2xl font-bold text-white mb-3">Chưa đăng nhập</h2>
-        <p className="text-purple-300 mb-6">
-          Đăng nhập để xem danh sách game yêu thích của bạn
-        </p>
+        <p className="text-purple-300 mb-6">Đăng nhập để xem wishlist của bạn</p>
         <Button
           onClick={() => navigate("/login")}
           className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
@@ -208,7 +176,6 @@ export default function FavoriteProducts() {
         </Button>
       </motion.div>
     );
-  }
 
   return (
     <div className="bg-zinc-900/90 backdrop-blur-sm rounded-xl p-6 border border-purple-800/50 shadow-2xl">
@@ -219,9 +186,7 @@ export default function FavoriteProducts() {
             <Heart className="h-8 w-8 text-red-500 fill-red-500" />
             <h1 className="text-3xl font-bold text-white">Game Yêu Thích</h1>
           </div>
-          <p className="text-purple-300 mt-2">
-            {filteredGames.length} game trong danh sách
-          </p>
+          <p className="text-purple-300 mt-2">{filteredGames.length} game</p>
         </div>
 
         <div className="flex gap-2">
@@ -279,7 +244,7 @@ export default function FavoriteProducts() {
         </Select>
       </div>
 
-      {/* Game List */}
+      {/* List */}
       {filteredGames.length === 0 ? (
         <div className="text-center py-16">
           <Heart className="mx-auto h-20 w-20 text-purple-500/30 mb-6" />
@@ -331,15 +296,11 @@ export default function FavoriteProducts() {
               </div>
 
               <div className="p-5">
-                <h3 className="font-bold text-white text-lg truncate">
-                  {game.name}
-                </h3>
+                <h3 className="font-bold text-white text-lg truncate">{game.name}</h3>
                 <p className="text-purple-300 text-sm mt-1">{game.publisher}</p>
 
                 <div className="flex items-center justify-between mt-4">
-                  <span className="text-xl font-bold text-pink-400">
-                    {game.price}
-                  </span>
+                  <span className="text-xl font-bold text-pink-400">{game.price}</span>
                   <Button
                     size="sm"
                     onClick={() => navigate(`/product/${game.id}`)}

@@ -38,6 +38,15 @@ function CartPage() {
   // Thay đổi: Đây là luồng fetch dữ liệu thật từ backend
   // CartPage.jsx - Tìm và sửa hook useEffect này
 
+  const handleCheckoutAll = () => {
+  // ✅ Tự động bỏ chọn tất cả items trước khi thanh toán toàn bộ
+  setSelectedItems([]);
+  // Đợi một chút để state update rồi mới gọi checkout
+  setTimeout(() => {
+    handleCheckout("all");
+  }, 0);
+};
+
   useEffect(() => {
       // ... (Phần kiểm tra user và setLoading)
       if (user) {
@@ -436,7 +445,7 @@ const handleConfirmPayment = async () => {
                 </Button>
 
                 <Button
-                  onClick={() => handleCheckout("all")}
+                  onClick={handleCheckoutAll} // ✅ Dùng hàm mới
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(168,85,247,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] transition-all"
                   disabled={
                     (cart?.items?.length === 0) ||

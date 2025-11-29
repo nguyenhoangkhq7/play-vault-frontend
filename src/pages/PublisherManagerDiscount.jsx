@@ -46,6 +46,7 @@ export default function PublisherManagerDiscount() {
   const [publisherGames, setPublisherGames] = useState([])
   const [selectedGameIds, setSelectedGameIds] = useState([])
   const [loadingGames, setLoadingGames] = useState(false)
+  const [gamePromotionMap, setGamePromotionMap] = useState(new Map()) // Map gameId -> promotionId
 
   // Fetch promotions khi component mount
   useEffect(() => {
@@ -173,6 +174,18 @@ export default function PublisherManagerDiscount() {
       setLoadingGames(true)
       const games = await getMyGames(setAccessToken)
       setPublisherGames(games)
+      
+      // Tạo map gameId -> promotionId để track games đã có promotion
+      const promoMap = new Map()
+      games.forEach(game => {
+        // Giả sử backend trả về promotion_id hoặc promotion object
+        if (game.promotion_id) {
+          promoMap.set(game.id, game.promotion_id)
+        } else if (game.promotion?.id) {
+          promoMap.set(game.id, game.promotion.id)
+        }
+      })
+      setGamePromotionMap(promoMap)
     } catch (err) {
       console.error("Error fetching games:", err)
       alert("Không thể tải danh sách game")
@@ -191,6 +204,13 @@ export default function PublisherManagerDiscount() {
 
   // Toggle chọn game
   const toggleGameSelection = (gameId) => {
+    // Kiểm tra nếu game đã có promotion khác
+    const existingPromoId = gamePromotionMap.get(gameId)
+    if (existingPromoId && existingPromoId !== selectedPromotionId) {
+      alert(`Game này đã có khuyến mãi khác (ID: ${existingPromoId}). Vui lòng gỡ khuyến mãi cũ trước.`)
+      return
+    }
+    
     setSelectedGameIds(prev => 
       prev.includes(gameId) 
         ? prev.filter(id => id !== gameId)
@@ -214,7 +234,11 @@ export default function PublisherManagerDiscount() {
       setSelectedGameIds([])
     } catch (err) {
       console.error("Error applying promotion:", err)
-      alert(err.response?.data || "Không thể áp dụng khuyến mãi")
+      const errorMessage = err.response?.data?.message 
+        || err.response?.data 
+        || err.message 
+        || "Không thể áp dụng khuyến mãi"
+      alert(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
     } finally {
       setLoading(false)
     }
@@ -424,36 +448,64 @@ export default function PublisherManagerDiscount() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    {publisherGames.map(game => (
-                      <div 
-                        key={game.id}
-                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                          selectedGameIds.includes(game.id) 
-                            ? 'border-green-500 bg-green-500/20 shadow-lg' 
-                            : 'border-purple-600 hover:border-purple-400'
-                        }`}
-                        onClick={() => toggleGameSelection(game.id)}
-                      >
-                        <div className="relative mb-2">
-                          <img 
-                            src={game.gameBasicInfos?.thumbnail || game.thumbnail_image || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game'} 
-                            alt={game.gameBasicInfos?.name || game.name}
-                            className="w-full h-32 object-cover rounded"
-                          />
-                          {selectedGameIds.includes(game.id) && (
-                            <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
-                              ✓
+                    {publisherGames.map(game => {
+                        const hasPromotion = gamePromotionMap.has(game.id)
+                        const isCurrentPromo = gamePromotionMap.get(game.id) === selectedPromotionId
+                        const hasDifferentPromo = hasPromotion && !isCurrentPromo
+                        
+                        return (
+                          <div 
+                            key={game.id}
+                            className={`p-4 border-2 rounded-lg transition-all ${
+                              hasDifferentPromo
+                                ? 'border-orange-500 bg-orange-500/10 cursor-not-allowed opacity-60'
+                                : selectedGameIds.includes(game.id) 
+                                ? 'border-green-500 bg-green-500/20 shadow-lg cursor-pointer' 
+                                : 'border-purple-600 hover:border-purple-400 cursor-pointer'
+                            }`}
+                            onClick={() => !hasDifferentPromo && toggleGameSelection(game.id)}
+                          >
+                            <div className="relative mb-2">
+                              <img 
+                                src={game.thumbnail || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game'} 
+                                alt={game.name}
+                                className="w-full h-32 object-cover rounded"
+                              />
+                              {hasDifferentPromo && (
+                                <div className="absolute top-2 right-2 bg-orange-500 text-white rounded px-2 py-1 text-xs font-bold">
+                                  Đã có KM
+                                </div>
+                              )}
+                              {isCurrentPromo && (
+                                <div className="absolute top-2 right-2 bg-blue-500 text-white rounded px-2 py-1 text-xs font-bold">
+                                  KM này
+                                </div>
+                              )}
+                              {selectedGameIds.includes(game.id) && !hasPromotion && (
+                                <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                                  ✓
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <h3 className="text-white font-bold truncate">
-                          {game.gameBasicInfos?.name || game.name}
-                        </h3>
-                        <p className="text-purple-300 text-sm">
-                          {game.gameBasicInfos?.price?.toLocaleString('vi-VN') || game.price?.toLocaleString('vi-VN') || 0}đ
-                        </p>
-                      </div>
-                    ))}
+                            <h3 className="text-white font-bold truncate">
+                              {game.name}
+                            </h3>
+                            <p className="text-purple-300 text-sm">
+                              {game.price?.toLocaleString('vi-VN') || 0}đ
+                            </p>
+                            {hasDifferentPromo && (
+                              <p className="text-orange-400 text-xs mt-1 font-semibold">
+                                ⚠ Đã có khuyến mãi khác
+                              </p>
+                            )}
+                            {isCurrentPromo && (
+                              <p className="text-blue-400 text-xs mt-1 font-semibold">
+                                ✓ Đang áp dụng KM này
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })}
                   </div>
 
                   <div className="border-t border-purple-600 pt-4 mb-4">

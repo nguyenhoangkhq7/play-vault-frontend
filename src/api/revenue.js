@@ -90,3 +90,25 @@ export const getMonthlyRevenue = async (setAccessToken, year = 2025) => {
     throw error;
   }
 };
+
+/**
+ * Lấy doanh thu theo tháng của 1 game cụ thể
+ * @param {function} setAccessToken - Function để update access token
+ * @param {number} gameId - ID của game
+ * @param {number} year - Năm cần xem (mặc định 2025)
+ * @returns {Promise<Array>} Doanh thu theo tháng của game
+ */
+export const getGameMonthlyRevenue = async (setAccessToken, gameId, year = 2025) => {
+  try {
+    const url = `/api/publisher/revenue/by-game/${gameId}/monthly?year=${year}`;
+
+    console.log("📈 Fetching game monthly revenue:", url);
+    const response = await api.get(url, setAccessToken);
+    console.log("✅ Game monthly revenue:", response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error fetching game monthly revenue:", error);
+    throw error;
+  }
+};

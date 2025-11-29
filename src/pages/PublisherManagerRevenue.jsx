@@ -18,6 +18,7 @@ import {
   getRevenueSummary,
   getRevenueByGame,
   getMonthlyRevenue,
+  getGameMonthlyRevenue,
 } from "../api/revenue";
 
 const timeRanges = [
@@ -124,38 +125,22 @@ export default function PublisherManagerRevenue() {
       }
       setMonthlyRevenueData(fullYearData);
 
-      // Transform games data - group by game và tính tổng
-      const gameMap = new Map();
-      gamesDataRaw.forEach((item) => {
-        const gameId = item.gameId;
-        if (!gameMap.has(gameId)) {
-          gameMap.set(gameId, {
-            id: gameId,
-            name: item.gameTitle,
-            revenue: 0,
-            players: new Set(),
-            orders: 0,
-            monthlyData: fullYearData, // Dùng chung monthly data
-          });
-        }
-
-        const game = gameMap.get(gameId);
-        game.revenue += parseFloat(item.price || 0);
-        game.players.add(item.orderId);
-        game.orders += 1;
-      });
-
-      // Convert Map to Array và tính thêm metrics
-      const transformedGames = Array.from(gameMap.values()).map((game) => ({
-        ...game,
-        players: game.players.size,
-        conversionRate:
-          game.orders > 0
-            ? ((game.orders / game.players.size) * 100).toFixed(1)
-            : 0,
-        trend: 8.2, // TODO: Cần tính từ data kỳ trước
+      // Transform games data - Backend đã GROUP BY rồi nên không cần group lại
+      console.log("📊 Raw games data from API:", gamesDataRaw);
+      console.log("📊 Number of games:", gamesDataRaw.length);
+      
+      const transformedGames = gamesDataRaw.map((item) => ({
+        id: item.gameId,
+        name: item.gameTitle,
+        revenue: parseFloat(item.totalRevenue || 0),
+        players: parseInt(item.totalOrders || 0), // Backend trả totalOrders
+        orders: parseInt(item.totalOrders || 0),
+        trend: 0, // TODO: Tính từ data kỳ trước
         status: "Hoạt động",
+        monthlyData: fullYearData, // Dùng chung monthly data
       }));
+      
+      console.log("📊 Processed games:", transformedGames);
 
       setGamesData(transformedGames);
     } catch (err) {
@@ -197,7 +182,7 @@ export default function PublisherManagerRevenue() {
     // Thêm thống kê tổng quan
     csvRows.push("TỔNG QUAN");
     csvRows.push(`Tổng doanh thu,${totalRevenue.toLocaleString()}đ`);
-    csvRows.push(`Tổng người chơi,${totalPlayers.toLocaleString()}`);
+    csvRows.push(`Số lượng mua,${totalPlayers.toLocaleString()}`);
     csvRows.push(`Số lượng game,${totalGames}`);
     csvRows.push(
       `TB doanh thu/game,${Math.round(avgRevenuePerGame).toLocaleString()}đ`
@@ -215,7 +200,7 @@ export default function PublisherManagerRevenue() {
     // Thêm chi tiết từng game
     csvRows.push("CHI TIẾT DOANH THU THEO GAME");
     csvRows.push(
-      "Tên game,Doanh thu,Người chơi,Tỷ lệ chuyển đổi,Xu hướng,Trạng thái"
+      "Tên game,Doanh thu,Số lượng mua,Xu hướng,Trạng thái"
     );
     filteredGames.forEach((game) => {
       csvRows.push(
@@ -254,7 +239,7 @@ export default function PublisherManagerRevenue() {
       [],
       ["TỔNG QUAN"],
       ["Tổng doanh thu", `${totalRevenue.toLocaleString()}đ`],
-      ["Tổng người chơi", totalPlayers.toLocaleString()],
+      ["Tổng số lượng mua", totalPlayers.toLocaleString()],
       ["Số lượng game", totalGames],
       [
         "TB doanh thu/game",
@@ -281,8 +266,7 @@ export default function PublisherManagerRevenue() {
       [
         "Tên game",
         "Doanh thu",
-        "Người chơi",
-        "Tỷ lệ chuyển đổi",
+        "Só lượng mua",
         "Xu hướng",
         "Trạng thái",
       ],
@@ -309,9 +293,39 @@ export default function PublisherManagerRevenue() {
     .filter((g) => selectedGame === "all" || g.id.toString() === selectedGame)
     .filter((g) => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const handleViewDetail = (game) => {
-    setSelectedGameDetail(game);
-    setDetailDialogOpen(true);
+  const handleViewDetail = async (game) => {
+    try {
+      // Fetch monthly data cho game này
+      const currentYear = new Date().getFullYear();
+      const gameMonthlyData = await getGameMonthlyRevenue(setAccessToken, game.id, currentYear);
+      
+      // Transform data
+      const transformedMonthly = gameMonthlyData.map((item) => ({
+        month: `T${item.month}`,
+        revenue: parseFloat(item.revenue || 0),
+      }));
+      
+      // Fill đủ 12 tháng
+      const fullYearData = [];
+      for (let i = 1; i <= 12; i++) {
+        const existing = transformedMonthly.find((m) => m.month === `T${i}`);
+        fullYearData.push(existing || { month: `T${i}`, revenue: 0 });
+      }
+      
+      setSelectedGameDetail({
+        ...game,
+        monthlyData: fullYearData, // Gán data riêng cho game này
+      });
+      setDetailDialogOpen(true);
+    } catch (err) {
+      console.error("Error fetching game detail:", err);
+      // Fallback: vẫn hiển thị modal nhưng không có monthly data
+      setSelectedGameDetail({
+        ...game,
+        monthlyData: [],
+      });
+      setDetailDialogOpen(true);
+    }
   };
 
   // Show loading/error states
@@ -460,7 +474,7 @@ export default function PublisherManagerRevenue() {
             </p>
           </div>
           <div className="rounded-lg bg-white/10 p-6 backdrop-blur-sm">
-            <p className="text-sm text-white/80">Tổng người chơi</p>
+            <p className="text-sm text-white/80">Tổng số lượng mua</p>
             <p className="mt-2 text-3xl font-bold text-white">
               {totalPlayers.toLocaleString()}
             </p>
@@ -531,10 +545,7 @@ export default function PublisherManagerRevenue() {
                     Doanh thu
                   </th>
                   <th className="pb-3 text-left text-sm font-medium text-white/80">
-                    Người chơi
-                  </th>
-                  <th className="pb-3 text-left text-sm font-medium text-white/80">
-                    Tỷ lệ chuyển đổi
+                    Số lượng mua
                   </th>
                   <th className="pb-3 text-left text-sm font-medium text-white/80">
                     Xu hướng
@@ -556,9 +567,6 @@ export default function PublisherManagerRevenue() {
                     </td>
                     <td className="py-4 text-white">
                       {game.players.toLocaleString()}
-                    </td>
-                    <td className="py-4 text-green-300">
-                      +{game.conversionRate}%
                     </td>
                     <td className="py-4">
                       <span
@@ -639,7 +647,7 @@ export default function PublisherManagerRevenue() {
                 </p>
               </div>
               <div className="rounded-lg bg-white/10 p-4">
-                <p className="text-sm text-white/80">Người chơi</p>
+                <p className="text-sm text-white/80">Số lượng mua</p>
                 <p className="mt-2 text-2xl font-bold">
                   {selectedGameDetail.players.toLocaleString()}
                 </p>
@@ -666,32 +674,38 @@ export default function PublisherManagerRevenue() {
 
             <div className="rounded-lg bg-white/10 p-4">
               <h3 className="mb-4 text-lg font-semibold">
-                Doanh thu theo tháng
+                Doanh thu game này theo tháng
               </h3>
-              <BarChart
-                data={selectedGameDetail.monthlyData}
-                width={700}
-                height={300}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.1)"
-                />
-                <XAxis
-                  dataKey="month"
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.7)" }}
-                />
-                <YAxis
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.7)" }}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  formatter={(value) => `${Number(value).toLocaleString()}đ`}
-                />
-                <Bar dataKey="revenue" fill="#a78bfa" radius={[8, 8, 0, 0]} />
-              </BarChart>
+              {selectedGameDetail.monthlyData && selectedGameDetail.monthlyData.length > 0 ? (
+                <BarChart
+                  data={selectedGameDetail.monthlyData}
+                  width={700}
+                  height={300}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(255,255,255,0.1)"
+                  />
+                  <XAxis
+                    dataKey="month"
+                    stroke="rgba(255,255,255,0.5)"
+                    tick={{ fill: "rgba(255,255,255,0.7)" }}
+                  />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.5)"
+                    tick={{ fill: "rgba(255,255,255,0.7)" }}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    formatter={(value) => `${Number(value).toLocaleString()}đ`}
+                  />
+                  <Bar dataKey="revenue" fill="#a78bfa" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              ) : (
+                <div className="text-center py-8 text-white/60">
+                  <p>Không có dữ liệu doanh thu theo tháng</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

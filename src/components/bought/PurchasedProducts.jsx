@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { LazyLoadImage } from "react-lazy-load-image-component";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
     CalendarIcon,
@@ -28,19 +28,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
 import { getMyPurchasedGames } from "../../api/library.js";
 import { useUser } from "../../store/UserContext.jsx";
 
-const statusMap = {
-    delivered: { label: "Đã giao", variant: "green" },
-    processing: { label: "Đang xử lý", variant: "yellow" },
-};
-
-const statusColorMap = {
-    delivered: "bg-green-100 text-green-800 border-green-300",
-    processing: "bg-yellow-100 text-yellow-800 border-yellow-300",
-}
 
 export default function PurchasedProducts() {
     const [view, setView] = useState("list");
@@ -291,9 +281,6 @@ export default function PurchasedProducts() {
                         </SelectTrigger>
                         <SelectContent className="bg-purple-900 border-purple-700 text-white rounded-lg">
                             <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                            <SelectItem value="delivered" className="text-green-400">
-                                Đã giao
-                            </SelectItem>
                             <SelectItem value="processing" className="text-yellow-400">
                                 Đang xử lý
                             </SelectItem>
@@ -399,7 +386,7 @@ export default function PurchasedProducts() {
                                 {filteredProducts.map((product) => (
                                     <div 
                                         key={product.id} 
-                                        onClick={() => navigate(`/games/${product.id}`)}
+                                        onClick={() => navigate(`/product/${product.id}`)}
                                         className="bg-purple-900/40 border border-purple-700/50 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 group cursor-pointer"
                                     >
                                         <div
@@ -417,13 +404,7 @@ export default function PurchasedProducts() {
                                                     </span>
                                                 ))}
                                             </div>
-                                            <div className="absolute top-3 right-3">
-                                                <span className={`text-xs px-2 py-1 rounded-full ${product.status === "delivered" ? "bg-green-600/90 text-white" :
-                                                    "bg-yellow-600/90 text-white"
-                                                    }`}>
-                                                    {statusMap[product.status]?.label || "Không xác định"}
-                                                </span>
-                                            </div>
+                                            
                                         </div>
                                         <div className="p-4">
                                             <h3 className="text-lg font-semibold text-white truncate">{product.name}</h3>
@@ -433,11 +414,13 @@ export default function PurchasedProducts() {
                                             <div className="mt-3 flex justify-between items-center">
                                                 <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
                                                 <Button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        // TODO: Implement download functionality
-                                                        console.log('Download game:', product.id);
-                                                    }}
+                                                    // onClick={(e) => {
+                                                    //     e.stopPropagation();
+                                                    //     // TODO: Implement download functionality
+                                                    //     console.log('Download game:', product.id);
+                                                    // }}
+                                                    key={product.id} 
+                                                    onClick={() => navigate(`/product/${product.id}`)}
                                                     className="text-xs h-8 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg hover:shadow-purple-500/30"
                                                 >
                                                     Tải lại game
@@ -452,7 +435,7 @@ export default function PurchasedProducts() {
                                 {filteredProducts.map((product) => (
                                     <div 
                                         key={product.id} 
-                                        onClick={() => navigate(`/game/${product.id}`)}
+                                        onClick={() => navigate(`/product/${product.id}`)}
                                         className="flex bg-purple-900/40 border border-purple-700/50 rounded-lg hover:shadow-lg transition-all duration-200 hover:border-purple-600/70 overflow-hidden cursor-pointer"
                                     >
                                         <div
@@ -467,21 +450,15 @@ export default function PurchasedProducts() {
                                                         <div className="text-sm text-purple-300">
                                                             Ngày mua: {format(product.purchaseDate, "dd/MM/yyyy", { locale: vi })}
                                                         </div>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${product.status === "delivered" ? "bg-green-600/90 text-white" :
-                                                            "bg-yellow-600/90 text-white"
-                                                            }`}>
-                                                            {statusMap[product.status]?.label || "Không xác định"}
-                                                        </span>
+                                                        
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
                                                     <Button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            // TODO: Implement download functionality
-                                                            console.log('Download game:', product.id);
-                                                        }}
+
+                                                        key={product.id} 
+                                                        onClick={() => navigate(`/product/${product.id}`)}
                                                         className="text-xs h-8 mt-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
                                                     >
                                                         Tải lại game

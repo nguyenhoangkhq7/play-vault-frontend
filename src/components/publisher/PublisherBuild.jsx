@@ -10,6 +10,7 @@ export default function PublisherBuild() {
     buildProgress,
     isUploading,
     buildName,
+    buildUrl,
   } = useOutletContext();
 
   return (
@@ -43,12 +44,12 @@ export default function PublisherBuild() {
                 hover:bg-purple-900/30 hover:border-pink-500/60
                 transition
               "
-              onClick={() => pickFile(buildInputRef)}
+              onClick={() => !isUploading && pickFile(buildInputRef)}
               onDragOver={prevent}
               onDragEnter={prevent}
               onDrop={(e) => {
                 prevent(e);
-                onBuildFiles(e.dataTransfer.files);
+                if (!isUploading) onBuildFiles(e.dataTransfer.files);
               }}
             >
               <i className="bi bi-cloud-upload text-2xl mb-2 text-pink-400" />
@@ -89,6 +90,21 @@ export default function PublisherBuild() {
                   : "Chưa tải lên"}
               </span>
             </div>
+            {/* Link tải/preview build sau khi upload */}
+            {!!buildUrl && !isUploading && (
+              <div className="mt-3 text-xs text-purple-300/80">
+                <a
+                  href="{buildUrl}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
++                            border border-purple-500/40 bg-purple-900/40
++                            hover:border-pink-500/60 hover:bg-purple-800/40 transition"
+                >
+                  <i className="bi bi-box-arrow-down" />
++                 Tải build từ Drive
+                </a>
+              </div>)}
           </div>
         </div>
 

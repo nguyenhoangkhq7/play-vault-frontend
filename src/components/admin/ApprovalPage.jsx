@@ -1,125 +1,141 @@
-import React, { useState, useEffect } from "react"; // Thêm React để dùng forwardRef
-import {
-  Search,
-  ChevronDown,
-  Check,
-  X,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Loader2
-} from "lucide-react";
+"use client";
+
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { Search, Check, X, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import Footer from "../home/footer";
 import { useNavigate } from "react-router-dom";
-import adminGamesApi from "../../api/adminGames"; 
+import { gameService } from "@/api/gameService";
 
-// --- 1. TỰ ĐỊNH NGHĨA BUTTON ĐỂ TRÁNH LỖI REF ---
-const Button = React.forwardRef(({ className, variant, size, children, ...props }, ref) => {
-  // Base styles
-  let classes = "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
-  
-  // Size styles (giản lược)
-  if (size === "sm") classes += " h-9 rounded-md px-3";
-  else classes += " h-10 px-4 py-2";
+/** Chuẩn hoá DTO -> đối tượng UI */
+function normalizeGame(g) {
+  const base = g?.gameBasicInfos || g?.gameBasicInfo || g || {};
+  return {
+    id: g?.id ?? base?.id,
+    title: base?.name || g?.title || "Unknown",
+    publisher: base?.publisherName || base?.publisher?.name || g?.publisherName || "—",
+    price: base?.price ?? g?.price ?? 0,
+    coverImage: base?.thumbnail || base?.coverUrl || g?.thumbnail || g?.coverUrl,
+    status: g?.status?.toLowerCase?.() || "pending",
+  };
+}
 
-  // Custom className truyền vào
-  if (className) classes += ` ${className}`;
-
-  return (
-    <button ref={ref} className={classes} {...props}>
-      {children}
-    </button>
-  );
-});
-Button.displayName = "Button";
-// -----------------------------------------------
-
-export function ApprovalPage() {
-  const [filter, setFilter] = useState("all"); 
+export default function ApprovalPage() {
+  const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [workingId, setWorkingId] = useState(null);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const loadSubmissions = async () => {
+  const fetchGames = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      const statusParam = filter === "all" ? "all" : filter.toUpperCase();
-      const response = await adminGamesApi.getSubmissions({
-        searchQuery: searchQuery,
-        status: statusParam, 
-        page: 0,
-        size: 50 
+      const statuses = ["PENDING", "APPROVED", "REJECTED"];
+      const results = await Promise.all(
+        statuses.map((s) => gameService.listByStatus(s).catch(() => []))
+      );
+      const map = new Map();
+      results.flat().forEach((g) => {
+        const x = normalizeGame(g);
+        map.set(x.id, x);
       });
-      setGames(response.content || response.data?.content || []);
-    } catch (err) {
-      console.error("Lỗi tải danh sách:", err);
-      setError("Không thể tải danh sách game.");
+      setGames(Array.from(map.values()));
+    } catch (e) {
+      console.error(e);
+      setError("Không tải được danh sách game.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      loadSubmissions();
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [searchQuery, filter]);
+    fetchGames(); // load lần đầu
+  }, [fetchGames]);
 
   const getStatusConfig = (status) => {
-    const s = String(status || "").toLowerCase();
-    switch (s) {
+    switch (status) {
       case "pending":
-        return { icon: Clock, label: "Chờ duyệt", color: "text-yellow-400", badgeColor: "bg-yellow-500/20 border border-yellow-500/30" };
+        return {
+          icon: Clock,
+          label: "Chờ duyệt",
+          color: "text-yellow-400",
+          badgeColor: "bg-yellow-500/20 border border-yellow-500/30",
+        };
       case "approved":
-        return { icon: CheckCircle2, label: "Đã duyệt", color: "text-green-400", badgeColor: "bg-green-500/20 border border-green-500/30" };
+        return {
+          icon: CheckCircle2,
+          label: "Đã duyệt",
+          color: "text-green-400",
+          badgeColor: "bg-green-500/20 border border-green-500/30",
+        };
       case "rejected":
-        return { icon: XCircle, label: "Từ chối", color: "text-red-400", badgeColor: "bg-red-500/20 border border-red-500/30" };
+        return {
+          icon: XCircle,
+          label: "Từ chối",
+          color: "text-red-400",
+          badgeColor: "bg-red-500/20 border border-red-500/30",
+        };
       default:
-        return { icon: Clock, label: status || "Không xác định", color: "text-gray-400", badgeColor: "bg-gray-500/20 border border-gray-500/30" };
+        return {
+          icon: Clock,
+          label: "Chờ duyệt",
+          color: "text-gray-400",
+          badgeColor: "bg-gray-500/20 border border-gray-500/30",
+        };
     }
   };
 
-  const handleApprove = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn duyệt game này?")) return;
+  const filteredGames = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return games.filter((game) => {
+      const matchesFilter = filter === "all" || game.status === filter;
+      const matchesSearch =
+        game.title?.toLowerCase?.().includes(q) ||
+        game.publisher?.toLowerCase?.().includes(q);
+      return matchesFilter && matchesSearch;
+    });
+  }, [games, filter, searchQuery]);
+
+  const handleCardClick = (id) => navigate(`/admin/approval/games/${id}`);
+
+  const mutateStatus = async (id, next) => {
+    setWorkingId(id);
+    const snapshot = games.map((g) => ({ ...g })); // rollback nếu lỗi
+
+    // optimistic UI
+    setGames((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g))
+    );
+
     try {
-        await adminGamesApi.approveGame(id);
-        alert("Duyệt thành công!");
-        loadSubmissions(); 
-    } catch (err) {
-        alert("Lỗi khi duyệt game.");
+      await gameService.updateStatus(id, next); // "APPROVED" | "REJECTED"
+      await fetchGames(); // đồng bộ lại với DB
+    } catch (e) {
+      console.error("Update status failed:", e);
+      alert("Cập nhật trạng thái thất bại.");
+      setGames(snapshot); // rollback
+    } finally {
+      setWorkingId(null);
     }
   };
 
-  const handleReject = async (id) => {
-    const reason = prompt("Nhập lý do từ chối:", "Nội dung chưa đạt yêu cầu");
-    if (reason === null) return; 
-    try {
-        await adminGamesApi.rejectGame(id, reason);
-        alert("Đã từ chối game.");
-        loadSubmissions(); 
-    } catch (err) {
-        alert("Lỗi khi từ chối game.");
-    }
-  };
-
-  const handleCardClick = (id) => {
-    navigate(`/admin/games/${id}`);
-  };
+  const handleApprove = (id) => mutateStatus(id, "APPROVED");
+  const handleReject = (id) => mutateStatus(id, "REJECTED");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 flex flex-col">
-      <main className="flex-1 overflow-visible"> 
-        
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-50 flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-center items-center">
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white text-center tracking-wide drop-shadow-lg">
@@ -129,6 +145,7 @@ export function ApprovalPage() {
         </header>
 
         <div className="pl-4 pr-8 py-10">
+          {/* Tìm kiếm + Lọc */}
           <div className="flex flex-col sm:flex-row gap-4 mb-10 items-center">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
@@ -140,56 +157,35 @@ export function ApprovalPage() {
               />
             </div>
 
-            {/* Dropdown Filter - Dùng Button tự định nghĩa (đã có forwardRef) */}
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Button className="gap-2 whitespace-nowrap bg-purple-800/50 border-purple-700/50 text-white hover:bg-purple-800/70 hover:border-purple-600/50 min-w-[160px] justify-between">
-                   <span>
-                    {filter === "all" ? "Tất cả" : 
-                     filter === "pending" ? "Chờ duyệt" : 
-                     filter === "approved" ? "Đã duyệt" : "Từ chối"}
-                   </span>
-                   <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              
-              <DropdownMenuContent
-                align="end"
-                className="w-48 bg-gray-900 border-purple-700/30 z-[9999]" 
-                sideOffset={5}
-              >
-                {[
-                  { id: "all", label: "Tất cả", color: "bg-purple-400" },
-                  { id: "pending", label: "Chờ duyệt", color: "bg-yellow-400" },
-                  { id: "approved", label: "Đã duyệt", color: "bg-green-400" },
-                  { id: "rejected", label: "Từ chối", color: "bg-red-400" }
-                ].map((item) => (
-                  <DropdownMenuItem
-                    key={item.id}
-                    onClick={() => setFilter(item.id)}
-                    className="text-white hover:bg-purple-800/50 cursor-pointer flex items-center py-2"
-                  >
-                    <span className={`w-2 h-2 rounded-full mr-2 ${filter === item.id ? item.color : "bg-gray-600"}`} />
-                    {item.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-48 bg-purple-800/50 border-purple-700/50 text-white hover:bg-purple-800/70 hover:border-purple-600/50">
+                <SelectValue placeholder="Tất cả trạng thái" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-purple-700/30 text-white z-[9999]">
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="pending">Chờ duyệt</SelectItem>
+                <SelectItem value="approved">Đã duyệt</SelectItem>
+                <SelectItem value="rejected">Từ chối</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* Nội dung */}
           {loading ? (
-             <div className="flex justify-center py-20 text-purple-300">
-                <Loader2 className="w-10 h-10 animate-spin" />
-             </div>
+            <div className="flex justify-center py-20 text-purple-300">
+              <Loader2 className="w-10 h-10 animate-spin" />
+            </div>
           ) : error ? (
-             <div className="text-center py-20 text-red-300">{error}</div>
-          ) : games.length > 0 ? (
+            <div className="text-center py-16 text-red-300">{error}</div>
+          ) : filteredGames.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
-              {games.map((game) => {
+              {filteredGames.map((game) => {
                 const statusConfig = getStatusConfig(game.status);
                 const StatusIcon = statusConfig.icon;
-                const priceDisplay = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(game.price || 0);
-                const imageUrl = game.image || game.thumbnail || "https://via.placeholder.com/300x200?text=No+Image";
+                const priceDisplay = new Intl.NumberFormat("vi-VN", {
+                  style: "currency",
+                  currency: "VND",
+                }).format(Number(game.price || 0));
 
                 return (
                   <div
@@ -199,57 +195,72 @@ export function ApprovalPage() {
                   >
                     <div className="aspect-video bg-gray-800 overflow-hidden relative">
                       <img
-                        src={imageUrl}
-                        alt={game.name}
+                        src={game.coverImage || "/images/placeholder-16x9.png"}
+                        alt={game.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => e.target.src = "https://via.placeholder.com/300x200?text=Error"}
+                        onError={(e) =>
+                          (e.currentTarget.src =
+                            "https://via.placeholder.com/300x200?text=Error")
+                        }
                       />
                     </div>
 
                     <div className="p-5 flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-white text-lg truncate pr-2 flex-1" title={game.name}>
-                            {game.name}
-                          </h3>
+                        <h3
+                          className="font-semibold text-white text-lg truncate pr-2 flex-1"
+                          title={game.title}
+                        >
+                          {game.title}
+                        </h3>
                       </div>
-                      
-                      <p className="text-sm text-purple-300 mb-3 truncate" title={game.publisher}>
-                        Publisher: {game.publisher || "Unknown"}
+
+                      <p
+                        className="text-sm text-purple-300 mb-3 truncate"
+                        title={game.publisher}
+                      >
+                        Publisher: {game.publisher}
                       </p>
                       <p className="text-xl font-bold text-purple-400 mb-3">
                         {priceDisplay}
                       </p>
 
-                      <div className="mt-auto">
-                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${statusConfig.badgeColor} w-fit`}>
-                            <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
-                            <span className={`text-sm font-medium ${statusConfig.color}`}>
-                                {statusConfig.label}
-                            </span>
-                        </div>
-
-                        {String(game.status).toUpperCase() === "PENDING" && (
-                            <div
-                            className="flex gap-3 pt-2 border-t border-purple-700/30"
-                            onClick={(e) => e.stopPropagation()} 
-                            >
-                            <Button
-                                size="sm"
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium transition-colors h-9"
-                                onClick={() => handleApprove(game.id)}
-                            >
-                                <Check className="w-4 h-4 mr-1.5" /> Duyệt
-                            </Button>
-                            <Button
-                                size="sm"
-                                className="flex-1 bg-red-900/50 hover:bg-red-900/70 text-red-300 border border-red-700/50 font-medium transition-colors h-9"
-                                onClick={() => handleReject(game.id)}
-                            >
-                                <X className="w-4 h-4 mr-1.5" /> Từ chối
-                            </Button>
-                            </div>
-                        )}
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${statusConfig.badgeColor} w-fit`}
+                      >
+                        <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
+                        <span
+                          className={`text-sm font-medium ${statusConfig.color}`}
+                        >
+                          {statusConfig.label}
+                        </span>
                       </div>
+
+                      {game.status === "pending" && (
+                        <div
+                          className="mt-auto flex gap-3 pt-2 border-t border-purple-700/30"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            size="sm"
+                            disabled={workingId === game.id}
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium transition-colors disabled:opacity-60"
+                            onClick={() => handleApprove(game.id)}
+                          >
+                            <Check className="w-4 h-4 mr-1.5" />
+                            Duyệt
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={workingId === game.id}
+                            className="flex-1 bg-red-900/50 hover:bg-red-900/70 text-red-300 border border-red-700/50 font-medium transition-colors disabled:opacity-60"
+                            onClick={() => handleReject(game.id)}
+                          >
+                            <X className="w-4 h-4 mr-1.5" />
+                            Từ chối
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -266,5 +277,3 @@ export function ApprovalPage() {
     </div>
   );
 }
-
-export default ApprovalPage;

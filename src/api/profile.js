@@ -55,7 +55,7 @@ export const updateProfile = async (userId, payload) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch (e) {
+  } catch {
     data = text;
   }
 

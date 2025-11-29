@@ -162,24 +162,6 @@ export default function PublisherManagerDiscount() {
       setLoading(false)
     }
   }
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa khuyến mãi này?")) return
-    
-    try {
-      setLoading(true)
-      // TODO: Implement delete promotion API when backend supports it
-      console.log("Delete promotion not implemented yet")
-      // Tạm thời remove khỏi state
-      setPromotions(promotions.filter(p => p.id !== id))
-    } catch (err) {
-      console.error("Error deleting promotion:", err)
-      alert("Không thể xóa khuyến mãi")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const formatDate = (dateString) => {
     if (!dateString) return "N/A"
     return new Date(dateString).toLocaleDateString("vi-VN")

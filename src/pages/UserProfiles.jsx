@@ -1,9 +1,8 @@
-import UserProfile from "../components/UserProfile/UserProfile.jsx";
+import UserProfile from "../components/userprofile/UserProfile";
 export default function UserProfiles() {
-
-    return (
-        <>
-            <UserProfile />
-        </>
-    );
+  return (
+    <>
+      <UserProfile />
+    </>
+  );
 }

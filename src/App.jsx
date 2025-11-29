@@ -42,6 +42,7 @@ import Monitoring from "./pages/Monitoring";
 import Reports from "./pages/Reports";
 import AdminProfile from "./pages/AdminProfiles.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
+import PublisherRegisterPage from "./pages/PublisherRegisterPage.jsx";
 
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
@@ -89,6 +90,7 @@ function App() {
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />
           <Route path="/publisher/games" element={<PublishserManageGame />} />
+          <Route path="/publisher/register" element={<PublisherRegisterPage />} />
         </Route>
         {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
         <Route path="/publisher/upload" element={<PublisherUpload />}>
@@ -104,7 +106,7 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
-          <Route path="games" element={<Games />} />
+          <Route path="games/*" element={<Games />} />
           <Route path="approval/*" element={<Approval />} />
           <Route path="monitoring" element={<Monitoring />} />
           <Route path="reports" element={<Reports />} />

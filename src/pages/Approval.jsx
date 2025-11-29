@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom"
-import { ApprovalPage } from "../components/admin/ApprovalPage"
+import ApprovalPage from "../components/admin/ApprovalPage"
 import { GameDetailPage } from "../components/admin/GameDetailPage"
 
 export default function Approval() {

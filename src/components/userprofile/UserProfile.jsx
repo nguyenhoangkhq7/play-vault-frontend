@@ -505,7 +505,7 @@ export default function UserProfile() {
                               </span>
                             </td>
                             <td className="py-4 px-4 text-right text-white font-medium">
-                              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND").format(order.price || 0)}
+                              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND"}).format(order.price || 0)}
                             </td>
                           </tr>
                         ))}

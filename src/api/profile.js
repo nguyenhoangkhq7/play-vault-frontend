@@ -1,105 +1,125 @@
 // src/api/profile.js
 import { API_BASE_URL } from "../config/api.js";
 
-// ĐÚNG 100% - không bị lỗi /api/users/api/users nữa
-const BASE_URL = `${API_BASE_URL}/api/users`;
+const BASE = `${API_BASE_URL}/api/users`;
 
-// Helper lấy token (dùng chung cho tất cả request cần auth)
-const getAuthHeaders = () => {
+function getAuthHeader() {
   const token =
     localStorage.getItem("accessToken") ||
     sessionStorage.getItem("accessToken");
+
+  // nếu token có dấu ngoặc kép thì loại bỏ
+  if (token && token.startsWith('"') && token.endsWith('"')) {
+    return { Authorization: `Bearer ${token.slice(1, -1)}` };
+  }
+
   return token ? { Authorization: `Bearer ${token}` } : {};
-};
+}
 
 /**
- * Lấy thông tin profile của user
+ * Lấy profile user theo id
  * GET /api/users/{id}/profile
  */
-export const getProfile = async (userId) => {
-  if (!userId) throw new Error("userId is required");
-
-  const response = await fetch(`${BASE_URL}/${userId}/profile`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(), // thêm token nếu có
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(
-      text || `Không thể tải hồ sơ: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json(); // trả về trực tiếp UserProfileDto
-};
-
-/**
- * Cập nhật thông tin profile
- * PUT /api/users/{id}/profile
- */
-export const updateProfile = async (userId, payload) => {
-  const response = await fetch(`${BASE_URL}/${userId}/profile`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await response.text();
-  let data = null;
+export async function getProfile(userId) {
   try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
+    const resp = await fetch(`${BASE}/${encodeURIComponent(userId)}/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...getAuthHeader(), // 👈 gắn token vào đây
+      },
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => null);
+      throw new Error(
+        txt || `Failed to fetch profile ${userId}: ${resp.status} ${resp.statusText}`
+      );
+    }
+
+    return await resp.json();
+  } catch (error) {
+    console.error(`❌ Error fetching profile ${userId}:`, error);
+    throw error;
   }
+}
 
-  if (!response.ok) {
-    const msg = data?.message || data?.error || text || response.statusText;
-    throw new Error(`Cập nhật thất bại: ${msg}`);
+export async function getProfileByUsername(userName) {
+  try {
+    const resp = await fetch(`${BASE}/by-username/${encodeURIComponent(userName)}/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...getAuthHeader(), // 👈 gắn token vào đây
+      },
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => null);
+      throw new Error(
+        txt || `Failed to fetch profile ${userName}: ${resp.status} ${resp.statusText}`
+      );
+    }
+
+    return await resp.json();
+  } catch (error) {
+    console.error(`❌ Error fetching profile ${userName}:`, error);
+    throw error;
   }
+}
 
-  return data; // backend trả UserProfileDto đã cập nhật
-};
 
-/**
- * Upload avatar (gọi riêng endpoint avatar nếu bạn có)
- * POST /api/users/{id}/avatar
- */
-export const uploadAvatar = async (userId, file) => {
-  if (!file) throw new Error("File is required");
+export async function updateProfile(userId, payload) {
+  const resp = await fetch(`${BASE}/${userId}/profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify(payload)
+  });
 
-  const formData = new FormData();
-  formData.append("file", file);
+  const text = await resp.text().catch(()=>null);
+  let parsed = null;
+  try { parsed = text ? JSON.parse(text) : null; } catch{ /* not json */ }
 
-  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/avatar`, {
+  if (!resp.ok) {
+    // throw richer error so frontend biết status + message
+    const msg = parsed?.message || parsed?.error || text || `${resp.status} ${resp.statusText}`;
+    const err = new Error(`Failed to update profile: ${resp.status} ${msg}`);
+    err.status = resp.status;
+    err.body = parsed || text;
+    throw err;
+  }
+  return parsed;
+}
+
+export async function uploadAvatar(userId, file) {
+  const API = `${API_BASE_URL}/api/users/${userId}/avatar`;
+  const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const resp = await fetch(API, {
     method: "POST",
     headers: {
-      ...getAuthHeaders(),
-      // Không set Content-Type → browser tự thêm boundary
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // DON'T set Content-Type when sending FormData; browser sets boundary for you
     },
-    body: formData,
+    body: fd
   });
 
-  const text = await response.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
+  const txt = await resp.text().catch(() => null);
+  let data;
+  try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+
+  if (!resp.ok) {
+    const err = new Error(`Upload failed: ${resp.status}`);
+    err.status = resp.status;
+    err.body = data || txt;
+    throw err;
   }
 
-  if (!response.ok) {
-    throw new Error(
-      data?.message || `Upload avatar thất bại: ${response.status}`
-    );
-  }
-
-  // Backend nên trả về { avatarUrl: "..." } hoặc full profile
+  // Expect server returns { avatarUrl: "..." } or full profile object
   return data;
-};
+}

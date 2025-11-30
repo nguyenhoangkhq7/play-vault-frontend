@@ -101,7 +101,7 @@ export default function Sidebar() {
       </div>
 
       {/* Hồ sơ – chỉ hiện cho Customer & Publisher */}
-      {(role === "CUSTOMER" || role === "PUBLISHER") && (
+      {(role === "CUSTOMER") && (
         <div className="mt-auto mb-10">
           <NavItem
             to="/profile"
@@ -112,6 +112,20 @@ export default function Sidebar() {
           />
         </div>
       )}
+
+      {/* Hồ sơ Publisher */}
+{role === "PUBLISHER" && (
+  <div className="mt-auto mb-10">
+    <NavItem
+      to="/publisher/profile"
+      icon={User}
+      label="Hồ sơ Publisher"
+      isActive={location.pathname === "/publisher/profile"}
+      gradient="from-cyan-500 to-blue-600"
+    />
+  </div>
+)}
+
     </div>
   );
 }

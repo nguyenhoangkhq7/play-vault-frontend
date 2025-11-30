@@ -44,7 +44,7 @@ import AdminProfile from "./pages/AdminProfiles.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
 import PublisherRegisterPage from "./pages/PublisherRegisterPage.jsx";
 import { CartProvider } from "./store/CartContext";
-
+import PublisherProfile from "./components/userprofile/PublisherProfile.jsx";
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
   return (
@@ -92,7 +92,11 @@ function App() {
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />
           <Route path="/publisher/games" element={<PublishserManageGame />} />
+<<<<<<< HEAD
           <Route path="/publisher/register" element={<PublisherRegisterPage />} />
+=======
+          <Route path="/publisher/profile" element={<PublisherProfile />} />
+>>>>>>> 991eb97 (done admin,customer profile)
         </Route>
         {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
         <Route path="/publisher/upload" element={<PublisherUpload />}>

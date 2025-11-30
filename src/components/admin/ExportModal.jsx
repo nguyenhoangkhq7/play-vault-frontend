@@ -1,156 +1,168 @@
 "use client"
 
-import { X, FileText, FileSpreadsheet, FileJson, Download, CheckCircle } from "lucide-react"
+import { X, Table, FileSpreadsheet, Check, Download, AlertCircle } from "lucide-react"
 import { useState } from "react"
+import { downloadReport } from "../../api/report"
 
 export default function ExportModal({ onClose, dateRangeInfo }) {
-  const [selectedFormat, setSelectedFormat] = useState("pdf")
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportComplete, setExportComplete] = useState(false)
+  // State quản lý lựa chọn
+  const [format, setFormat] = useState("excel") // Mặc định là excel
+  const [options, setOptions] = useState({
+    details: true,
+    compare: false
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const formats = [
-    {
-      id: "pdf",
-      name: "PDF",
-      description: "Định dạng tài liệu di động, phù hợp để in và chia sẻ",
-      icon: FileText,
-      color: "from-red-500 to-rose-600",
-    },
-    {
-      id: "excel",
-      name: "Excel",
-      description: "Bảng tính Excel, dễ dàng phân tích và chỉnh sửa",
-      icon: FileSpreadsheet,
-      color: "from-green-500 to-emerald-600",
-    },
-    {
-      id: "csv",
-      name: "CSV",
-      description: "Dữ liệu thô, tương thích với nhiều công cụ",
-      icon: FileJson,
-      color: "from-blue-500 to-cyan-600",
-    },
-  ]
-
-  const handleExport = () => {
-    setIsExporting(true)
-    // Simulate export process
-    setTimeout(() => {
-      setIsExporting(false)
-      setExportComplete(true)
-      setTimeout(() => {
-        onClose()
-      }, 1500)
-    }, 2000)
-  }
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
+  const handleExport = async () => {
+    try {
+      setLoading(true)
+      setError("")
+      
+      // CHỈ CẦN GỌI HÀM NÀY, KHÔNG CẦN XỬ LÝ BLOB NỮA
+      // Vì bên trong report.js đã gọi api.downloadFile của bạn rồi
+      await downloadReport(
+          dateRangeInfo.from, 
+          dateRangeInfo.to, 
+          format, 
+          options.compare
+      );
+      
+      onClose(); 
+    } catch (err) {
+      console.error(err);
+      setError("Xuất báo cáo thất bại. Vui lòng thử lại.");
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-purple-900 to-purple-950 rounded-2xl shadow-2xl border border-purple-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-xl shadow-2xl border border-purple-600/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+        
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-purple-700">
-          <h2 className="text-2xl font-bold text-white">Xuất báo cáo</h2>
-          <button
-            onClick={onClose}
-            className="text-pink-300 hover:text-pink-400 transition-colors p-2 hover:bg-purple-800/50 rounded-lg"
-          >
-            <X className="h-6 w-6" />
+        <div className="flex items-center justify-between p-6 border-b border-purple-600/30">
+          <h3 className="text-xl font-bold text-white">Xuất báo cáo</h3>
+          <button onClick={onClose} className="text-pink-300 hover:text-white transition-colors">
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content */}
+        {/* Body */}
         <div className="p-6 space-y-6">
-          <div className="bg-purple-800/50 p-4 rounded-lg border border-purple-700/50 space-y-2">
-            <p className="text-pink-200 text-sm mb-1">Khoảng thời gian</p>
-            <p className="text-white font-semibold text-lg">{dateRangeInfo.label}</p>
-            <div className="flex items-center gap-2 text-sm text-pink-300">
-              <span>Từ: {formatDate(dateRangeInfo.from)}</span>
-              <span>•</span>
-              <span>Đến: {formatDate(dateRangeInfo.to)}</span>
+          
+          {/* Info Box */}
+          <div className="bg-purple-950/50 rounded-lg p-4 border border-purple-500/20">
+            <div className="text-sm text-pink-200 mb-1">Khoảng thời gian</div>
+            <div className="font-bold text-white text-lg">{dateRangeInfo.label}</div>
+            <div className="text-xs text-purple-300 mt-1">
+              Từ: {dateRangeInfo.from} • Đến: {dateRangeInfo.to}
             </div>
           </div>
 
-          {/* Format Selection */}
+          {/* Format Selection - Đã xóa PDF */}
           <div>
-            <h3 className="text-white font-semibold mb-3">Chọn định dạng xuất</h3>
-            <div className="space-y-3">
-              {formats.map((format) => {
-                const Icon = format.icon
-                return (
-                  <button
-                    key={format.id}
-                    onClick={() => setSelectedFormat(format.id)}
-                    className={`w-full flex items-start gap-4 p-4 rounded-lg border-2 transition-all ${
-                      selectedFormat === format.id
-                        ? "border-pink-500 bg-pink-500/10"
-                        : "border-purple-700/50 bg-purple-800/30 hover:border-purple-600"
-                    }`}
-                  >
-                    <div className={`bg-gradient-to-br ${format.color} p-3 rounded-lg shadow-lg flex-shrink-0`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h4 className="text-white font-semibold mb-1">{format.name}</h4>
-                      <p className="text-pink-200 text-sm">{format.description}</p>
-                    </div>
-                    {selectedFormat === format.id && <CheckCircle className="h-6 w-6 text-pink-500 flex-shrink-0" />}
-                  </button>
-                )
-              })}
+            <label className="block text-sm font-medium text-pink-200 mb-3">Chọn định dạng xuất</label>
+            <div className="grid grid-cols-1 gap-3">
+              
+              {/* Excel Option */}
+              <div 
+                onClick={() => setFormat("excel")}
+                className={`relative flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
+                  format === "excel" 
+                    ? "bg-pink-600/20 border-pink-500 ring-1 ring-pink-500" 
+                    : "bg-purple-950/40 border-purple-600/30 hover:bg-purple-900/40"
+                }`}
+              >
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                    <Table className="h-6 w-6 text-green-400" />
+                </div>
+                <div className="flex-1">
+                    <div className="font-semibold text-white">Excel (.xlsx)</div>
+                    <div className="text-xs text-pink-200">Bảng tính chuẩn, hỗ trợ công thức và định dạng</div>
+                </div>
+                {format === "excel" && <Check className="h-5 w-5 text-pink-400" />}
+              </div>
+
+              {/* CSV Option */}
+              <div 
+                onClick={() => setFormat("csv")}
+                className={`relative flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
+                  format === "csv" 
+                    ? "bg-pink-600/20 border-pink-500 ring-1 ring-pink-500" 
+                    : "bg-purple-950/40 border-purple-600/30 hover:bg-purple-900/40"
+                }`}
+              >
+                 <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <FileSpreadsheet className="h-6 w-6 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                    <div className="font-semibold text-white">CSV (.csv)</div>
+                    <div className="text-xs text-pink-200">Dữ liệu thô tách bởi dấu phẩy, dung lượng nhẹ</div>
+                </div>
+                {format === "csv" && <Check className="h-5 w-5 text-pink-400" />}
+              </div>
             </div>
           </div>
 
-          {/* Export Options */}
-          <div className="bg-purple-800/50 p-4 rounded-lg border border-purple-700/50 space-y-3">
-            <h3 className="text-white font-semibold mb-2">Tùy chọn xuất</h3>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked className="w-4 h-4 accent-pink-500" />
-              <span className="text-pink-200 text-sm">Bao gồm biểu đồ và đồ thị</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked className="w-4 h-4 accent-pink-500" />
-              <span className="text-pink-200 text-sm">Bao gồm dữ liệu chi tiết</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 accent-pink-500" />
-              <span className="text-pink-200 text-sm">Bao gồm so sánh với kỳ trước</span>
-            </label>
+          {/* Options - Đã xóa biểu đồ */}
+          <div className="bg-purple-950/30 rounded-xl p-4 border border-purple-600/20">
+             <label className="block text-sm font-medium text-pink-200 mb-3">Tùy chọn xuất</label>
+             <div className="space-y-3">
+                
+                {/* Checkbox Details */}
+                <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                        options.details ? 'bg-pink-600 border-pink-600' : 'border-purple-400 group-hover:border-pink-500'
+                    }`}>
+                        {options.details && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className="text-sm text-white">Bao gồm dữ liệu chi tiết</span>
+                    <input type="checkbox" className="hidden" checked={options.details} onChange={() => setOptions({...options, details: !options.details})} />
+                </label>
+
+                {/* Checkbox Compare */}
+                <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                        options.compare ? 'bg-pink-600 border-pink-600' : 'border-purple-400 group-hover:border-pink-500'
+                    }`}>
+                        {options.compare && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                    <span className="text-sm text-white">Bao gồm so sánh với kỳ trước</span>
+                    <input type="checkbox" className="hidden" checked={options.compare} onChange={() => setOptions({...options, compare: !options.compare})} />
+                </label>
+             </div>
           </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 p-3 rounded-lg border border-red-500/30">
+                <AlertCircle className="h-4 w-4" />
+                {error}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-purple-700">
-          <button
+        <div className="p-6 border-t border-purple-600/30 flex gap-3">
+          <button 
             onClick={onClose}
-            className="px-6 py-2 rounded-lg border border-purple-600 text-pink-300 hover:bg-purple-800/50 transition-all"
+            className="flex-1 px-4 py-2.5 bg-purple-950/60 hover:bg-purple-950 text-white rounded-lg font-medium transition-colors border border-purple-600/30"
           >
             Hủy
           </button>
-          <button
+          <button 
             onClick={handleExport}
-            disabled={isExporting || exportComplete}
-            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-semibold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-lg font-medium shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {isExporting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                Đang xuất...
-              </>
-            ) : exportComplete ? (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Hoàn thành!
-              </>
+            {loading ? (
+                <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <>
-                <Download className="h-4 w-4" />
-                Xuất báo cáo
-              </>
+                <>
+                    <Download className="h-4 w-4" />
+                    Xuất báo cáo
+                </>
             )}
           </button>
         </div>

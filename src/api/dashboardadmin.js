@@ -1,47 +1,16 @@
-import {API_BASE_URL} from "../config/api.js"
+// Import object 'api' từ file authAPI của bạn
+// (Hãy kiểm tra lại đường dẫn import cho đúng với cấu trúc thư mục của bạn)
+import { api } from "./authApi"; 
 
+// 1. Lấy dữ liệu Order Items trong ngày hôm nay
 export async function getDataToDay() {
-  const accessToken = localStorage.getItem("accessToken");
-  if (!accessToken) {
-    throw new Error("No access token found.");
-  }
-
-  const url = API_BASE_URL+"/admin/orderitems/today";
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return await response.json();
+  // api.get tự động xử lý: Base URL, Header Auth, Refresh Token
+  const response = await api.get("/admin/orderitems/today");
+  return response.data;
 }
 
+// 2. Lấy số lượng tài khoản tạo mới trong ngày hôm nay
 export async function getDataAccountCreateToday() {
-  const accessToken = localStorage.getItem("accessToken");
-  if (!accessToken) {
-    throw new Error("No access token found.");
-  }
-
-  const url = API_BASE_URL+"/admin/accounts/today";
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return await response.json();
+  const response = await api.get("/admin/accounts/today");
+  return response.data;
 }

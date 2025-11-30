@@ -43,7 +43,7 @@ import Reports from "./pages/Reports";
 import AdminProfile from "./pages/AdminProfiles.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
 import { CartProvider } from "./store/CartContext";
-
+import PublisherProfile from "./components/userprofile/PublisherProfile.jsx";
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
   return (
@@ -91,6 +91,7 @@ function App() {
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />
           <Route path="/publisher/games" element={<PublishserManageGame />} />
+          <Route path="/publisher/profile" element={<PublisherProfile />} />
         </Route>
         {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
         <Route path="/publisher/upload" element={<PublisherUpload />}>

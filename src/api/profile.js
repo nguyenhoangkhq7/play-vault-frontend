@@ -3,33 +3,73 @@ import { API_BASE_URL } from "../config/api.js";
 
 const BASE = `${API_BASE_URL}/api/users`;
 
+function getAuthHeader() {
+  const token =
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("accessToken");
+
+  // nếu token có dấu ngoặc kép thì loại bỏ
+  if (token && token.startsWith('"') && token.endsWith('"')) {
+    return { Authorization: `Bearer ${token.slice(1, -1)}` };
+  }
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /**
  * Lấy profile user theo id
  * GET /api/users/{id}/profile
  */
 export async function getProfile(userId) {
   try {
-    const resp = await fetch(`${BASE}/${userId}/profile`, {
+    const resp = await fetch(`${BASE}/${encodeURIComponent(userId)}/profile`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-      }
+        Accept: "application/json",
+        ...getAuthHeader(), // 👈 gắn token vào đây
+      },
     });
+
     if (!resp.ok) {
       const txt = await resp.text().catch(() => null);
-      throw new Error(txt || `Failed to fetch profile ${userId}: ${resp.status} ${resp.statusText}`);
+      throw new Error(
+        txt || `Failed to fetch profile ${userId}: ${resp.status} ${resp.statusText}`
+      );
     }
-    return await resp.json(); // giả sử API trả object user (nếu trả wrapper, adjust ở chỗ gọi)
+
+    return await resp.json();
   } catch (error) {
-    console.error(`Error fetching profile ${userId}:`, error);
+    console.error(`❌ Error fetching profile ${userId}:`, error);
     throw error;
   }
 }
 
-function getAuthHeader() {
-  const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export async function getProfileByUsername(userName) {
+  try {
+    const resp = await fetch(`${BASE}/by-username/${encodeURIComponent(userName)}/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...getAuthHeader(), // 👈 gắn token vào đây
+      },
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => null);
+      throw new Error(
+        txt || `Failed to fetch profile ${userName}: ${resp.status} ${resp.statusText}`
+      );
+    }
+
+    return await resp.json();
+  } catch (error) {
+    console.error(`❌ Error fetching profile ${userName}:`, error);
+    throw error;
+  }
 }
+
 
 export async function updateProfile(userId, payload) {
   const resp = await fetch(`${BASE}/${userId}/profile`, {

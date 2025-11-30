@@ -24,3 +24,26 @@ export async function getAllPublisher() {
     throw error;
   }
 }
+const BASE = import.meta.env.VITE_API_URL ?? "";
+
+export async function getPublisherByUsername(username) {
+  const res = await fetch(`${BASE}/api/publishers/by-username/${encodeURIComponent(username)}/profile`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error(`getPublisherByUsername failed: ${res.status}`);
+  return res.json();
+}
+
+// Cập nhật theo publisherId (khuyên dùng)
+export async function updatePublisherProfileById(publisherId, payload) {
+  if (!publisherId) throw new Error("Missing publisherId");
+  const res = await fetch(`${BASE}/api/publishers/${publisherId}/profile`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`updatePublisherProfileById failed: ${res.status}`);
+  return res.json();
+}

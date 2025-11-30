@@ -25,8 +25,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-import { API_BASE_URL } from "../../config/api";
 import { updateProfile, getProfile } from "../../api/profile.js";
 import { uploadImageToCloudinary } from "../../api/uploadImage.js";
 import { useUserOrders } from "../../api/useUserOrders.js";
@@ -68,7 +66,11 @@ function parseIsoDateToParts(iso) {
   if (!iso) return { day: "", month: "", year: "" };
   try {
     const [y, m, d] = iso.split("T")[0].split("-");
-    return { day: d, month: m, year: y };
+    return {
+      day: String(Number(d)),    // "20"  -> "20"
+      month: String(Number(m)),  // "05"  -> "5"  ✅ khớp Select
+      year: y
+    };
   } catch {
     return { day: "", month: "", year: "" };
   }
@@ -105,13 +107,12 @@ export default function UserProfile() {
 
   // Lấy userId từ localStorage
   const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
-  const userId = storedUser.id || storedUser.customerId || storedUser._id;
+  const userId = storedUser.id || storedUser.customerId || storedUser._id || storedUser.publisherId;
 
-  // Dùng hook useUserOrders (chỉ bật khi tab = orders)
   const {
-    data: orders = [],
-    isLoading: isOrdersLoading,
-    isError: ordersError,
+    orders = [],
+    loading: isOrdersLoading,
+    error: ordersError,
     refetch,
   } = useUserOrders({
     userId,
@@ -120,6 +121,7 @@ export default function UserProfile() {
     enabled: activeTab === "orders" && !!userId,
   });
 
+  
   // Load profile khi mount
   useEffect(() => {
     const loadProfile = async () => {
@@ -140,7 +142,6 @@ export default function UserProfile() {
           phone: data?.phone || storedUser.phone || "",
           email: data?.email || storedUser.email || "",
           gender: data?.gender || storedUser.gender || "male",
-          address: data?.address || storedUser.address || "",
           birthDay: dobParts.day,
           birthMonth: dobParts.month,
           birthYear: dobParts.year,
@@ -162,6 +163,7 @@ export default function UserProfile() {
     };
 
     loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, form]);
 
   // Avatar upload
@@ -206,8 +208,14 @@ export default function UserProfile() {
 
   // Submit form
   const onSubmit = async (values) => {
+    console.log(">>> SUBMIT VALUES:", values);
     setIsSubmitting(true);
     try {
+      if (!userId) {
+        toast.error("Không tìm thấy người dùng. Vui lòng đăng nhập lại.");
+        setIsSubmitting(false);
+        return;
+      }
       const dateOfBirth = partsToIsoDate({
         day: values.birthDay,
         month: values.birthMonth,
@@ -240,7 +248,8 @@ export default function UserProfile() {
       toast.success("Cập nhật hồ sơ thành công!");
     } catch (err) {
       console.error(err);
-      toast.error("Cập nhật thất bại");
+      const message = err?.message || (err?.body && JSON.stringify(err.body)) || "Cập nhật thất bại";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -263,12 +272,11 @@ export default function UserProfile() {
 
   return (
     <div className="container mx-auto max-w-4xl py-8">
- generations
       <Card className="bg-purple-950/60 backdrop-blur-xl border border-purple-700 shadow-[0_0_30px_rgba(168,85,247,0.4)] rounded-2xl overflow-hidden">
         <CardContent className="p-8">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white">Hồ sơ người dùng</h2>
-            <p className="text-purple-300">Quản lý thông tin cá nhân và theo dõidon hàng</p>
+            <p className="text-purple-300">Quản lý thông tin cá nhân và theo dõi đơn hàng</p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -323,7 +331,7 @@ export default function UserProfile() {
 
                 <div className="flex-1">
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 relative z-10 pointer-events-auto">
                       <FormField
                         control={form.control}
                         name="name"
@@ -433,6 +441,7 @@ export default function UserProfile() {
                       <Button
                         type="submit"
                         disabled={isSubmitting}
+                        onClick={() => console.log('>>> CLICK SUBMIT')}
                         className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium"
                       >
                         {isSubmitting ? (

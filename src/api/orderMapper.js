@@ -1,63 +1,71 @@
-// src/utils/orderMapper.js
-
 /**
- * Map một Order DTO từ backend -> object UI format mong muốn
- * Backend DTO mẫu:
- * {
- *   id, createdAt, total, status, orderItems: [{ id, gameTitle, gameThumbnail, price, gameId }, ...]
- * }
+ * Map Order DTO -> UI object
  */
-export function mapOrderDtoToUi(orderDto) {
-  const id = orderDto.id;
-  const createdAt = orderDto.createdAt || orderDto.created_at || null;
-  const date = createdAt ? formatDate(createdAt) : "";
-  const status = humanizeStatus(orderDto.status);
-  const totalPrice = orderDto.total ?? computeTotalFromItems(orderDto.orderItems);
+export function mapOrderDtoToUi(dto = {}) {
+  const id = dto.id ?? "";
+  const createdAt =
+    dto.createdAt ?? dto.created_at ?? dto.createdDate ?? dto.created_date ?? null;
 
-  // take first item as representative for list view (can be adjusted)
-  const firstItem = Array.isArray(orderDto.orderItems) && orderDto.orderItems.length > 0 ? orderDto.orderItems[0] : null;
+  const date = createdAt ? formatDateSafe(createdAt) : "";
+  const status = humanizeStatus(dto.status);
 
-  const name = firstItem?.gameTitle || firstItem?.game_name || `Order ${id}`;
-  const image = firstItem?.gameThumbnail || firstItem?.thumbnail || "https://placehold.co/100x100/333333/ffffff?text=No+Image";
-  const publisher = firstItem?.publisher || orderDto.publisher || ""; // if backend includes publisher
-  const tags = firstItem?.tags || [];
-  const age_limit = firstItem?.requiredAge || firstItem?.age_limit || "";
+  const items = Array.isArray(dto.orderItems) ? dto.orderItems : [];
+  const first = items[0] ?? {};
+
+  const name =
+    first.gameTitle ?? first.game_name ?? (id ? `Order ${id}` : "Đơn hàng");
+
+  const image =
+    first.gameThumbnail ??
+    first.thumbnail ??
+    "https://placehold.co/100x100/333/fff?text=No+Image";
+
+  // Nếu backend không trả total thì cộng từ items
+  const totalPrice =
+    toNumber(dto.total) !== 0 && dto.total != null
+      ? toNumber(dto.total)
+      : computeTotalFromItems(items);
 
   return {
-    id: id,
+    id,
     name,
-    publisher,
+    publisher: first.publisher ?? dto.publisher ?? "",
     date,
     status,
-    price: Number(totalPrice || 0),
+    price: totalPrice,
     image,
-    tags,
-    age_limit
+    tags: first.tags ?? [],
+    age_limit: first.requiredAge ?? first.age_limit ?? "",
+    itemCount: items.length,
   };
 }
 
 function computeTotalFromItems(items) {
   if (!Array.isArray(items)) return 0;
-  return items.reduce((s, it) => s + (Number(it.total ?? it.price ?? 0)), 0);
+  return items.reduce(
+    (sum, it) => sum + toNumber(it.total ?? it.price ?? 0),
+    0
+  );
 }
 
-function formatDate(isoOrDateString) {
-  try {
-    const d = new Date(isoOrDateString);
-    if (isNaN(d.getTime())) return String(isoOrDateString);
-    return d.toLocaleDateString("vi-VN");
-  } catch {
-    return String(isoOrDateString);
-  }
+function toNumber(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatDateSafe(v) {
+  // hỗ trợ cả ISO string lẫn epoch millis
+  const d = typeof v === "number" ? new Date(v) : new Date(String(v));
+  return Number.isFinite(d.getTime()) ? d.toLocaleDateString("vi-VN") : String(v);
 }
 
 function humanizeStatus(raw) {
   if (!raw) return "Không rõ";
   const s = String(raw).toUpperCase();
   if (s.includes("COMPLETED") || s.includes("DONE")) return "Hoàn thành";
-  if (s.includes("PENDING")) return "Đang chờ";
-  if (s.includes("PROCESSING")) return "Đang xử lý";
-  if (s.includes("CANCEL")) return "Bị hủy";
   if (s.includes("PAID")) return "Đã thanh toán";
-  return raw;
+  if (s.includes("PROCESSING")) return "Đang xử lý";
+  if (s.includes("PENDING")) return "Đang chờ";
+  if (s.includes("CANCEL")) return "Bị hủy";
+  return String(raw);
 }

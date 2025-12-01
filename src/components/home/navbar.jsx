@@ -120,13 +120,23 @@ export default function Navbar() {
                     {role}
                   </span>
                 </div>
-                {(role === "CUSTOMER" || role === "PUBLISHER") && (
+                {(role === "CUSTOMER") && (
                   <Link
                     to="/profile"
                     onClick={() => setIsDropdownOpen(false)}
                     className="block px-5 py-3 text-white hover:bg-purple-800"
                   >
                     Hồ sơ cá nhân
+                  </Link>
+                )}
+
+                {role === "PUBLISHER" && (
+                  <Link
+                    to="/publisher/profile"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="block px-5 py-3 text-white hover:bg-purple-800"
+                  >
+                    Hồ sơ nhà phát hành
                   </Link>
                 )}
                 <button

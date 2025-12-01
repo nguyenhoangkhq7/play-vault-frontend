@@ -9,6 +9,7 @@ export async function getAllPublisher(setAccessToken) {
   }
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 export async function approvePublisherRequest(requestId, setAccessToken) {
   try {
@@ -37,11 +38,16 @@ export async function unblockPublisher(publisherId, setAccessToken) {
   }
 =======
 const BASE = import.meta.env.VITE_API_URL ?? "";
+=======
+>>>>>>> d531280 (done profilePublisher)
 
 export async function getPublisherByUsername(username) {
-  const res = await fetch(`${BASE}/api/publishers/by-username/${encodeURIComponent(username)}/profile`, {
+  const token = localStorage.getItem("accessToken");
+  const res = await fetch(`${API_URL}/by-username/${encodeURIComponent(username)}/profile`, {
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
   });
   if (!res.ok) throw new Error(`getPublisherByUsername failed: ${res.status}`);
   return res.json();
@@ -49,14 +55,31 @@ export async function getPublisherByUsername(username) {
 
 // Cập nhật theo publisherId (khuyên dùng)
 export async function updatePublisherProfileById(publisherId, payload) {
-  if (!publisherId) throw new Error("Missing publisherId");
-  const res = await fetch(`${BASE}/api/publishers/${publisherId}/profile`, {
+  const id = (typeof publisherId === "number" || typeof publisherId === "string")
+    ? String(publisherId).trim()
+    : "";
+
+  if (!id) throw new Error("updatePublisherProfileById: publisherId rỗng/không hợp lệ");
+  const token = localStorage.getItem("accessToken");
+  const url = `${API_URL}/${encodeURIComponent(id)}/profile`;
+
+  const res = await fetch(url, {
     method: "PUT",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" ,
+      "Authorization": `Bearer ${token}`
+    },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`updatePublisherProfileById failed: ${res.status}`);
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`updatePublisherProfileById failed: ${res.status} ${text}`);
+  }
   return res.json();
+<<<<<<< HEAD
 >>>>>>> 991eb97 (done admin,customer profile)
 }
+=======
+}
+>>>>>>> d531280 (done profilePublisher)

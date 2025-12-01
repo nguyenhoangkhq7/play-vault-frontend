@@ -24,7 +24,7 @@ export default function PublisherProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg?height=200&width=200");
-  const fileRef = useRef(null);
+  //const fileRef = useRef(null);
   const publisherIdRef = useRef(null); // dùng khi gọi API update
 
   const form = useForm({
@@ -93,56 +93,62 @@ export default function PublisherProfile() {
     })();
   }, [form]);
 
-  const onPickAvatar = () => fileRef.current?.click();
-  const onAvatarChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const rd = new FileReader();
-    rd.onload = (ev) => setAvatarUrl(ev.target.result);
-    rd.readAsDataURL(file);
-  };
+//   const onPickAvatar = () => fileRef.current?.click();
+//   const onAvatarChange = (e) => {
+//     const file = e.target.files?.[0];
+//     if (!file) return;
+//     const rd = new FileReader();
+//     rd.onload = (ev) => setAvatarUrl(ev.target.result);
+//     rd.readAsDataURL(file);
+//   };
 
   const onSubmit = async (values) => {
-    setIsSubmitting(true);
-    try {
-      if (!publisherIdRef.current) {
-        toast.error("Thiếu publisherId. Vui lòng tải lại trang hoặc đăng nhập lại.");
-        return;
-      }
-
-      const payload = {
-        studioName: values.studioName.trim(),
-        email: values.email || null,
-        phone: values.phone || null,
-        website: values.website || null,
-        description: values.description || null,
-        avatarUrl: avatarUrl?.includes("placeholder") ? null : avatarUrl,
-      };
-
-      const res = await updatePublisherProfileById(publisherIdRef.current, payload);
-      const data = res?.data || res || payload;
-
-      // Lưu lại local cho lần sau
-      const curr = JSON.parse(localStorage.getItem("user") || "{}");
-      localStorage.setItem("user", JSON.stringify({
-        ...curr,
-        publisherId: publisherIdRef.current,
-        studioName: data.studioName ?? payload.studioName,
-        email: data.email ?? payload.email,
-        phone: data.phone ?? payload.phone,
-        website: data.website ?? payload.website,
-        description: data.description ?? payload.description,
-        avatarUrl: data.avatarUrl ?? payload.avatarUrl,
-      }));
-
-      toast.success("Đã lưu hồ sơ publisher");
-    } catch (e) {
-      console.error(e);
-      toast.error("Cập nhật thất bại");
-    } finally {
-      setIsSubmitting(false);
+  setIsSubmitting(true);
+  try {
+    const id = publisherIdRef.current;
+    if (id === null || id === undefined || String(id) === "" || String(id) === "NaN") {
+      toast.error("Thiếu publisherId. Vui lòng tải lại trang hoặc đăng nhập lại.");
+      return;
     }
-  };
+
+    const payload = {
+      // BE expects "name" -> map từ studioName của form
+      name: values.studioName.trim(),
+      email: values.email || null,
+      phone: values.phone || null,
+      website: values.website || null,
+      description: values.description || null,
+      avatarUrl: avatarUrl?.includes("placeholder") ? null : avatarUrl,
+    };
+
+    console.debug("PUT publisher profile", { id, payload }); // kiểm tra nhanh
+
+    console.debug("publisherIdRef.current =", publisherIdRef.current, typeof publisherIdRef.current);
+
+    const res = await updatePublisherProfileById(id, payload);
+    const data = res?.data || res || payload;
+
+    // cập nhật localStorage cho lần sau
+    const curr = JSON.parse(localStorage.getItem("user") || "{}");
+    localStorage.setItem("user", JSON.stringify({
+      ...curr,
+      publisherId: id,
+      studioName: data.name ?? values.studioName, // BE trả về "name"
+      email: data.email ?? values.email,
+      phone: data.phone ?? values.phone,
+      website: data.website ?? values.website,
+      description: data.description ?? values.description,
+      avatarUrl: data.avatarUrl ?? (avatarUrl?.includes("placeholder") ? null : avatarUrl),
+    }));
+
+    toast.success("Đã lưu hồ sơ publisher");
+  } catch (e) {
+    console.error("update publisher failed:", e);
+    toast.error(e?.message || "Cập nhật thất bại");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (isLoading) {
     return (
@@ -165,7 +171,7 @@ export default function PublisherProfile() {
 
           <div className="flex flex-col md:flex-row gap-8">
             <div className="flex flex-col items-center md:shrink-0">
-              <div className="relative mb-4">
+              {/* <div className="relative mb-4">
                 <Avatar className="h-32 w-32 border-4 border-purple-500/30">
                   <AvatarImage src={avatarUrl} alt="Studio" />
                   <AvatarFallback className="bg-gradient-to-br from-purple-600 to-pink-600 text-white text-2xl">
@@ -181,10 +187,10 @@ export default function PublisherProfile() {
                   <Camera className="h-5 w-5" />
                 </Button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
-              </div>
-              <p className="text-purple-300 text-sm text-center max-w-[220px]">
+              </div> */}
+              {/* <p className="text-purple-300 text-sm text-center max-w-[220px]">
                 Nhấp máy ảnh để chọn logo/studio avatar (chưa upload server).
-              </p>
+              </p> */}
             </div>
 
             <div className="flex-1">

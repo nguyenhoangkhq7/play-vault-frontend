@@ -68,9 +68,6 @@ export default function Navbar() {
             className={`text-lg font-bold ${location.pathname === "/" ? "text-white" : "text-purple-200 hover:text-white"}`}
           >
             Trang chủ
-            {location.pathname === "/" && (
-              <div className="h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mt-1"></div>
-            )}
           </Link>
           <Link
             to="/products"

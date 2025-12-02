@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function PublishersReviewTable({ publishers, onApprove, onReject }) {
+export default function PublishersReviewTable({ publishers, onApprove, onReject, actionLoading = {} }) {
   const getStatusClass = (status) => {
     switch (status) {
       case "ACTIVE":
@@ -47,16 +47,26 @@ export default function PublishersReviewTable({ publishers, onApprove, onReject 
               <td className="p-4 flex justify-center items-center gap-2">
                 <button
                   onClick={() => onApprove(pub.publisherRequestId)}
-                  className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg bg-gradient-to-r from-green-500 to-teal-600 shadow-teal-500/30`}
+                  disabled={actionLoading[pub.publisherRequestId]}
+                  className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg bg-gradient-to-r from-green-500 to-teal-600 shadow-teal-500/30 ${actionLoading[pub.publisherRequestId] ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <span>Duyệt</span>
+                  {actionLoading[pub.publisherRequestId] ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <span>Duyệt</span>
+                  )}
                 </button>
 
                 <button
                   onClick={() => onReject(pub.publisherRequestId)}
-                  className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/30`}
+                  disabled={actionLoading[pub.publisherRequestId]}
+                  className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/30 ${actionLoading[pub.publisherRequestId] ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <span>Từ chối</span>
+                  {actionLoading[pub.publisherRequestId] ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <span>Từ chối</span>
+                  )}
                 </button>
               </td>
             </tr>

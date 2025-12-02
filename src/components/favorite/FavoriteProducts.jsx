@@ -69,56 +69,13 @@ export default function FavoriteProducts() {
         publisher: game.publisher || game.details?.publisher || "Unknown",
       }));
 
-            const gamesWithStatus = favoriteGamesResponse.map((game) => ({
-                ...game,
-                status: "not_purchased",
-                downloadProgress: 0,
-                price: `${game.price?.toLocaleString() || 0}đ`,
-                tags: game.tags || [],
-                thumbnailImage: game.trailerUrl,
-                ageRating: game.details?.["age-limit"] || "N/A",
-                releaseDate: game.details?.published_date?.$date
-                    ? new Date(game.details.published_date.$date).toLocaleDateString("vi-VN")
-                    : "N/A",
-                publisher: game.details?.publisher || "Valve Corporation",
-                description: game.details?.describe || "",
-                minRequirements: {
-                    os: game.minimum_configuration?.os || "N/A",
-                    cpu: game.minimum_configuration?.cpu || "N/A",
-                    ram: game.minimum_configuration?.ram || "N/A",
-                    gpu: game.minimum_configuration?.gpu || "N/A",
-                    storage: game.minimum_configuration?.disk || "N/A",
-                },
-                recRequirements: {
-                    os: game.recommended_configuration?.os || "N/A",
-                    cpu: game.recommended_configuration?.cpu || "N/A",
-                    ram: game.recommended_configuration?.ram || "N/A",
-                    gpu: game.recommended_configuration?.gpu || "N/A",
-                    storage: game.recommended_configuration?.disk || "N/A",
-                },
-                friends: [],
-                achievements: {
-                    completed: 0,
-                    total: 0,
-                },
-            }))
-
-            setGames(gamesWithStatus)
-            setLoading(false)
-        } catch (err) {
-            console.error("Error fetching data:", err)
-            let errorMessage = "Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau."
-            if (err.message.includes("Unexpected token '<'") && err.message.includes("DOCTYPE")) {
-                errorMessage = "Server không phản hồi đúng định dạng dữ liệu (có thể backend chưa chạy hoặc proxy chưa config)."
-            } else if (err.message.includes("ERR_CONNECTION_REFUSED") || err.message.includes("Failed to fetch")) {
-                errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend (port 3001)."
-            } else {
-                errorMessage = err.message || errorMessage
-            }
-            setError(errorMessage)
-            setGames([])
-            setLoading(false)
-        }
+      setGames(processedGames);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching wishlist:", err);
+      toast.error("Không thể tải danh sách yêu thích");
+      setGames([]);
+      setLoading(false);
     }
   };
 

@@ -1,6 +1,9 @@
 import { CheckCircleIcon, ClockIcon, XCircleIcon, XIcon } from "lucide-react";
+import { useState } from "react";
 
 export default function OrderModal({ order, onClose, onUpdate }) {
+  const [adminNote, setAdminNote] = useState("");
+
   if (!order) return null;
 
   return (
@@ -37,15 +40,30 @@ export default function OrderModal({ order, onClose, onUpdate }) {
           </div>
         </div>
 
+        {/* Admin Note Input */}
+        <div className="px-6 pb-4">
+          <label htmlFor="adminNote" className="block text-sm font-medium text-gray-300 mb-2">
+            Admin Note
+          </label>
+          <textarea
+            id="adminNote"
+            value={adminNote}
+            onChange={(e) => setAdminNote(e.target.value)}
+            placeholder="Enter admin note for this order..."
+            className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-white placeholder-gray-400"
+            rows={3}
+          />
+        </div>
+
         {/* Footer */}
         <div className="p-6 bg-black/20 rounded-b-2xl flex flex-col sm:flex-row justify-end items-center gap-4">
           {order.status === 'Chờ xác nhận' ? (
             <>
-              <button onClick={() => onUpdate(order.id, 'Đã hủy')}
+              <button onClick={() => onUpdate(order.id, 'Đã hủy', adminNote)}
                 className="w-full sm:w-auto bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
                 Hủy đơn hàng
               </button>
-              <button onClick={() => onUpdate(order.id, 'Đã xác nhận')}
+              <button onClick={() => onUpdate(order.id, 'Đã xác nhận', adminNote)}
                 className="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg transition-colors">
                 Xác nhận thanh toán
               </button>

@@ -22,6 +22,11 @@ export default function GamesPage() {
   const [showFilter, setShowFilter] = useState(false); 
   const [priceInputs, setPriceInputs] = useState({ min: '', max: '' }); 
 
+  // STATE MỚI: Danh sách thể loại (Khởi tạo mục "All" mặc định)
+  const [genres, setGenres] = useState([
+    { id: null, name: 'All' } 
+  ]);
+
   const [filterParams, setFilterParams] = useState({
     keyword: '',      
     categoryId: null, 
@@ -33,22 +38,24 @@ export default function GamesPage() {
 
   const fallbackImage = "https://via.placeholder.com/300x224.png?text=No+Image";
 
-  const genres = [
-    { id: null, label: 'All' },
-    { id: 1, label: 'Action' },
-    { id: 2, label: 'Adventure' },
-    { id: 3, label: 'RPG' },
-    { id: 4, label: 'Sports' },
-    { id: 5, label: 'Simulation' },
-  ];
+  // 1. Fetch Categories
+  const fetchCategories = async () => {
+    try {
+      const response = await searchApi.getAllCategories();
+      const data = response.data || response;
+      // Gộp mục "All" với dữ liệu từ API
+      setGenres([{ id: null, name: 'All' }, ...data]);
+    } catch (error) {
+      console.error("Lỗi khi tải thể loại:", error);
+    }
+  };
 
-  // --- HÀM FETCH API ĐÃ SỬA ---
+  // 2. Fetch Games
   const fetchGames = async () => {
     try {
       setLoading(true);
       const response = await searchApi.searchGames(filterParams);
       
-      // Sửa đoạn này: Lấy trực tiếp content vì axiosClient đã xử lý .data rồi
       if (response && response.content) {
         setGames(response.content); 
         setTotalPages(response.totalPages); 
@@ -73,7 +80,9 @@ export default function GamesPage() {
     }
   };
 
+  // Gọi API Categories khi mount
   useEffect(() => {
+    fetchCategories();
     fetchFeaturedGames();
   }, []);
 
@@ -221,14 +230,27 @@ export default function GamesPage() {
           </section>
         )}
 
-        {/* CATEGORIES */}
+        {/* CATEGORIES - DYNAMIC RENDER */}
         <section>
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-purple-300 uppercase tracking-wider">Danh mục & Thể loại</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {genres.map((genre) => (
-              <motion.button key={genre.id || 'all'} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleGenreSelect(genre.id)} className={`px-5 py-2 rounded-full text-sm font-medium transition border ${filterParams.categoryId === genre.id ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20' : 'bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600'}`}>{genre.label}</motion.button>
+              <motion.button 
+                key={genre.id || 'all'} 
+                whileHover={{ scale: 1.05 }} 
+                whileTap={{ scale: 0.95 }} 
+                onClick={() => handleGenreSelect(genre.id)} 
+                className={`px-5 py-2 rounded-full text-sm font-medium transition border ${
+                    filterParams.categoryId === genre.id 
+                    ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20' 
+                    : 'bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600'
+                }`}
+              >
+                {/* Sử dụng field 'name' từ API thay vì 'label' */}
+                {genre.name}
+              </motion.button>
             ))}
           </div>
         </section>
@@ -254,7 +276,6 @@ export default function GamesPage() {
                       <div className="relative overflow-hidden rounded-xl border border-purple-800/50 bg-purple-900/50 hover:border-purple-700 transition backdrop-blur-xl h-full flex flex-col hover:shadow-2xl hover:shadow-pink-500/10">
                         <div className="relative overflow-hidden bg-slate-950 h-48 sm:h-56">
                           <Link to={`/product/${game.id}`}>
-                            {/* QUAN TRỌNG: Sửa lấy thumbnail trước */}
                             <img src={game.thumbnail || game.image || fallbackImage} alt={game.name} className="w-full h-full object-cover group-hover/card:scale-110 transition duration-500" onError={(e) => (e.currentTarget.src = fallbackImage)} />
                           </Link>
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition" />
@@ -266,7 +287,6 @@ export default function GamesPage() {
                             <Link to={`/product/${game.id}`}>{game.name}</Link>
                           </h4>
                           
-                          {/* --- HIỂN THỊ RATING SAO --- */}
                           <div className="flex items-center gap-2">
                             <div className="flex text-yellow-400 gap-0.5">
                               {[...Array(5)].map((_, i) => (
@@ -282,7 +302,6 @@ export default function GamesPage() {
                                 {game.rating ? `(${game.rating.toFixed(1)})` : '(Chưa có)'}
                             </span>
                           </div>
-                          {/* ---------------------------- */}
 
                           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
                             <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} đ` : 'Free'}</span>
@@ -308,12 +327,10 @@ export default function GamesPage() {
                           <div className="flex items-center justify-center sm:justify-start gap-3 mt-2 text-sm">
                             <span className="bg-purple-800/50 px-2 py-0.5 rounded text-xs text-purple-200 border border-purple-700">{game.categoryName || "Game"}</span>
                             
-                            {/* --- RATING LIST VIEW --- */}
                             <div className="flex items-center gap-1 text-yellow-400">
                                <Star size={12} fill="currentColor" />
                                <span className="text-slate-300 text-xs">{game.rating ? game.rating.toFixed(1) : 'N/A'}</span>
                             </div>
-                            {/* ---------------------- */}
                           </div>
                         </div>
                         <div className="flex flex-col items-center sm:items-end gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-700/50 pt-3 sm:pt-0 sm:pl-4">

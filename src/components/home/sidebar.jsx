@@ -12,6 +12,7 @@ import {
   GamepadIcon,
   DollarSign,
   Shield,
+  ClipboardList,
 } from "lucide-react";
 import { useUser } from "../../store/UserContext";
 
@@ -32,6 +33,7 @@ export default function Sidebar() {
     { icon: Heart, label: "Ưa thích", path: "/favorites" },
     { icon: Download, label: "Đã mua", path: "/bought" },
     { icon: ShoppingCart, label: "Giỏ hàng", path: "/cart" },
+    { icon: ClipboardList, label: "Đăng ký làm nhà phát hành", path: "/publisher/register" },
   ];
 
   const publisherMenu = [

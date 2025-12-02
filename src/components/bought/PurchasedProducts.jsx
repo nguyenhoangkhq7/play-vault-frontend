@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -27,7 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { getMyPurchasedGames } from "../../api/library.js";
 import { useUser } from "../../store/UserContext.jsx";
@@ -53,115 +53,87 @@ export default function PurchasedProducts() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation(); // ✅ Detect khi component được access
     
     // Lấy user và setAccessToken từ UserContext
     const { user, setAccessToken } = useUser();
 
-    // Fetch purchased games from API
-    useEffect(() => {
-        // Nếu không có người dùng đăng nhập, không fetch dữ liệu
+    // ✅ Hàm refetch data
+    const fetchPurchasedGames = useCallback(async () => {
         if (!user) {
             setLoading(false);
             return;
         }
 
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                setError(null);
+        try {
+            setLoading(true);
+            setError(null);
 
-                // Gọi API lấy game đã mua từ backend
-                const purchasedGames = await getMyPurchasedGames(setAccessToken);
+            // Gọi API lấy game đã mua từ backend
+            let purchasedGames = await getMyPurchasedGames(setAccessToken);
 
-                console.log("📚 Purchased games from API:", purchasedGames);
+            console.log("📚 Purchased games from API (raw):", purchasedGames);
 
-                // Transform data từ backend sang format của frontend
-                const transformedProducts = purchasedGames.map(game => ({
+            // Handle nếu response là { data: [...] }
+            if (purchasedGames && purchasedGames.data && Array.isArray(purchasedGames.data)) {
+                purchasedGames = purchasedGames.data;
+            }
+
+            if (!Array.isArray(purchasedGames) || purchasedGames.length === 0) {
+                console.warn("⚠️ No purchased games returned from API");
+                setProducts([]);
+                return;
+            }
+
+            console.log("📚 Purchased games (after parse):", purchasedGames);
+
+            // Transform data từ backend sang format của frontend
+            const transformedProducts = purchasedGames.map(game => {
+                console.log("🎮 Transforming game:", game);
+                return {
                     id: game.id,
                     name: game.name || "Unknown Game",
                     price: game.price || 0,
                     thumbnail_image: game.thumbnail || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image',
-                    purchaseDate: new Date(), // Backend chưa trả về purchase date, dùng tạm
+                    purchaseDate: game.purchaseDate ? new Date(game.purchaseDate) : new Date(),
                     status: "delivered", // Mặc định là đã giao
                     tags: game.categoryName ? [game.categoryName] : [],
                     details: {
                         publisher: game.publisherName || "Unknown Publisher"
                     }
-                }));
+                };
+            });
 
-                console.log("✅ Transformed products:", transformedProducts);
-                setProducts(transformedProducts);
-            } catch (err) {
-                console.error("❌ Error fetching purchased games:", err);
-                setError(err.message || "Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+            console.log("✅ Transformed products:", transformedProducts);
+            setProducts(transformedProducts);
+        } catch (err) {
+            console.error("❌ Error fetching purchased games:", err);
+            setError(err.message || "Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.");
+            setProducts([]);
+        } finally {
+            setLoading(false);
+        }
     }, [user, setAccessToken]);
 
-    // Fetch lại data khi filter thay đổi (gọi API với filter params)
+    // Fetch purchased games when component mounts or when location changes
     useEffect(() => {
-        if (!user) return;
+        console.log("🔄 Fetching purchased games - location changed:", location.pathname);
+        fetchPurchasedGames();
+    }, [location.pathname, fetchPurchasedGames]);
 
-        const fetchFilteredData = async () => {
-            try {
-                setLoading(true);
-                
-                // Chuẩn bị filter params cho API
-                const filters = {};
-                
-                // Filter theo search query (tên game)
-                if (searchQuery && searchQuery.trim()) {
-                    filters.name = searchQuery.trim();
-                }
-                
-                // Filter theo category
-                if (categoryFilter !== "all") {
-                    filters.category = categoryFilter;
-                }
-                
-                // Filter theo price
-                if (priceFilter === "under100k") {
-                    filters.minPrice = 0;
-                    filters.maxPrice = 100000;
-                } else if (priceFilter === "100k-300k") {
-                    filters.minPrice = 100000;
-                    filters.maxPrice = 300000;
-                } else if (priceFilter === "over300k") {
-                    filters.minPrice = 300000;
-                }
+    // 🔥 Listen to purchase event from CartPage
+    useEffect(() => {
+    const handlePurchaseUpdate = () => {
+        console.log("Game mua thành công → Refetch thư viện!");
+        fetchPurchasedGames();
+    };
 
-                // Gọi API với filters
-                const purchasedGames = await getMyPurchasedGames(setAccessToken, filters);
+    window.addEventListener('purchasedGamesUpdated', handlePurchaseUpdate);
 
-                // Transform data
-                const transformedProducts = purchasedGames.map(game => ({
-                    id: game.id,
-                    name: game.name || "Unknown Game",
-                    price: game.price || 0,
-                    thumbnail_image: game.thumbnail || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image',
-                    purchaseDate: new Date(),
-                    status: "delivered",
-                    tags: game.categoryName ? [game.categoryName] : [],
-                    details: {
-                        publisher: game.publisherName || "Unknown Publisher"
-                    }
-                }));
-
-                setProducts(transformedProducts);
-            } catch (err) {
-                console.error("❌ Error fetching filtered games:", err);
-                setError(err.message || "Đã xảy ra lỗi khi lọc dữ liệu.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchFilteredData();
-    }, [user, setAccessToken, categoryFilter, priceFilter, searchQuery]);
+    return () => {
+        window.removeEventListener('purchasedGamesUpdated', handlePurchaseUpdate);
+    };
+    }, [fetchPurchasedGames]);
 
     // Handle Enter key để tìm kiếm
     const handleSearchKeyDown = (e) => {
@@ -170,17 +142,42 @@ export default function PurchasedProducts() {
         }
     };
 
-    // Filter theo status (client-side vì backend chưa hỗ trợ)
+    // ✅ Filter theo status, search, price, category (client-side)
     const filteredProducts = products.filter((product) => {
+        // Filter theo status
         const matchesStatus = statusFilter === "all" || product.status === statusFilter;
-        return matchesStatus;
+        
+        // Filter theo search query (tên game)
+        const matchesSearch = searchQuery === "" || product.name.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        // Filter theo category
+        const matchesCategory = categoryFilter === "all" || 
+            (product.tags && product.tags.some(tag => tag.toLowerCase() === categoryFilter.toLowerCase()));
+        
+        // Filter theo price
+        let matchesPrice = true;
+        if (priceFilter === "under100k") {
+            matchesPrice = product.price < 100000;
+        } else if (priceFilter === "100k-300k") {
+            matchesPrice = product.price >= 100000 && product.price <= 300000;
+        } else if (priceFilter === "over300k") {
+            matchesPrice = product.price > 300000;
+        }
+        
+        return matchesStatus && matchesSearch && matchesCategory && matchesPrice;
     });
 
     const formatCurrency = (amount) => {
+        // Nếu amount là số, format bình thường
+        const numAmount = Number(amount);
+        if (isNaN(numAmount)) return "0₫";
+        
         return new Intl.NumberFormat("vi-VN", {
             style: "currency",
             currency: "VND",
-        }).format(amount);
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        }).format(numAmount);
     };
 
     // Handle login click
@@ -242,7 +239,7 @@ export default function PurchasedProducts() {
                         Sản Phẩm Đã Mua
                     </h1>
                     <p className="text-purple-300">
-                        {user && `${user.f_name} ${user.l_name} • `}{products.length} game đã mua
+                        {user && `${user.f_name || user.firstName || 'User'} ${user.l_name || user.lastName || ''} • `}{products.length} game đã mua
                     </p>
 
                     <div className="flex items-center gap-3 mt-4 md:mt-0 w-full md:w-auto justify-end">

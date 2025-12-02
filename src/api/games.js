@@ -138,7 +138,8 @@ export async function getMyGames(setAccessToken) {
     const accessToken = localStorage.getItem('accessToken')
     console.log('🎮 Fetching my games...')
     
-    const response = await fetch(`${API_URL}`, {
+    // SỬA: Gọi đúng endpoint của publisher
+    const response = await fetch(`${API_BASE_URL}/api/promotions/my-games`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

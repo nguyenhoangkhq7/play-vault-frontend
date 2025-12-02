@@ -6,7 +6,8 @@ import { API_BASE_URL } from "../config/api";
  * Trả về object { content: [...], totalElements, totalPages, page, size }
  */
 export async function fetchOrdersByUserId(userId, page = 0, size = 20, token = "") {
-  const url = `${API_BASE_URL}/api/users/${encodeURIComponent(userId)}/orders?page=${page}&size=${size}`;
+  // Sử dụng endpoint /api/orders thay vì /api/users/{id}/orders
+  const url = `${API_BASE_URL}/api/orders?page=${page}&size=${size}`;
   const resp = await fetch(url, {
     method: "GET",
     headers: {

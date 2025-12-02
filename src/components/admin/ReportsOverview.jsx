@@ -1,38 +1,72 @@
 "use client"
 
 import { TrendingUp, TrendingDown, DollarSign, Users, Gamepad2, ShoppingCart } from "lucide-react"
+import { useEffect, useState } from "react"
+import { fetchReportSummary } from "../../api/report"
 
-export default function ReportsOverview({ dateRange }) {
+export default function ReportsOverview({ dateFilter }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const res = await fetchReportSummary(dateFilter.from, dateFilter.to)
+        setData(res)
+      } catch (error) {
+        console.error("Failed to load summary", error)
+        setData(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    if (dateFilter.from && dateFilter.to) {
+        loadData()
+    }
+  }, [dateFilter])
+
+  if (loading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+            {[1,2,3,4].map(i => <div key={i} className="h-32 bg-purple-900/50 rounded-xl"></div>)}
+        </div>
+      )
+  }
+
+  if (!data) return null
+
   const metrics = [
     {
       title: "Tổng doanh thu",
-      value: "₫2,847,500,000",
-      change: "+12.5%",
-      trend: "up",
+      value: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(data.totalRevenue || 0),
+      change: `${data.revenueGrowth}%`,
+      trend: data.revenueGrowth >= 0 ? "up" : "down",
       icon: DollarSign,
       color: "from-green-500 to-emerald-600",
     },
     {
       title: "Người dùng mới",
-      value: "8,432",
-      change: "+8.2%",
-      trend: "up",
+      value: (data.newUsers || 0).toLocaleString(),
+      change: `${data.userGrowth}%`,
+      trend: data.userGrowth >= 0 ? "up" : "down",
       icon: Users,
       color: "from-blue-500 to-cyan-600",
     },
     {
       title: "Game đã bán",
-      value: "15,847",
-      change: "+15.3%",
-      trend: "up",
+      value: (data.soldGames || 0).toLocaleString(),
+      change: `${data.soldGamesGrowth}%`,
+      trend: data.soldGamesGrowth >= 0 ? "up" : "down",
       icon: Gamepad2,
       color: "from-purple-500 to-pink-600",
     },
     {
       title: "Đơn hàng",
-      value: "12,394",
-      change: "-2.4%",
-      trend: "down",
+      value: (data.totalOrders || 0).toLocaleString(),
+      change: `${data.orderGrowth}%`,
+      trend: data.orderGrowth >= 0 ? "up" : "down",
       icon: ShoppingCart,
       color: "from-orange-500 to-red-600",
     },

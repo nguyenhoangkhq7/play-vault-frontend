@@ -2,7 +2,7 @@ import { PlayCircleIcon, StopCircleIcon, EyeIcon } from "lucide-react";
 import React, { useState } from "react";
 import BlockReasonModal from "./BlockReasonModal";
 
-export default function UsersTable({ users, onStatusToggle, onViewDetails }) {
+export default function UsersTable({ users, onStatusToggle, onViewDetails, actionLoading = {} }) {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -51,18 +51,32 @@ export default function UsersTable({ users, onStatusToggle, onViewDetails }) {
                   {user.status === 'Active' ? (
                     <button 
                       onClick={() => handleBlockClick(user)}
-                      className="flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 shadow-pink-500/30 transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+                      disabled={actionLoading[user.id]}
+                      className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 shadow-pink-500/30 transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg ${actionLoading[user.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <StopCircleIcon className="h-4 w-4" />
-                      <span>Chặn</span>
+                      {actionLoading[user.id] ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <StopCircleIcon className="h-4 w-4" />
+                          <span>Chặn</span>
+                        </>
+                      )}
                     </button>
                   ) : (
                     <button 
                       onClick={() => onStatusToggle(user.id)}
-                      className="flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 shadow-teal-500/30 transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+                      disabled={actionLoading[user.id]}
+                      className={`flex items-center justify-center gap-2 w-28 py-2 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 shadow-teal-500/30 transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg ${actionLoading[user.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <PlayCircleIcon className="h-4 w-4" />
-                      <span>Kích hoạt</span>
+                      {actionLoading[user.id] ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <PlayCircleIcon className="h-4 w-4" />
+                          <span>Kích hoạt</span>
+                        </>
+                      )}
                     </button>
                   )}
                   <button 

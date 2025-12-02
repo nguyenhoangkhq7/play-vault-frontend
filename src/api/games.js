@@ -186,3 +186,22 @@ export async function getMyGames(setAccessToken) {
     throw error
   }
 }
+
+
+
+// export async function fetchGameRevenue(from, to) {
+//   try {
+//     const res = await fetch(
+//       `${API_URL}/revenue?from=${from}&to=${to}`
+//     );
+
+//     if (!res.ok) {
+//       throw new Error("Failed to fetch game revenue");
+//     }
+
+//     return await res.json();
+//   } catch (e) {
+//     console.error("Error fetching revenue:", e);
+//     throw e;
+//   }
+// }

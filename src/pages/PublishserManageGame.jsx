@@ -1,622 +1,506 @@
 import React, { useEffect, useRef, useState } from "react";
 import Chart from "chart.js/auto";
+// [UPDATE] Import thêm icon Search
+import { Pencil, LineChart, Trash, Search } from "lucide-react";
+import publisherApi from "../api/publisherApi";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 export default function PublisherManageGame() {
-  // -------------------- state demo --------------------
-  const [gameDb, setGameDb] = useState({
-    game1: {
-      title: "Hành Trình Bất Tận",
-      price: 99000,
-      summary: "Roguelike pixel tốc độ cao.",
-      genre: "Hành động",
-      trailer: "https://youtu.be/xxxx",
-      free: false,
-      revenueByMonth: [12, 14, 18, 22, 24, 28, 26, 31, 29, 34, 36, 40],
-      downloads: 12400,
-      rating: 4.6,
-      reviews: 1900,
-      lastUpdated: "05/10/2025",
-      status: "published",
-    },
-    game2: {
-      title: "Chiến Binh Ánh Sáng",
-      price: 149000,
-      summary: "ARPG chặt chém co-op.",
-      genre: "Nhập vai",
-      trailer: "https://youtu.be/yyyy",
-      free: false,
-      revenueByMonth: [8, 10, 13, 12, 16, 18, 19, 21, 22, 24, 25, 27],
-      downloads: 8200,
-      rating: 4.3,
-      reviews: 1200,
-      lastUpdated: "03/10/2025",
-      status: "reviewing",
-    },
-  });
+  // --- [FIX LẠI] LẤY PUBLISHER ID CHUẨN ---
+  const getUserFromStorage = () => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        return user.publisherId || user.id;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
 
-  const [selectedGameKey, setSelectedGameKey] = useState("game1");
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const PUBLISHER_ID = getUserFromStorage();
+  const navigate = useNavigate();
 
+  // --- TẠO DANH SÁCH NĂM ĐỘNG ---
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const [selectedYear, setSelectedYear] = useState(String(currentYear));
+
+  // -------------------- State --------------------
+  const [games, setGames] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedGameId, setSelectedGameId] = useState(null);
+
+  // --- [NEW] STATE CHO TÌM KIẾM ---
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [editKey, setEditKey] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [editForm, setEditForm] = useState({
-    title: "",
+    id: null,
+    name: "",
     price: "",
-    summary: "",
-    genre: "",
-    trailer: "",
-    free: false,
+    shortDescription: "",
+    description: "",
+    categoryId: 1,
+    trailerUrl: "",
+    isFree: false,
   });
 
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
-  // -------------------- helpers --------------------
+  // -------------------- Helpers --------------------
   const formatCurrencyVND = (num) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(num);
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num || 0);
 
-  const formatNumber = (num) =>
-    new Intl.NumberFormat("vi-VN").format(num);
+  const formatNumber = (num) => new Intl.NumberFormat("vi-VN").format(num || 0);
 
-  // chart effect
+  const getGameInfo = (game, field) => {
+    const info = game.gameBasicInfo || game.gameBasicInfos || game;
+    return info[field];
+  };
+
+  const getGameName = (game) => getGameInfo(game, "name") || game.name || "Chưa có tên";
+  const getGamePrice = (game) => {
+    const price = getGameInfo(game, "price");
+    return price !== undefined ? price : game.price || 0;
+  };
+
+  // --- HÀM RENDER TRẠNG THÁI GAME ĐỘNG ---
+  const renderGameStatus = (game) => {
+    const status = game.status || getGameInfo(game, "status") || "PENDING";
+    switch (status) {
+      case "APPROVED":
+      case "PUBLISHED":
+        return (
+          <span className="text-green-400/90 bg-green-400/10 text-xs font-medium px-2.5 py-1.5 rounded-md">
+            Đã xuất bản
+          </span>
+        );
+      case "PENDING":
+      case "REVIEWING":
+        return (
+          <span className="text-yellow-400/90 bg-yellow-400/10 text-xs font-medium px-2.5 py-1.5 rounded-md">
+            Đang duyệt
+          </span>
+        );
+      case "REJECTED":
+        return (
+          <span className="text-red-400/90 bg-red-400/10 text-xs font-medium px-2.5 py-1.5 rounded-md">
+            Bị từ chối
+          </span>
+        );
+      default:
+        return (
+          <span className="text-gray-400/90 bg-gray-400/10 text-xs font-medium px-2.5 py-1.5 rounded-md">
+            {status}
+          </span>
+        );
+    }
+  };
+
+  // -------------------- Fetch Data --------------------
   useEffect(() => {
-    const game = gameDb[selectedGameKey];
-    if (!game) return;
-    const data = game.revenueByMonth.map((v) => v * 1_000_000);
-    const labels = [
-      "01","02","03","04","05","06",
-      "07","08","09","10","11","12",
-    ];
+    if (!PUBLISHER_ID) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [statsRes, gamesRes, catsRes] = await Promise.all([
+          publisherApi.getDashboardStats(PUBLISHER_ID),
+          publisherApi.getGames(PUBLISHER_ID),
+          publisherApi.getCategories().catch(() => []),
+        ]);
+
+        setDashboardStats(statsRes);
+        setGames(gamesRes);
+        setCategories(catsRes);
+
+        if (gamesRes && gamesRes.length > 0) {
+          setSelectedGameId(gamesRes[0].id);
+        }
+      } catch (error) {
+        console.error("Lỗi tải dữ liệu:", error);
+        toast.error("Lỗi tải dữ liệu!");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [PUBLISHER_ID]);
+
+  // Load Chart
+  useEffect(() => {
+    if (!PUBLISHER_ID) return;
+    const fetchChart = async () => {
+      try {
+        const res = await publisherApi.getRevenueChart(PUBLISHER_ID, Number(selectedYear));
+        setChartData(res);
+      } catch (error) {
+        console.error("Lỗi tải biểu đồ:", error);
+      }
+    };
+    fetchChart();
+  }, [PUBLISHER_ID, selectedYear]);
+
+  // Render Chart
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const labels = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+    const dataPoints = labels.map((_, index) => {
+      const month = index + 1;
+      const found = chartData.find((item) => item.month === month);
+      return found ? found.revenue : 0;
+    });
 
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
-      chartInstanceRef.current = null;
     }
 
-    if (chartRef.current) {
-      const ctx = chartRef.current.getContext("2d");
-      chartInstanceRef.current = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: `Doanh thu ${game.title} (${selectedYear})`,
-              data,
-              tension: 0.35,
-              fill: true,
-              backgroundColor: "rgba(236,72,153,0.20)",
-              borderColor: "rgba(236,72,153,0.85)",
-              borderWidth: 2,
-              pointRadius: 3,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              labels: { color: "#fff" },
-            },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => formatCurrencyVND(ctx.parsed.y),
-              },
-            },
+    const ctx = chartRef.current.getContext("2d");
+    chartInstanceRef.current = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `Doanh thu (${selectedYear})`,
+            data: dataPoints,
+            tension: 0.35,
+            fill: true,
+            backgroundColor: "rgba(236,72,153,0.20)",
+            borderColor: "rgba(236,72,153,0.85)",
+            borderWidth: 2,
+            pointRadius: 4, // [UPDATE] Tăng kích thước điểm biểu đồ
           },
-          scales: {
-            x: {
-              ticks: { color: "#D8B4FE" },
-              grid: { color: "rgba(147,51,234,.25)" },
-            },
-            y: {
-              ticks: {
-                color: "#D8B4FE",
-                callback: (v) =>
-                  v >= 1_000_000 ? v / 1_000_000 + "M" : v,
-              },
-              grid: { color: "rgba(147,51,234,.15)" },
-            },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false, // [UPDATE] Để chart tự fill chiều cao
+        plugins: {
+          legend: { labels: { color: "#fff", font: { size: 14 } } }, // [UPDATE] Tăng font legend
+          tooltip: {
+            callbacks: { label: (ctx) => formatCurrencyVND(ctx.parsed.y) },
+            titleFont: { size: 14 },
+            bodyFont: { size: 14 },
           },
         },
-      });
-    }
-  }, [selectedGameKey, selectedYear, gameDb]);
-
-  // stats
-  const stats = (() => {
-    const g = gameDb[selectedGameKey];
-    if (!g) return { downloads: 0, rating: 0, reviews: 0 };
-    return {
-      downloads: g.downloads,
-      rating: g.rating,
-      reviews: g.reviews,
+        scales: {
+          x: {
+            ticks: { color: "#D8B4FE", font: { size: 12 } },
+            grid: { color: "rgba(147,51,234,.25)" },
+          },
+          y: {
+            ticks: {
+              color: "#D8B4FE",
+              font: { size: 12 },
+              callback: (v) => (v >= 1_000_000 ? v / 1_000_000 + "M" : v),
+            },
+            grid: { color: "rgba(147,51,234,.15)" },
+          },
+        },
+      },
+    });
+    return () => {
+      if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     };
-  })();
+  }, [chartData, selectedYear]);
 
-  // modal handlers
-  const openEditModal = (key) => {
-    const g = gameDb[key];
-    if (!g) return;
-    setEditKey(key);
+  // -------------------- Handlers --------------------
+  const openEditModal = (game) => {
+    const info = game.gameBasicInfo || game.gameBasicInfos || game;
+    let catId = 1;
+    if (game.categoryId) catId = game.categoryId;
+    else if (info.category && info.category.id) catId = info.category.id;
+    else if (info.categoryId) catId = info.categoryId;
+
     setEditForm({
-      title: g.title,
-      price: g.price,
-      summary: g.summary,
-      genre: g.genre,
-      trailer: g.trailer,
-      free: !!g.free,
+      id: game.id,
+      name: info.name || "",
+      price: info.price !== undefined ? info.price : 0,
+      shortDescription: info.shortDescription || "",
+      description: info.description || "",
+      categoryId: catId,
+      trailerUrl: info.trailerUrl || "",
+      isFree: info.price === 0,
     });
     setShowModal(true);
   };
 
-  const saveEdit = () => {
-    if (!editKey) return;
-    if (!editForm.title.trim()) {
-      alert("Tên game không được bỏ trống");
+  const saveEdit = async () => {
+    if (!editForm.name.trim()) {
+      toast.warning("Tên game không được bỏ trống");
       return;
     }
-    setGameDb((prev) => ({
-      ...prev,
-      [editKey]: {
-        ...prev[editKey],
-        title: editForm.title.trim(),
-        price: parseInt(editForm.price || 0, 10),
-        summary: editForm.summary.trim(),
-        genre: editForm.genre,
-        trailer: editForm.trailer.trim(),
-        free: !!editForm.free,
-      },
-    }));
-    setShowModal(false);
-    alert("Đã lưu thay đổi (demo). Hãy nối API để cập nhật thực tế.");
-  };
-
-  const handleDelete = (key) => {
-    const g = gameDb[key];
-    if (!g) return;
-    if (
-      window.confirm(
-        `Bạn có chắc muốn xóa "${g.title}"? (demo – cần gắn API thật)`
-      )
-    ) {
-      alert("Đã xóa (demo).");
+    try {
+      const payload = {
+        name: editForm.name,
+        price: parseFloat(editForm.price),
+        shortDescription: editForm.shortDescription,
+        description: editForm.description,
+        categoryId: parseInt(editForm.categoryId),
+        trailerUrl: editForm.trailerUrl,
+        isFree: editForm.isFree,
+      };
+      await publisherApi.updateGame(PUBLISHER_ID, editForm.id, payload);
+      toast.success("Cập nhật thành công!");
+      setShowModal(false);
+      const updatedGames = await publisherApi.getGames(PUBLISHER_ID);
+      setGames(updatedGames);
+    } catch (error) {
+      console.error("Lỗi cập nhật:", error);
+      toast.error("Cập nhật thất bại.");
     }
   };
 
-  const scrollToChart = (key) => {
-    setSelectedGameKey(key);
-    setTimeout(() => {
-      if (chartRef.current) {
-        const rect = chartRef.current.getBoundingClientRect();
-        window.scrollTo({
-          top: rect.top + window.scrollY - 120,
-          behavior: "smooth",
-        });
-      }
-    }, 150);
+  // const handleDelete = async (game) => {
+  //   const gameName = getGameName(game);
+  //   if (window.confirm(`Bạn có chắc muốn xóa "${gameName}"? Hành động này không thể hoàn tác.`)) {
+  //     try {
+  //       await publisherApi.deleteGame(PUBLISHER_ID, game.id);
+  //       toast.success(`Đã xóa game "${gameName}"`);
+  //       setGames((prevGames) => prevGames.filter((g) => g.id !== game.id));
+  //       if (selectedGameId === game.id) {
+  //          setSelectedGameId(null);
+  //       }
+  //     } catch (error) {
+  //       console.error("Lỗi xóa game:", error);
+  //       toast.error("Xóa thất bại! Có thể game đang có đơn hàng.");
+  //     }
+  //   }
+  // };
+
+  const scrollToChart = (gameId) => {
+    setSelectedGameId(gameId);
+    if (chartRef.current) {
+      chartRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
+  // --- [NEW] LOGIC LỌC GAME THEO TỪ KHÓA ---
+  const filteredGames = games.filter((game) => {
+    if (!searchTerm.trim()) return true; // Không nhập gì thì hiện hết
+    const gameName = getGameName(game).toLowerCase();
+    return gameName.includes(searchTerm.toLowerCase());
+  });
+
+
   // -------------------- JSX --------------------
+  if (!PUBLISHER_ID) return <div className="text-white p-10 text-center bg-purple-950 h-screen pt-20 text-lg">Vui lòng đăng nhập tài khoản Publisher.</div>;
+  if (loading) return <div className="text-white p-10 text-center bg-purple-950 h-screen pt-20 text-lg">Đang tải dữ liệu...</div>;
+
   return (
-    <div
-      className="
-        min-h-screen text-white font-sans
-        bg-gradient-to-br from-purple-800 via-purple-700 to-purple-950
-      "
-    >
-      {/* TOPBAR */}
-      <header
-        className="
-          sticky top-0 z-40 h-14 flex items-center
-          border-b border-purple-500/40
-          bg-gradient-to-r from-purple-700 via-purple-800 to-purple-900
-          shadow-[0_0_15px_rgba(236,72,153,0.25)]
-        "
-      >
-        <div className="w-full max-w-[1200px] mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="m-0 text-sm font-semibold tracking-tight">
-              Publisher – Quản lý game
-            </h1>
+    <div className="min-h-screen text-white font-sans bg-gradient-to-br from-purple-800 via-purple-700 to-purple-950">
+
+      {/* HEADER - [UPDATE] Tăng chiều cao và thêm thanh tìm kiếm */}
+      <header className="sticky top-0 z-40 h-16 lg:h-20 flex items-center border-b border-purple-500/40 bg-gradient-to-r from-purple-700 via-purple-800 to-purple-900 shadow-md">
+        {/* [UPDATE] Tăng max-width container */}
+        <div className="w-full max-w-[1350px] mx-auto px-6 flex justify-between items-center gap-4">
+          <h1 className="font-bold text-xl lg:text-2xl shrink-0">Publisher – Quản lý game</h1>
+
+          {/* --- [NEW] THANH TÌM KIẾM --- */}
+          <div className="flex-1 max-w-md relative hidden md:block">
+             <span className="absolute inset-y-0 left-3 flex items-center text-purple-300">
+                <Search size={20} />
+             </span>
+             <input
+                type="text"
+                placeholder="Tìm kiếm game của bạn..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-purple-900/50 border border-purple-500/30 text-white placeholder-purple-300/70 outline-none focus:border-pink-500/50 focus:bg-purple-900/80 transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <div
-              className="
-                flex items-center gap-2
-                rounded-lg border border-purple-500/40
-                bg-purple-900/40 px-2.5 py-1.5
-                text-sm text-white/80
-              "
-            >
-              <i className="bi bi-search text-white/50 text-xs" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm..."
-                className="
-                  w-40 bg-transparent text-xs text-white
-                  placeholder-white/50 outline-none border-0
-                "
-              />
-            </div>
-          </div>
+        
         </div>
       </header>
 
-      {/* MAIN */}
-      <main className="w-full max-w-[1200px] mx-auto px-4 pt-4 pb-12">
-        {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h2 className="text-xl font-bold">Quản lý Game</h2>
-
+      {/* MAIN CONTENT - [UPDATE] Tăng padding và max-width */}
+      <main className="w-full max-w-[1350px] mx-auto px-6 pt-8 pb-16">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <h2 className="text-2xl lg:text-3xl font-bold">Quản lý Game</h2>
+          {/* [UPDATE] Nút to hơn */}
           <button
-            className="
-              inline-flex items-center gap-2
-              rounded-xl px-3 py-2 text-sm font-semibold text-white
-              shadow-[0_0_18px_rgba(236,72,153,0.25)]
-              bg-gradient-to-r from-pink-600 to-purple-600
-              hover:brightness-110 hover:shadow-[0_0_25px_rgba(236,72,153,0.35)]
-              active:scale-[0.98] transition
-            "
+            onClick={() => navigate("/publisher/upload")}
+            className="rounded-xl px-5 py-3 text-base font-bold text-white bg-gradient-to-r from-pink-600 to-purple-600 shadow-lg hover:brightness-110 transition-all flex items-center"
           >
-            <i className="bi bi-plus-lg text-base" />
-            <span>Đăng tải game mới</span>
+            <i className="bi bi-plus-lg mr-2 text-lg" /> Đăng tải game mới
           </button>
         </div>
 
-        {/* Game list + revenue summary */}
-        <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
-          {/* Left: game list */}
+        {/* [NEW] Thanh tìm kiếm cho mobile (chỉ hiện khi màn hình nhỏ) */}
+         <div className="mb-6 relative md:hidden">
+             <span className="absolute inset-y-0 left-3 flex items-center text-purple-300">
+                <Search size={20} />
+             </span>
+             <input
+                type="text"
+                placeholder="Tìm kiếm game..."
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-purple-900/50 border border-purple-500/30 text-white placeholder-purple-300/70 outline-none focus:border-pink-500/50"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+             />
+          </div>
+
+        <div className="flex flex-col lg:flex-row gap-8 lg:items-stretch">
+
+          {/* --- DANH SÁCH GAME --- */}
           <div className="flex-1">
-            <div
-              className="
-                rounded-2xl border border-purple-500/40
-                bg-purple-900/40 p-4
-                shadow-[0_0_25px_rgba(236,72,153,0.25)]
-                backdrop-blur-xl
-              "
-            >
-              <h5 className="text-base font-semibold mb-4">
-                Danh sách game của bạn
-              </h5>
+            {/* [UPDATE] Tăng padding container */}
+            <div className="rounded-3xl border border-purple-500/40 bg-purple-900/40 p-6 shadow-xl backdrop-blur-xl h-full">
+              <h5 className="text-xl font-bold mb-6">Danh sách game của bạn ({filteredGames.length})</h5>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Game 1 */}
-                <div
-                  className="
-                    rounded-2xl border border-purple-500/40
-                    bg-purple-900/40 p-4
-                    shadow-[0_0_25px_rgba(236,72,153,0.25)]
-                    backdrop-blur-xl
-                    transition hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(236,72,153,0.4)]
-                  "
-                >
-                  <div className="flex items-start mb-3">
-                    <img
-                      src="https://placehold.co/80x60"
-                      alt="game1"
-                      className="h-[60px] w-[80px] rounded-md mr-3 object-cover"
-                    />
-                    <div className="flex-1">
-                      <h6 className="text-sm font-semibold leading-tight">
-                        {gameDb.game1.title}
-                      </h6>
-                      <small className="text-[11px] text-white/50">
-                        Cập nhật lần cuối: {gameDb.game1.lastUpdated}
-                      </small>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                {/* [UPDATE] Sử dụng filteredGames thay vì games */}
+                {filteredGames.map((game) => (
+                  // [UPDATE] Tăng padding card game
+                  <div key={game.id} className="rounded-2xl border border-purple-500/40 bg-purple-900/40 p-5 shadow-lg hover:-translate-y-1 transition-all">
+                    <div className="flex items-start mb-4">
+                      {/* [UPDATE] Tăng kích thước ảnh thumbnail */}
+                      <img
+                        src={getGameInfo(game, "thumbnail") || "https://placehold.co/100x75"}
+                        alt={getGameName(game)}
+                        className="h-[75px] w-[100px] rounded-lg mr-4 object-cover shadow-sm"
+                      />
+                      <div className="flex-1">
+                        {/* [UPDATE] Tăng font size tên game */}
+                        <h6 className="text-base lg:text-lg font-bold leading-tight line-clamp-2 mb-1">
+                          {getGameName(game)}
+                        </h6>
+                        <small className="text-sm text-purple-200/80 block">
+                          Giá: <span className="text-pink-300 font-semibold">{getGamePrice(game) === 0 ? "Miễn phí" : formatCurrencyVND(getGamePrice(game))}</span>
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2">
+                      {renderGameStatus(game)}
+
+                      <div className="flex items-center gap-3">
+                        {/* [UPDATE] Nút chức năng to hơn xíu */}
+                        <button onClick={() => openEditModal(game)} className="h-9 w-9 rounded-lg border border-white/30 bg-white/5 hover:bg-white/20 flex items-center justify-center transition-colors" title="Chỉnh sửa">
+                          <Pencil size={18} />
+                        </button>
+                        <button onClick={() => scrollToChart(game.id)} className="h-9 w-9 rounded-lg border border-white/30 bg-white/5 hover:bg-white/20 flex items-center justify-center transition-colors" title="Xem biểu đồ">
+                          <LineChart size={18} />
+                        </button>
+                        {/* <button onClick={() => handleDelete(game)} className="h-9 w-9 rounded-lg border border-red-400/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors" title="Xóa">
+                          <Trash size={18} />
+                        </button> */}
+                      </div>
                     </div>
                   </div>
+                ))}
 
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="
-                        text-green-400/90 bg-green-400/10
-                        text-[11px] font-medium px-2 py-1 rounded-md
-                      "
-                    >
-                      Đã xuất bản
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="
-                          inline-flex items-center justify-center
-                          h-8 w-8 rounded-lg border border-white/30
-                          text-white/80 text-sm hover:bg-white/10
-                          transition
-                        "
-                        onClick={() => openEditModal("game1")}
-                      >
-                        <i className="bi bi-pencil-square" />
-                      </button>
-
-                      <button
-                        className="
-                          inline-flex items-center justify-center
-                          h-8 w-8 rounded-lg border border-white/30
-                          text-white/80 text-sm hover:bg-white/10
-                          transition
-                        "
-                        onClick={() => scrollToChart("game1")}
-                      >
-                        <i className="bi bi-graph-up" />
-                      </button>
-
-                      <button
-                        className="
-                          inline-flex items-center justify-center
-                          h-8 w-8 rounded-lg border border-red-400/40
-                          text-red-400 text-sm hover:bg-red-500/10
-                          transition
-                        "
-                        onClick={() => handleDelete("game1")}
-                      >
-                        <i className="bi bi-trash" />
-                      </button>
+                {filteredGames.length === 0 && (
+                    <div className="col-span-full text-center p-8 text-white/60 text-lg italic border border-dashed border-purple-500/30 rounded-xl">
+                        {searchTerm ? "Không tìm thấy game nào phù hợp." : "Chưa có game nào."}
                     </div>
-                  </div>
-                </div>
-
-                {/* Game 2 */}
-                <div
-                  className="
-                    rounded-2xl border border-purple-500/40
-                    bg-purple-900/40 p-4
-                    shadow-[0_0_25px_rgba(236,72,153,0.25)]
-                    backdrop-blur-xl
-                    transition hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(236,72,153,0.4)]
-                  "
-                >
-                  <div className="flex items-start mb-3">
-                    <img
-                      src="https://placehold.co/80x60"
-                      alt="game2"
-                      className="h-[60px] w-[80px] rounded-md mr-3 object-cover"
-                    />
-                    <div className="flex-1">
-                      <h6 className="text-sm font-semibold leading-tight">
-                        {gameDb.game2.title}
-                      </h6>
-                      <small className="text-[11px] text-white/50">
-                        Cập nhật lần cuối: {gameDb.game2.lastUpdated}
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="
-                        text-yellow-400/90 bg-yellow-400/10
-                        text-[11px] font-medium px-2 py-1 rounded-md
-                      "
-                    >
-                      Đang duyệt
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="
-                          inline-flex items-center justify-center
-                          h-8 w-8 rounded-lg border border-white/30
-                          text-white/80 text-sm hover:bg-white/10
-                          transition
-                        "
-                        onClick={() => openEditModal("game2")}
-                      >
-                        <i className="bi bi-pencil-square" />
-                      </button>
-
-                      <button
-                        className="
-                          inline-flex items-center justify-center
-                          h-8 w-8 rounded-lg border border-white/30
-                          text-white/80 text-sm hover:bg-white/10
-                          transition
-                        "
-                        onClick={() => scrollToChart("game2")}
-                      >
-                        <i className="bi bi-graph-up" />
-                      </button>
-
-                      <button
-                        className="
-                          inline-flex items-center justify-center
-                          h-8 w-8 rounded-lg border border-red-400/40
-                          text-red-400 text-sm hover:bg-red-500/10
-                          transition
-                        "
-                        onClick={() => handleDelete("game2")}
-                      >
-                        <i className="bi bi-trash" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-              {/* end game grid */}
             </div>
           </div>
 
-          {/* Right: revenue summary */}
-          <div className="w-full lg:w-[320px] shrink-0">
-            <div
-              className="
-                rounded-2xl border border-purple-500/40
-                bg-purple-900/40 p-4 h-full
-                shadow-[0_0_25px_rgba(236,72,153,0.25)]
-                backdrop-blur-xl
-              "
-            >
-              <h5 className="text-base font-semibold mb-4">
-                Doanh thu tổng quan
-              </h5>
+          {/* --- DASHBOARD THỐNG KÊ --- */}
+          {/* [UPDATE] Tăng chiều rộng cột bên phải */}
+          <div className="w-full lg:w-[380px] shrink-0">
+            <div className="rounded-3xl border border-purple-500/40 bg-purple-900/40 p-6 h-full shadow-xl backdrop-blur-xl flex flex-col">
+              <h5 className="text-xl font-bold mb-6">Doanh thu tổng quan</h5>
 
-              <div
-                className="
-                  rounded-xl border border-purple-500/40
-                  bg-purple-950/40 text-center px-4 py-3 mb-3
-                  text-purple-200 text-sm
-                "
-              >
-                <h3 className="text-pink-300 text-lg font-semibold">
-                  ₫ 15.240.000
-                </h3>
-                <p className="m-0 text-xs text-purple-200/80">
-                  Tháng này
-                </p>
-              </div>
+              {/* [UPDATE] Tăng padding và font size các box thống kê */}
+              <div className="flex-1 flex flex-col gap-5">
+                  <div className="rounded-2xl border border-purple-500/40 bg-purple-950/40 text-center px-6 py-5 shadow-inner">
+                    <h3 className="text-pink-300 text-3xl font-bold mb-1">
+                      {formatCurrencyVND(dashboardStats?.monthlyRevenue)}
+                    </h3>
+                    <p className="m-0 text-base text-purple-200">Tháng này</p>
+                  </div>
 
-              <div
-                className="
-                  rounded-xl border border-purple-500/40
-                  bg-purple-950/40 text-center px-4 py-3
-                  text-purple-200 text-sm
-                "
-              >
-                <h3 className="text-pink-300 text-lg font-semibold">
-                  ₫ 92.480.000
-                </h3>
-                <p className="m-0 text-xs text-purple-200/80">
-                  Tổng doanh thu
-                </p>
+                  <div className="rounded-2xl border border-purple-500/40 bg-purple-950/40 text-center px-6 py-5 shadow-inner">
+                    <h3 className="text-pink-300 text-3xl font-bold mb-1">
+                       {formatCurrencyVND(dashboardStats?.totalRevenue)}
+                    </h3>
+                    <p className="m-0 text-base text-purple-200">Tổng doanh thu</p>
+                  </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Analytics & Reports */}
-        <section className="mt-8">
-          <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
+        {/* --- BIỂU ĐỒ & THỐNG KÊ NHANH --- */}
+        <section className="mt-10">
+          <div className="flex flex-col lg:flex-row gap-8 lg:items-stretch">
+
             {/* Chart */}
             <div className="flex-1">
-              <div
-                className="
-                  rounded-2xl border border-purple-500/40
-                  bg-purple-900/40 p-4
-                  shadow-[0_0_25px_rgba(236,72,153,0.25)]
-                  backdrop-blur-xl
-                "
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                  <h5 className="text-base font-semibold m-0">
-                    Doanh thu theo tháng
-                  </h5>
-
-                  <div className="flex flex-wrap items-center gap-2">
+              {/* [UPDATE] Tăng padding */}
+              <div className="rounded-3xl border border-purple-500/40 bg-purple-900/40 p-6 shadow-xl backdrop-blur-xl h-full">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                  <h5 className="text-xl font-bold m-0">Doanh thu theo tháng</h5>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* [UPDATE] Dropdown to hơn */}
                     <select
-                      className="
-                        text-sm text-white bg-transparent
-                        border border-white/30 rounded-lg px-2 py-1
-                        focus:outline-none focus:ring-2 focus:ring-pink-500/30
-                        min-w-[200px]
-                      "
-                      value={selectedGameKey}
-                      onChange={(e) => setSelectedGameKey(e.target.value)}
+                      className="text-base text-white bg-purple-950/50 border border-white/30 rounded-xl px-3 py-2 outline-none min-w-[220px] focus:border-pink-500/50 transition-all"
+                      value={selectedGameId || ""}
+                      onChange={(e) => setSelectedGameId(Number(e.target.value))}
                     >
-                      <option
-                        className="bg-purple-900 text-white"
-                        value="game1"
-                      >
-                        {gameDb.game1.title || "Game 1"}
-                      </option>
-                      <option
-                        className="bg-purple-900 text-white"
-                        value="game2"
-                      >
-                        {gameDb.game2.title || "Game 2"}
-                      </option>
+                      <option className="bg-purple-900" value="">-- Tất cả game --</option>
+                      {games.map(g => (
+                          <option key={g.id} className="bg-purple-900" value={g.id}>{getGameName(g)}</option>
+                      ))}
                     </select>
 
                     <select
-                      className="
-                        text-sm text-white bg-transparent
-                        border border-white/30 rounded-lg px-2 py-1
-                        focus:outline-none focus:ring-2 focus:ring-pink-500/30
-                        w-[100px]
-                      "
+                      className="text-base text-white bg-purple-950/50 border border-white/30 rounded-xl px-3 py-2 outline-none w-[110px] focus:border-pink-500/50 transition-all"
                       value={selectedYear}
                       onChange={(e) => setSelectedYear(e.target.value)}
                     >
-                      <option className="bg-purple-900 text-white" value="2025">
-                        2025
-                      </option>
-                      <option className="bg-purple-900 text-white" value="2024">
-                        2024
-                      </option>
+                      {yearOptions.map(year => (
+                        <option key={year} className="bg-purple-900" value={year}>{year}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
-
-                <canvas
-                  ref={chartRef}
-                  height="120"
-                  className="w-full max-w-full"
-                />
+                {/* [UPDATE] Tăng chiều cao container chứa biểu đồ */}
+                <div className="h-[350px] w-full">
+                    <canvas ref={chartRef} />
+                </div>
               </div>
             </div>
 
             {/* Quick stats */}
-            <div className="w-full lg:w-[320px] shrink-0">
-              <div
-                className="
-                  rounded-2xl border border-purple-500/40
-                  bg-purple-900/40 p-4 h-full
-                  shadow-[0_0_25px_rgba(236,72,153,0.25)]
-                  backdrop-blur-xl
-                "
-              >
-                <h5 className="text-base font-semibold mb-4">
-                  Thống kê nhanh
-                </h5>
-
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div
-                    className="
-                      col-span-2 rounded-xl border border-purple-500/40
-                      bg-purple-950/40 px-4 py-3
-                      text-purple-200 text-sm
-                    "
-                  >
-                    <p className="m-0 text-xs text-purple-200/80">
-                      Lượt tải (tháng này)
-                    </p>
-                    <h3 className="text-pink-300 text-lg font-semibold">
-                      {formatNumber(stats.downloads)}
+             {/* [UPDATE] Tăng chiều rộng cột bên phải */}
+            <div className="w-full lg:w-[380px] shrink-0">
+              <div className="rounded-3xl border border-purple-500/40 bg-purple-900/40 p-6 h-full shadow-xl backdrop-blur-xl">
+                <h5 className="text-xl font-bold mb-6">Thống kê nhanh</h5>
+                <div className="grid grid-cols-2 gap-5 text-center h-full content-start">
+                  {/* [UPDATE] Tăng padding và font size các box nhỏ */}
+                  <div className="col-span-2 rounded-2xl border border-purple-500/40 bg-purple-950/40 px-5 py-4 shadow-inner">
+                    <p className="m-0 text-sm text-purple-200 mb-1">Lượt tải (tháng này)</p>
+                    <h3 className="text-pink-300 text-2xl font-bold">{formatNumber(dashboardStats?.monthlyDownloads)}</h3>
+                  </div>
+                  <div className="rounded-2xl border border-purple-500/40 bg-purple-950/40 px-5 py-4 shadow-inner">
+                    <p className="m-0 text-sm text-purple-200 mb-1">Đánh giá TB</p>
+                    <h3 className="text-pink-300 text-2xl font-bold flex items-center justify-center gap-1">
+                        {dashboardStats?.averageRating || 0} <span className="text-yellow-400 text-xl">★</span>
                     </h3>
                   </div>
-
-                  <div
-                    className="
-                      rounded-xl border border-purple-500/40
-                      bg-purple-950/40 px-4 py-3
-                      text-purple-200 text-sm
-                    "
-                  >
-                    <p className="m-0 text-xs text-purple-200/80">
-                      Đánh giá TB
-                    </p>
-                    <h3 className="text-pink-300 text-lg font-semibold">
-                      {stats.rating?.toFixed(1)}★
-                    </h3>
-                  </div>
-
-                  <div
-                    className="
-                      rounded-xl border border-purple-500/40
-                      bg-purple-950/40 px-4 py-3
-                      text-purple-200 text-sm
-                    "
-                  >
-                    <p className="m-0 text-xs text-purple-200/80">
-                      Lượt đánh giá
-                    </p>
-                    <h3 className="text-pink-300 text-lg font-semibold">
-                      {formatNumber(stats.reviews)}
-                    </h3>
+                  <div className="rounded-2xl border border-purple-500/40 bg-purple-950/40 px-5 py-4 shadow-inner">
+                    <p className="m-0 text-sm text-purple-200 mb-1">Lượt đánh giá</p>
+                    <h3 className="text-pink-300 text-2xl font-bold">{formatNumber(dashboardStats?.totalRatings)}</h3>
                   </div>
                 </div>
               </div>
@@ -625,222 +509,93 @@ export default function PublisherManageGame() {
         </section>
       </main>
 
-      {/* Modal chỉnh sửa game */}
+      {/* --- MODAL (Cũng tăng kích thước) --- */}
       {showModal && (
-        <div
-          className="
-            fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4
-          "
-        >
-          <div
-            className="
-              w-full max-w-xl max-h-[90vh] overflow-y-auto
-              rounded-2xl border border-purple-400/40
-              bg-[rgba(19,5,36,0.9)]
-              shadow-[0_40px_80px_rgba(0,0,0,0.8),0_0_30px_rgba(236,72,153,0.3)]
-              text-white backdrop-blur-xl
-              p-6
-            "
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h5 className="text-base font-bold mb-1">
-                  Cập nhật thông tin game
-                </h5>
-                <div className="text-xs text-white/60">
-                  (demo - chưa gọi API)
-                </div>
-              </div>
-
-              <button
-                className="
-                  text-white/70 hover:text-white
-                  text-sm leading-none
-                "
-                onClick={() => setShowModal(false)}
-                aria-label="Close"
-              >
-                ✕
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+          {/* [UPDATE] Tăng max-width modal */}
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-purple-400/40 bg-[rgba(25,10,45,0.95)] p-8 shadow-2xl">
+            <div className="flex items-start justify-between mb-6">
+              <h5 className="text-2xl font-bold text-white">Cập nhật thông tin game</h5>
+              <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white p-2 bg-white/10 rounded-full transition-colors">
+                <i className="bi bi-x-lg text-xl"></i>
               </button>
             </div>
 
             <div className="mt-4">
-              <form
-                className="grid gap-4 text-white text-sm md:grid-cols-2"
-                onSubmit={(e) => e.preventDefault()}
-              >
-                {/* Tên game */}
+              <form className="grid gap-6 text-white text-base md:grid-cols-2">
+                {/* [UPDATE] Tăng padding và font size input */}
                 <div className="md:col-span-1">
-                  <label className="block text-xs font-medium mb-1">
-                    Tên game
-                  </label>
+                  <label className="block text-sm font-semibold mb-2 text-purple-200">Tên game</label>
                   <input
-                    className="
-                      w-full rounded-lg border border-white/20 bg-black/30
-                      px-3 py-2 text-sm text-white outline-none
-                      focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
-                      focus:bg-purple-800/40 transition
-                    "
+                    className="w-full rounded-xl border border-purple-500/30 bg-purple-900/50 px-4 py-3 text-white outline-none focus:border-pink-500 transition-all"
                     type="text"
-                    value={editForm.title}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, title: e.target.value })
-                    }
-                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   />
                 </div>
-
-                {/* Giá */}
                 <div className="md:col-span-1">
-                  <label className="block text-xs font-medium mb-1">
-                    Giá (VND)
-                  </label>
+                  <label className="block text-sm font-semibold mb-2 text-purple-200">Giá (VND)</label>
                   <input
-                    className="
-                      w-full rounded-lg border border-white/20 bg-black/30
-                      px-3 py-2 text-sm text-white outline-none
-                      focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
-                      focus:bg-purple-800/40 transition
-                    "
+                    className="w-full rounded-xl border border-purple-500/30 bg-purple-900/50 px-4 py-3 text-white outline-none focus:border-pink-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     type="number"
-                    min={0}
-                    step={1000}
                     value={editForm.price}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, price: e.target.value })
-                    }
+                    disabled={editForm.isFree}
+                    onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
                   />
                 </div>
-
-                {/* Mô tả ngắn */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium mb-1">
-                    Mô tả ngắn
-                  </label>
+                  <label className="block text-sm font-semibold mb-2 text-purple-200">Mô tả ngắn</label>
                   <textarea
-                    rows={3}
-                    className="
-                      w-full rounded-lg border border-white/20 bg-black/30
-                      px-3 py-2 text-sm text-white outline-none
-                      focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
-                      focus:bg-purple-800/40 transition
-                    "
-                    value={editForm.summary}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, summary: e.target.value })
-                    }
+                    rows={4}
+                    className="w-full rounded-xl border border-purple-500/30 bg-purple-900/50 px-4 py-3 text-white outline-none focus:border-pink-500 transition-all resize-none"
+                    value={editForm.shortDescription}
+                    onChange={(e) => setEditForm({ ...editForm, shortDescription: e.target.value })}
                   />
                 </div>
-
-                {/* Thể loại */}
                 <div className="md:col-span-1">
-                  <label className="block text-xs font-medium mb-1">
-                    Thể loại
-                  </label>
+                  <label className="block text-sm font-semibold mb-2 text-purple-200">Thể loại</label>
                   <select
-                    className="
-                      w-full rounded-lg border border-white/20 bg-black/30
-                      px-3 py-2 text-sm text-white outline-none
-                      focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
-                      focus:bg-purple-800/40 transition
-                    "
-                    value={editForm.genre}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, genre: e.target.value })
-                    }
+                    className="w-full rounded-xl border border-purple-500/30 bg-purple-900/50 px-4 py-3 text-white outline-none focus:border-pink-500 transition-all appearance-none"
+                    value={editForm.categoryId}
+                    onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })}
                   >
-                    <option className="bg-purple-900 text-white">
-                      Hành động
-                    </option>
-                    <option className="bg-purple-900 text-white">
-                      Phiêu lưu
-                    </option>
-                    <option className="bg-purple-900 text-white">
-                      Nhập vai
-                    </option>
-                    <option className="bg-purple-900 text-white">
-                      Chiến thuật
-                    </option>
-                    <option className="bg-purple-900 text-white">
-                      Mô phỏng
-                    </option>
-                    <option className="bg-purple-900 text-white">
-                      Thể thao
-                    </option>
-                    <option className="bg-purple-900 text-white">Indie</option>
+                    {categories.length > 0 ? (
+                        categories.map(c => (
+                            <option key={c.id} className="bg-purple-950" value={c.id}>{c.name}</option>
+                        ))
+                    ) : (
+                        <>
+                            <option className="bg-purple-950" value="1">Hành động</option>
+                            <option className="bg-purple-950" value="2">Nhập vai</option>
+                        </>
+                    )}
                   </select>
                 </div>
-
-                {/* Trailer */}
                 <div className="md:col-span-1">
-                  <label className="block text-xs font-medium mb-1">
-                    Trailer (YouTube URL)
-                  </label>
-                  <input
-                    className="
-                      w-full rounded-lg border border-white/20 bg-black/30
-                      px-3 py-2 text-sm text-white outline-none
-                      focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
-                      focus:bg-purple-800/40 transition
-                    "
-                    type="url"
-                    value={editForm.trailer}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, trailer: e.target.value })
-                    }
-                  />
+                    <label className="block text-sm font-semibold mb-2 text-purple-200">Trailer (Youtube URL)</label>
+                    <input
+                         className="w-full rounded-xl border border-purple-500/30 bg-purple-900/50 px-4 py-3 text-white outline-none focus:border-pink-500 transition-all"
+                         value={editForm.trailerUrl}
+                         onChange={(e) => setEditForm({ ...editForm, trailerUrl: e.target.value })}
+                    />
                 </div>
 
-                {/* Miễn phí */}
-                <div className="md:col-span-2 flex items-center gap-2 pt-2">
+                <div className="md:col-span-2 flex items-center gap-3 pt-2 p-4 rounded-xl bg-purple-900/30 border border-purple-500/20">
                   <input
                     id="editFree"
                     type="checkbox"
-                    className="
-                      h-4 w-4 rounded border-white/30 bg-black/30
-                      text-pink-500
-                      focus:ring-pink-500/40 focus:ring-offset-0
-                    "
-                    checked={editForm.free}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, free: e.target.checked })
-                    }
+                    className="h-5 w-5 rounded border-purple-500/50 bg-purple-900/50 text-pink-600 focus:ring-pink-500/40 transition-all"
+                    checked={editForm.isFree}
+                    onChange={(e) => setEditForm({ ...editForm, isFree: e.target.checked, price: e.target.checked ? 0 : editForm.price })}
                   />
-                  <label
-                    htmlFor="editFree"
-                    className="text-xs font-medium text-white/80"
-                  >
-                    Miễn phí
-                  </label>
+                  <label htmlFor="editFree" className="text-base font-medium text-white cursor-pointer select-none">Đặt làm game Miễn phí</label>
                 </div>
               </form>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                className="
-                  rounded-lg border border-white/40 px-3 py-2 text-sm font-medium
-                  text-white hover:bg-white/10 hover:border-pink-500
-                  transition
-                "
-                onClick={() => setShowModal(false)}
-              >
-                Hủy
-              </button>
-
-              <button
-                className="
-                  inline-flex items-center gap-2
-                  rounded-xl px-3 py-2 text-sm font-semibold text-white
-                  shadow-[0_0_18px_rgba(236,72,153,0.25)]
-                  bg-gradient-to-r from-pink-600 to-purple-600
-                  hover:brightness-110 hover:shadow-[0_0_25px_rgba(236,72,153,0.35)]
-                  active:scale-[0.98] transition
-                "
-                onClick={saveEdit}
-              >
-                <span>Lưu thay đổi</span>
-              </button>
+            <div className="flex justify-end gap-4 mt-8">
+              <button onClick={() => setShowModal(false)} className="rounded-xl border border-white/30 px-6 py-3 text-base font-bold text-white hover:bg-white/10 transition-all">Hủy bỏ</button>
+              <button onClick={saveEdit} className="rounded-xl px-6 py-3 text-base font-bold text-white bg-gradient-to-r from-pink-600 to-purple-600 shadow-lg hover:shadow-pink-500/30 hover:brightness-110 transition-all">Lưu thay đổi</button>
             </div>
           </div>
         </div>

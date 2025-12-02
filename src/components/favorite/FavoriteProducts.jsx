@@ -76,19 +76,7 @@ import { toast } from "sonner";
       setLoading(false);
     } catch (err) {
       console.error("Error fetching wishlist:", err);
-
-      let errorMessage = "Đã xảy ra lỗi khi tải dữ liệu.";
-      if (err.message.includes("DOCTYPE"))
-        errorMessage = "Server trả dữ liệu không hợp lệ (backend có thể chưa chạy).";
-
-      if (
-        err.message.includes("ERR_CONNECTION_REFUSED") ||
-        err.message.includes("Failed to fetch")
-      ) {
-        errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend.";
-      }
-
-      setError(errorMessage);
+      toast.error("Không thể tải danh sách yêu thích");
       setGames([]);
       setLoading(false);
     }

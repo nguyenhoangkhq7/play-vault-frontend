@@ -276,6 +276,7 @@ const handlePublisherReject = async (publisherRequestId) => {
             users={users}
             onStatusToggle={handleUserStatusToggle}
             onViewDetails={handleViewDetails}
+            actionLoading={userActionLoading}
           />
         );
       case 'publisher':
@@ -286,6 +287,7 @@ const handlePublisherReject = async (publisherRequestId) => {
             publishers={activeAndBlockedPublishers}
             onStatusToggle={handlePublisherStatusToggle}
             onViewDetails={handleViewDetails}
+            actionLoading={publisherActionLoading}
           />
         );
       case 'pending_review':
@@ -294,6 +296,7 @@ const handlePublisherReject = async (publisherRequestId) => {
             publishers={pendingPublishers}
             onApprove={handlePublisherApprove}
             onReject={handlePublisherReject}
+            actionLoading={publisherActionLoading}
           />
         );
       default:

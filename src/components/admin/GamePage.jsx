@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { createPortal } from "react-dom"; 
-import { Search, ChevronDown, TrendingUp, Package, X, Loader2, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
+import { Search, ChevronDown, TrendingUp, Package, X, Loader2, ChevronLeft, ChevronRight, DollarSign, ArrowUpDown, Download } from "lucide-react";
 import adminGamesApi from "../../api/adminGames"; 
 import { useNavigate } from "react-router-dom";
 
 // =================================================================================
-// I. REUSABLE UI COMPONENTS (Giữ nguyên)
+// I. REUSABLE UI COMPONENTS
 // =================================================================================
 
 const Button = ({ children, variant, size, className, onClick, disabled, type="button" }) => (
@@ -100,36 +100,60 @@ export function GamePage() {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortOption, setSortOption] = useState("default");
   
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalGamesCount, setTotalGamesCount] = useState(0);
 
-  // State thống kê Dashboard
   const [stats, setStats] = useState({ 
     totalGames: 0, 
     totalDownloads: 0, 
     totalRevenue: 0 
   });
 
-  const PAGE_SIZE = 10; 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  // STATE MỚI: Danh sách category lấy từ API
+  const [categoryList, setCategoryList] = useState([]);
 
-  const CATEGORIES = [
-    { value: "all", label: "Tất cả" },
-    { value: "action", label: "Hành động" },
-    { value: "adventure", label: "Phiêu lưu" },
-    { value: "strategy", label: "Chiến thuật" },
-    { value: "simulation", label: "Mô phỏng" },
-    { value: "rpg", label: "Nhập vai" }
+  const PAGE_SIZE = 10; 
+  
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+
+  const SORT_OPTIONS = [
+    { value: "default", label: "Mặc định" },
+    { value: "revenue_desc", label: "Doanh thu cao nhất" },
+    { value: "downloads_desc", label: "Lượt tải nhiều nhất" },
   ];
 
-  // Hàm chuyển hướng sang trang chi tiết
   const handleViewDetail = (game) => {
     navigate(`/admin/games/${game.id}`);
   };
 
-  // 1. Load thống kê tổng quan
+  // Helper function: Format ngày tháng năm (dd-MM-yyyy)
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    } catch (e) {
+        return dateString;
+    }
+  };
+
+  // 1. Load danh sách Category từ API
+  const loadCategories = async () => {
+    try {
+        const response = await adminGamesApi.getCategories();
+        setCategoryList(response.data || response); 
+    } catch (err) {
+        console.error("Lỗi tải danh sách thể loại:", err);
+    }
+  };
+
   const loadStats = async () => {
     try {
         const response = await adminGamesApi.getDashboardStats();
@@ -139,7 +163,6 @@ export function GamePage() {
     }
   };
 
-  // 2. Load danh sách Game
   const loadGames = async (page = 0) => {
     try {
       setLoading(true);
@@ -149,7 +172,8 @@ export function GamePage() {
          page: page,
          size: PAGE_SIZE,
          searchQuery: searchQuery,
-         categoryFilter: categoryFilter
+         categoryFilter: categoryFilter,
+         sortBy: sortOption 
       };
       
       const response = await adminGamesApi.getApprovedGames(params); 
@@ -172,13 +196,14 @@ export function GamePage() {
   };
 
   useEffect(() => {
+    loadCategories();
     loadStats();
     loadGames(0);
   }, []);
 
   useEffect(() => {
     loadGames(0);
-  }, [categoryFilter]);
+  }, [categoryFilter, sortOption]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -187,56 +212,92 @@ export function GamePage() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const currentCategoryLabel = CATEGORIES.find(c => c.value === categoryFilter)?.label || "Thể loại";
+  const currentCategoryLabel = categoryFilter === "all" 
+        ? "Tất cả Thể loại" 
+        : (categoryList.find(c => c.name === categoryFilter)?.name || categoryFilter);
+
+  const currentSortLabel = SORT_OPTIONS.find(s => s.value === sortOption)?.label || "Sắp xếp";
 
   const renderTableContent = () => {
     if (loading) {
       return (
-        <tr className="border-b border-purple-600/30"><td colSpan="7" className="py-12 text-center text-purple-300">
+        <tr className="border-b border-purple-600/30"><td colSpan="9" className="py-12 text-center text-purple-300">
             <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-purple-400" />Đang tải dữ liệu...
         </td></tr>
       );
     }
     if (fetchError) {
-        return (<tr className="border-b border-purple-600/30"><td colSpan="7" className="py-12 text-center text-red-300">
+        return (<tr className="border-b border-purple-600/30"><td colSpan="9" className="py-12 text-center text-red-300">
             <X className="w-6 h-6 mx-auto mb-3" />{fetchError}
         </td></tr>);
     }
     if (games.length === 0) {
-      return (<tr className="border-b border-purple-600/30"><td colSpan="7" className="py-12 text-center text-purple-300">
+      return (<tr className="border-b border-purple-600/30"><td colSpan="9" className="py-12 text-center text-purple-300">
             Không tìm thấy game nào phù hợp.
       </td></tr>);
     }
     
-    return games.map((game) => (
-      <tr key={game.id} className="border-b border-purple-600/30 hover:bg-purple-700/20 transition-colors duration-200">
-        <td className="py-3 sm:py-4 px-3 sm:px-6">
-          <img 
-            src={game.image || "https://placehold.co/100x100/1e293b/a5b4fc?text=GAME"} 
-            alt={game.name} 
-            onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/1e293b/a5b4fc?text=N/A"; }} 
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-purple-500/30 flex-shrink-0"
-          />
-        </td>
-        <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="font-medium text-white text-sm truncate max-w-[200px]">{game.name}</p></td>
-        <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="text-xs sm:text-sm text-purple-200 truncate">{game.publisher || "Unknown"}</p></td>
-        <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="font-medium text-white text-sm whitespace-nowrap">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(game.price || 0)}
-        </p></td>
-        <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="text-xs sm:text-sm text-purple-200 whitespace-nowrap">{game.releaseDate || "N/A"}</p></td>
-        <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="text-xs sm:text-sm text-purple-200 truncate">{game.category || "Unknown"}</p></td>
-        <td className="py-3 sm:py-4 px-3 sm:px-6 relative text-center">
-            <Button 
-                variant="ghost" 
-                size="sm" 
-                className="mx-auto text-purple-300 hover:text-white"
-                onClick={() => handleViewDetail(game)}
-            >
-                Xem chi tiết
-            </Button>
-        </td>
-      </tr>
-    ));
+    return games.map((game) => {
+        const displayDownloads = game.downloads || 0;
+        const displayRevenue = game.revenue !== undefined ? game.revenue : (game.price * displayDownloads);
+
+        return (
+          <tr key={game.id} className="border-b border-purple-600/30 hover:bg-purple-700/20 transition-colors duration-200">
+            <td className="py-3 sm:py-4 px-3 sm:px-6">
+              <img 
+                src={game.image || "https://placehold.co/100x100/1e293b/a5b4fc?text=GAME"} 
+                alt={game.name} 
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/1e293b/a5b4fc?text=N/A"; }} 
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-purple-500/30 flex-shrink-0"
+              />
+            </td>
+            <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="font-medium text-white text-sm truncate max-w-[150px]">{game.name}</p></td>
+            <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="text-xs sm:text-sm text-purple-200 truncate max-w-[100px]">{game.publisher || "Unknown"}</p></td>
+            
+            {/* Giá */}
+            <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="font-medium text-white text-sm whitespace-nowrap">
+                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(game.price || 0)}
+            </p></td>
+
+            {/* Lượt tải */}
+            <td className="py-3 sm:py-4 px-3 sm:px-6">
+                <div className="flex items-center gap-1 text-purple-200">
+                    <Download className="w-3 h-3" />
+                    <span className="text-sm font-medium text-white">{new Intl.NumberFormat('vi-VN').format(displayDownloads)}</span>
+                </div>
+            </td>
+
+            {/* Doanh thu */}
+            <td className="py-3 sm:py-4 px-3 sm:px-6">
+                <div className="flex items-center gap-1 text-green-400">
+                    <span className="text-sm font-medium whitespace-nowrap">
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(displayRevenue)}
+                    </span>
+                </div>
+            </td>
+
+            {/* Ngày phát hành - Đã format */}
+            <td className="py-3 sm:py-4 px-3 sm:px-6">
+                <p className="text-xs sm:text-sm text-purple-200 whitespace-nowrap">
+                    {formatDate(game.releaseDate)}
+                </p>
+            </td>
+
+            <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="text-xs sm:text-sm text-purple-200 truncate max-w-[100px]">{game.category || "Unknown"}</p></td>
+            
+            <td className="py-3 sm:py-4 px-3 sm:px-6 relative text-center">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="mx-auto text-purple-300 hover:text-white"
+                    onClick={() => handleViewDetail(game)}
+                >
+                    Xem chi tiết
+                </Button>
+            </td>
+          </tr>
+        );
+    });
   };
 
   return (
@@ -266,8 +327,7 @@ export function GamePage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 flex-shrink-0">
-            
-            {/* Thẻ 1: Tổng số game */}
+            {/* Card 1 */}
             <div className="bg-purple-600/40 backdrop-blur-sm border border-purple-500/30 rounded-xl p-4 sm:p-6 hover:border-purple-400/50 transition-all duration-300 hover:bg-purple-600/50">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -279,8 +339,7 @@ export function GamePage() {
                 </div>
               </div>
             </div>
-
-            {/* Thẻ 2: Số lượt tải */}
+            {/* Card 2 */}
             <div className="bg-purple-600/40 backdrop-blur-sm border border-purple-500/30 rounded-xl p-4 sm:p-6 hover:border-purple-400/50 transition-all duration-300 hover:bg-purple-600/50">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -294,8 +353,7 @@ export function GamePage() {
                 </div>
               </div>
             </div>
-
-            {/* Thẻ 3: Tổng doanh thu */}
+            {/* Card 3 */}
             <div className="bg-purple-600/40 backdrop-blur-sm border border-purple-500/30 rounded-xl p-4 sm:p-6 hover:border-purple-400/50 transition-all duration-300 hover:bg-purple-600/50">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -309,7 +367,6 @@ export function GamePage() {
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Search & Filter */}
@@ -318,20 +375,52 @@ export function GamePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-300 flex-shrink-0" />
               <Input placeholder="Tìm kiếm theo tên, publisher..." className="pl-10 bg-purple-700/30 border-purple-500/30 text-white placeholder:text-purple-300 focus:border-purple-400/50 focus:bg-purple-700/40 text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTriggerBase onClick={() => setDropdownOpen(!dropdownOpen)}>
-                <Button variant="outline" className="border-purple-500/30 hover:bg-purple-700/40 gap-2 bg-purple-700/20 text-white hover:text-white flex-shrink-0 text-sm w-full sm:w-auto justify-between">
-                  {currentCategoryLabel} <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTriggerBase>
-              <DropdownMenuContent show={dropdownOpen} onClose={() => setDropdownOpen(false)}>
-                {CATEGORIES.map(category => (
-                  <DropdownMenuItem key={category.value} onClick={() => { setCategoryFilter(category.value); setDropdownOpen(false); }} className="text-white hover:bg-purple-700/50 cursor-pointer">
-                    {category.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            
+            <div className="flex gap-3 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+                
+                {/* 1. Category Filter (DYNAMIC) */}
+                <DropdownMenu>
+                <DropdownMenuTriggerBase onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}>
+                    <Button variant="outline" className="border-purple-500/30 hover:bg-purple-700/40 gap-2 bg-purple-700/20 text-white hover:text-white flex-shrink-0 text-sm w-full sm:w-auto justify-between">
+                    {currentCategoryLabel} <ChevronDown className="w-4 h-4" />
+                    </Button>
+                </DropdownMenuTriggerBase>
+                <DropdownMenuContent show={categoryDropdownOpen} onClose={() => setCategoryDropdownOpen(false)}>
+                    {/* Luôn hiển thị option "Tất cả" */}
+                    <DropdownMenuItem onClick={() => { setCategoryFilter("all"); setCategoryDropdownOpen(false); }} className="text-white hover:bg-purple-700/50 cursor-pointer font-bold">
+                        Tất cả
+                    </DropdownMenuItem>
+                    
+                    {/* Render danh sách thể loại từ API */}
+                    {categoryList.map(category => (
+                        <DropdownMenuItem 
+                            key={category.id} 
+                            onClick={() => { setCategoryFilter(category.name); setCategoryDropdownOpen(false); }} 
+                            className="text-white hover:bg-purple-700/50 cursor-pointer"
+                        >
+                            {category.name}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* 2. Sort Filter */}
+                <DropdownMenu>
+                <DropdownMenuTriggerBase onClick={() => setSortDropdownOpen(!sortDropdownOpen)}>
+                    <Button variant="outline" className="border-purple-500/30 hover:bg-purple-700/40 gap-2 bg-purple-700/20 text-white hover:text-white flex-shrink-0 text-sm w-full sm:w-auto justify-between">
+                    <ArrowUpDown className="w-3.5 h-3.5 mr-1" />
+                    {currentSortLabel} <ChevronDown className="w-4 h-4" />
+                    </Button>
+                </DropdownMenuTriggerBase>
+                <DropdownMenuContent show={sortDropdownOpen} onClose={() => setSortDropdownOpen(false)} align="end">
+                    {SORT_OPTIONS.map(option => (
+                    <DropdownMenuItem key={option.value} onClick={() => { setSortOption(option.value); setSortDropdownOpen(false); }} className="text-white hover:bg-purple-700/50 cursor-pointer">
+                        {option.label}
+                    </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
           </div>
 
           {/* Table */}
@@ -344,6 +433,8 @@ export function GamePage() {
                     <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Tên Game</th>
                     <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Publisher</th>
                     <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Giá</th>
+                    <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Lượt tải</th>
+                    <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Doanh thu</th>
                     <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Ngày phát hành</th>
                     <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap">Thể loại</th>
                     <th className="text-xs sm:text-sm font-semibold text-purple-100 py-3 sm:py-4 px-3 sm:px-6 whitespace-nowrap text-center">Thao tác</th>

@@ -29,13 +29,23 @@ const adminGames = {
   },
 
   // 6. Từ chối game (Reject)
-  rejectGame: (gameId) => {
-    return axiosClient.put(`/admin/games/${gameId}/reject`);
+  rejectGame: (gameId, reason = "") => {
+    return axiosClient.put(`/admin/games/${gameId}/reject`, null, {
+        params: { reason } // Gửi reason dưới dạng query param
+    });
   },
 
   getDashboardStats: () => {
     const url = '/admin/games/stats';
     return axiosClient.get(url);
+  },
+  getCategories: () => {
+    return axiosClient.get("/categories"); 
+  },
+
+  getSubmissions: (params) => {
+    // params: { page, size, searchQuery, status }
+    return axiosClient.get("/admin/games/submissions", { params });
   },
 };
 

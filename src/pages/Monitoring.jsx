@@ -13,6 +13,8 @@ export default function Monitoring() {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const { setAccessToken } = useUser();
 
@@ -59,12 +61,18 @@ export default function Monitoring() {
   const handleUpdateOrderStatus = async (orderId, newStatus, adminNote) => {
     const reportId = orderId.split('-')[1];
     const approved = newStatus === 'Đã xác nhận';
+    setUpdatingOrder(true);
     try {
       await processReport(reportId, approved, adminNote, setAccessToken);
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      setSuccessMessage(`Đơn hàng ${orderId} đã được ${newStatus.toLowerCase()} thành công!`);
       handleCloseOrderModal();
+      // Auto hide success message after 5 seconds
+      setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
       console.error('Error updating order status:', error);
+    } finally {
+      setUpdatingOrder(false);
     }
   };
 
@@ -102,6 +110,13 @@ export default function Monitoring() {
           <p className="text-purple-300">Quản lý và cập nhật trạng thái đơn hàng có vấn đề về thanh toán</p>
         </div>
 
+        {successMessage && (
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3 animate-fade-in">
+            <CheckCircleIcon className="h-5 w-5 text-green-400 flex-shrink-0" />
+            <p className="text-green-400 font-medium">{successMessage}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard title="Chờ xác nhận" value={pending} icon={ClockIcon}/>
           <StatCard title="Đã xác nhận" value={confirmed} icon={CheckCircleIcon}/>
@@ -117,7 +132,12 @@ export default function Monitoring() {
         />
         <OrdersTable orders={filteredOrders} handleOpenModal={handleOpenOrderModal} />
         {isOrderModalOpen && (
-          <OrderModal order={selectedOrder} onClose={handleCloseOrderModal} onUpdate={handleUpdateOrderStatus} />
+          <OrderModal 
+            order={selectedOrder} 
+            onClose={handleCloseOrderModal} 
+            onUpdate={handleUpdateOrderStatus}
+            updating={updatingOrder}
+          />
         )}
 
       </main>

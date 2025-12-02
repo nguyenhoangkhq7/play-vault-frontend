@@ -12,18 +12,8 @@ export default function RevenueSection({ dailyRevenue }) {
           <h3 className="text-2xl font-bold text-pink-300">{dailyRevenue.transactions}</h3>
         </div>
         <div className="bg-purple-700/60 p-4 rounded-lg">
-          <p className="text-sm text-gray-200">Hoàn tiền</p>
-          <h3 className="text-2xl font-bold text-pink-300">{dailyRevenue.refunds}</h3>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="bg-purple-700/40 p-3 rounded-lg">
-          <p className="text-sm">Giá trị trung bình đơn hàng</p>
-          <p className="font-semibold text-lg">{dailyRevenue.avgOrderValue?.toLocaleString()} VNĐ</p>
-        </div>
-        <div className="bg-purple-700/40 p-3 rounded-lg">
-          <p className="text-sm">Giờ cao điểm</p>
-          <p className="font-semibold text-lg">{dailyRevenue.peakHour}</p>
+          <p className="text-sm text-gray-200">Đơn hàng trung bình</p>
+          <h3 className="text-2xl font-bold text-pink-300">{dailyRevenue.avgOrderValue?.toLocaleString()} VNĐ</h3>
         </div>
       </div>
     </div>

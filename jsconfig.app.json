@@ -16,7 +16,8 @@
     "./src/**/*.jsx",
     "./src/**/*.ts",
     "./src/**/*.tsx",
-    "./public/**/*"
+    "./public/**/*",
+    "src/api/orderMapper.js"
   ],
   "exclude": ["./node_modules", "./dist", "./build"]
 }

@@ -1,33 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '../components/admin/monitoring/StatCard';
 import OrdersTable from '../components/admin/monitoring/OrdersTable';
 import OrderModal from '../components/admin/monitoring/OrderModal';
 import SearchFilterBar from '../components/admin/monitoring/SearchFilterBar';
-import TabMenu from '../components/admin/monitoring/TabMenu';
-import ErrorReportsTable from '../components/admin/monitoring/ErrorReportsTable';
-import ErrorModal from '../components/admin/monitoring/ErrorModal';
 import { CheckCircleIcon, ClockIcon, DollarSignIcon } from 'lucide-react';
+import { getReports, processReport } from '../api/report';
+import { useUser } from '../store/UserContext';
 
 export default function Monitoring() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('Tất cả');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('orders');
-  const [selectedError, setSelectedError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const [orders, setOrders] = useState([
-    { id: 'ORD-2024-001', customerName: 'Lê Văn C', customerEmail: 'levanc@email.com', amount: '2.100.000 đ', bankTransactionId: 'TCB-20240115-001', time: '2024-01-15 12:00:00', status: 'Đã xác nhận' ,description: 'Thanh toán cho đơn hàng #12345'},
-    { id: 'ORD-2024-002', customerName: 'Nguyễn Thị A', customerEmail: 'nguyena@email.com', amount: '850.000 đ', bankTransactionId: 'VCB-20240115-002', time: '2024-01-15 11:30:00', status: 'Chờ xác nhận' ,description: 'Thanh toán cho đơn hàng #12346'},
-    { id: 'ORD-2024-003', customerName: 'Trần Văn B', customerEmail: 'tranb@email.com', amount: '1.250.000 đ', bankTransactionId: 'ACB-20240114-005', time: '2024-01-14 18:00:00', status: 'Đã xác nhận' ,description: 'Thanh toán cho đơn hàng #12347'},
-    { id: 'ORD-2024-004', customerName: 'Phạm Hữu D', customerEmail: 'phamhd@email.com', amount: '4.200.000 đ', bankTransactionId: 'TCB-20240114-004', time: '2024-01-14 15:45:00', status: 'Chờ xác nhận' ,description: 'Thanh toán cho đơn hàng #12348'},
-    { id: 'ORD-2024-005', customerName: 'Vũ Thị E', customerEmail: 'vuthie@email.com', amount: '350.000 đ', bankTransactionId: 'BIDV-20240113-007', time: '2024-01-13 10:20:00', status: 'Đã hủy' ,description: 'Thanh toán cho đơn hàng #12349'},
-  ]);
+  const { setAccessToken } = useUser();
 
-  const [errorReports, setErrorReports] = useState([
-    { id: 'ERR-001', title: 'Thanh toán lỗi', customerName: 'Nguyễn Văn X', customerEmail: 'nvx@email.com', content: 'Thanh toán không thành công', time: '2024-01-15 12:30:00' , expectedResult: 'Thanh toán thành công', actualResult: 'Thanh toán thất bại với mã lỗi 502', file:'screenshot1.png' },
-    { id: 'ERR-002', title: 'Không nhận email', customerName: 'Trần Thị Y', customerEmail: 'tty@email.com', content: 'Không nhận được email xác nhận', time: '2024-01-14 09:20:00' ,expectedResult: 'Thanh toán thành công', actualResult: 'Thanh toán thất bại với mã lỗi 502', file:'screenshot1.png'},
-  ]);
+  const [orders, setOrders] = useState([]);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        const response = await getReports({}, setAccessToken);
+        const reports = response.content || [];
+        const mappedOrders = reports.map(report => ({
+          id: `ORD-${report.reportId}`,
+          customerName: report.customerName,
+          customerEmail: report.customerEmail,
+          amount: `${report.amount.toLocaleString('vi-VN')} đ`,
+          bankTransactionId: report.transactionCode,
+          time: report.createdAt,
+          status: report.status === 'PENDING' ? 'Chờ xác nhận' : report.status === 'RESOLVED' ? 'Đã xác nhận' : 'Đã hủy',
+          description: report.description
+        }));
+        setOrders(mappedOrders);
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, [setAccessToken]);
 
   // === Order Modal ===
   const handleOpenOrderModal = (order) => {
@@ -40,18 +58,22 @@ export default function Monitoring() {
     setSelectedOrder(null);
   };
 
-  const handleUpdateOrderStatus = (orderId, newStatus) => {
-    setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    handleCloseOrderModal();
-  };
-
-  // === Error Modal ===
-  const handleOpenErrorModal = (error) => {
-    setSelectedError(error);
-  };
-
-  const handleCloseErrorModal = () => {
-    setSelectedError(null);
+  const handleUpdateOrderStatus = async (orderId, newStatus, adminNote) => {
+    const reportId = orderId.split('-')[1];
+    const approved = newStatus === 'Đã xác nhận';
+    setUpdatingOrder(true);
+    try {
+      await processReport(reportId, approved, adminNote, setAccessToken);
+      setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      setSuccessMessage(`Đơn hàng ${orderId} đã được ${newStatus.toLowerCase()} thành công!`);
+      handleCloseOrderModal();
+      // Auto hide success message after 5 seconds
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+    } finally {
+      setUpdatingOrder(false);
+    }
   };
 
   // === Filtered Orders ===
@@ -62,13 +84,23 @@ export default function Monitoring() {
     return match && matchFilter;
   });
 
+  const totalValue = orders
+    .filter(o => o.status === 'Đã xác nhận')
+    .reduce((sum, o) => sum + parseFloat(o.amount.replace(/\./g, '').replace(' đ', '')), 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen text-gray-300 font-sans flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="ml-4">Đang tải dữ liệu...</p>
+      </div>
+    );
+  }
+
   const pending = orders.filter(o => o.status === 'Chờ xác nhận').length;
   const confirmed = orders.filter(o => o.status === 'Đã xác nhận').length;
   const cancelled = orders.filter(o => o.status === 'Đã hủy').length;
   const total = orders.length;
-  const totalValue = orders
-    .filter(o => o.status === 'Đã xác nhận')
-    .reduce((sum, o) => sum + parseFloat(o.amount.replace(/\./g, '').replace(' đ', '')), 0);
 
   return (
     <div className="min-h-screen text-gray-300 font-sans">
@@ -78,35 +110,34 @@ export default function Monitoring() {
           <p className="text-purple-300">Quản lý và cập nhật trạng thái đơn hàng có vấn đề về thanh toán</p>
         </div>
 
+        {successMessage && (
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3 animate-fade-in">
+            <CheckCircleIcon className="h-5 w-5 text-green-400 flex-shrink-0" />
+            <p className="text-green-400 font-medium">{successMessage}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard title="Chờ xác nhận" value={pending} icon={ClockIcon}/>
           <StatCard title="Đã xác nhận" value={confirmed} icon={CheckCircleIcon}/>
           <StatCard title="Tổng giá trị" value={`${totalValue.toLocaleString('vi-VN')} đ`} icon={DollarSignIcon}/>
         </div>
 
-        <TabMenu activeTab={activeTab} setActiveTab={setActiveTab} />
-
-        {activeTab === "orders" && (
-          <>
-            <SearchFilterBar
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filter={filter}
-              setFilter={setFilter}
-              counts={{ all: total, pending, confirmed, cancelled }}
-            />
-            <OrdersTable orders={filteredOrders} handleOpenModal={handleOpenOrderModal} />
-            {isOrderModalOpen && (
-              <OrderModal order={selectedOrder} onClose={handleCloseOrderModal} onUpdate={handleUpdateOrderStatus} />
-            )}
-          </>
-        )}
-
-        {activeTab === "errors" && (
-          <>
-            <ErrorReportsTable errors={errorReports} handleOpenModal={handleOpenErrorModal} />
-            {selectedError && <ErrorModal error={selectedError} onClose={handleCloseErrorModal} />}
-          </>
+        <SearchFilterBar
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          filter={filter}
+          setFilter={setFilter}
+          counts={{ all: total, pending, confirmed, cancelled }}
+        />
+        <OrdersTable orders={filteredOrders} handleOpenModal={handleOpenOrderModal} />
+        {isOrderModalOpen && (
+          <OrderModal 
+            order={selectedOrder} 
+            onClose={handleCloseOrderModal} 
+            onUpdate={handleUpdateOrderStatus}
+            updating={updatingOrder}
+          />
         )}
 
       </main>

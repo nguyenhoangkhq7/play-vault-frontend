@@ -20,12 +20,13 @@ import GameReviews from "../review/GameReview";
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart(); // Chỉ lấy addToCart
-  const { user, accessToken } = useUser(); // User từ UserContext
+  const { addToCart, cart } = useCart(); // ✅ Chỉ lấy addToCart và cart
+  const { user, accessToken } = useUser();
 
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOwned, setIsOwnedState] = useState(false);
+  const [isInCart, setIsInCart] = useState(false); // ✅ State để kiểm tra trong giỏ hàng
 
   // UI
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -39,9 +40,7 @@ export default function ProductDetailPage() {
         setLoading(true);
 
         const response = await api.get(`/api/games/${id}`, {
-          headers: accessToken
-            ? { Authorization: `Bearer ${accessToken}` }
-            : {},
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
         });
 
         const gameData = response.data;
@@ -50,26 +49,34 @@ export default function ProductDetailPage() {
         const owned = gameData.isOwned === true;
         setIsOwnedState(owned);
 
-        // Chỉ tự chuyển sang tab download khi người dùng vừa mua xong
+        // ✅ Kiểm tra xem game đã có trong giỏ hàng chưa (dùng cart từ Context)
+        const inCart = cart?.items?.some(item => item.gameId === gameData.id) || false;
+        setIsInCart(inCart);
+
         if (owned && activeTab !== "download") {
           setActiveTab("download");
         }
+
       } catch (error) {
         console.error("Lỗi tải chi tiết game:", error);
         setGame(null);
         setIsOwnedState(false);
+        setIsInCart(false);
       } finally {
         setLoading(false);
       }
     };
 
     fetchDetail();
+  }, [id, accessToken, cart, location.pathname]); // ✅ Thêm cart vào dependency
 
-    // Dùng pathname để đảm bảo reload khi điều hướng từ trang khác trở lại
-  }, [location.pathname, accessToken]);
-  // user không cần nữa vì accessToken đã đủ
-
-  // Loại bỏ useEffect kiểm tra searchParams vì redirect không còn dùng ?tab=download
+  // ✅ Effect riêng để theo dõi cart thay đổi và cập nhật isInCart
+  useEffect(() => {
+    if (game && cart) {
+      const inCart = cart.items?.some(item => item.gameId === game.id) || false;
+      setIsInCart(inCart);
+    }
+  }, [cart, game]);
 
   const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
   const slides = game
@@ -84,6 +91,7 @@ export default function ProductDetailPage() {
   const prevSlide = () =>
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
+  // ✅ Hàm xử lý thêm vào giỏ hàng với các kiểm tra
   const handleAddToCart = async () => {
     if (!user || !accessToken) {
       toast.warning("Vui lòng đăng nhập để mua game.");
@@ -91,17 +99,97 @@ export default function ProductDetailPage() {
       return;
     }
 
+    // ✅ Kiểm tra nếu game đã được sở hữu
+    if (isOwned) {
+      toast.error("Game đã được mua! Bạn không thể thêm vào giỏ hàng.");
+      return;
+    }
+
+    // ✅ Kiểm tra nếu game đã có trong giỏ hàng
+    if (isInCart) {
+      const confirmAdd = window.confirm(
+        "Game này đã có trong giỏ hàng. Bạn có muốn thêm một lần nữa không?"
+      );
+      
+      if (!confirmAdd) {
+        return; // Người dùng chọn "Hủy"
+      }
+    }
+
     try {
-      const updatedCart = await addToCart(game.id, accessToken); // nếu addToCart cần token
+      // ✅ Gọi addToCart từ Context (chỉ cần gameId và token)
+      const updatedCart = await addToCart(game.id, user, accessToken);
       if (updatedCart) {
+        // ✅ Không cần navigate ngay, để người dùng quyết định
         toast.success("Đã thêm vào giỏ hàng!");
-        navigate("/cart");
+        setIsInCart(true); // ✅ Cập nhật state
+        // Người dùng có thể tiếp tục mua sắm hoặc vào giỏ hàng
       }
     } catch (error) {
       console.error("Thêm game vào giỏ hàng thất bại:", error);
-      toast.error("Thêm game vào giỏ hàng thất bại");
+      // Lỗi đã được xử lý trong CartContext
     }
   };
+
+  // ✅ Hàm xử lý Mua ngay
+  const handleBuyNow = async () => {
+    if (!user || !accessToken) {
+      toast.warning("Vui lòng đăng nhập để mua game.");
+      navigate("/login");
+      return;
+    }
+
+    // ✅ Kiểm tra nếu game đã được sở hữu
+    if (isOwned) {
+      toast.error("Game đã được mua! Bạn không thể mua lại.");
+      return;
+    }
+
+    if (game.price === 0) {
+      // Game miễn phí
+      try {
+        await api.post(
+          "/api/orders/free",
+          { gameId: game.id },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+        toast.success("Đã thêm vào thư viện của bạn!");
+        setIsOwnedState(true);
+        // 🔥 TRIGGER REFETCH trong PurchasedProducts
+        window.dispatchEvent(new Event('purchasedGamesUpdated'));
+      } catch (error) {
+        console.error("Lỗi mua game miễn phí:", error);
+        toast.error("Lỗi mua game miễn phí");
+      }
+    } else {
+      // Game trả phí -> thêm vào giỏ hàng và chuyển đến trang giỏ hàng
+      try {
+        const updatedCart = await addToCart(game.id, user, accessToken);
+        if (updatedCart) {
+          toast.success("Đã thêm vào giỏ hàng!");
+          setIsInCart(true);
+          navigate("/cart"); // ✅ Chuyển đến giỏ hàng ngay
+        }
+      } catch (error) {
+        console.error("Thêm game vào giỏ hàng thất bại:", error);
+      }
+    }
+  };
+
+  // ✅ Hàm chuyển đến giỏ hàng
+  const handleGoToCart = () => {
+    navigate("/cart");
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-purple-800 to-purple-900 flex justify-center items-center text-white">
+      <Loader2 className="animate-spin w-8 h-8 mr-2" /> Đang tải dữ liệu...
+    </div>
+  );
 
   // Mua ngay
   const handleBuyNow = async () => {
@@ -360,15 +448,42 @@ export default function ProductDetailPage() {
                 </span>
               </div>
             </div>
+            
+            {/* ✅ Hiển thị trạng thái game */}
             <div className="space-y-3 pt-4 border-t border-purple-700">
-              <button
-                onClick={handleAddToCart}
+              {isOwned ? (
+                <div className="text-center p-4 bg-green-600/20 border border-green-500/50 rounded-lg">
+                  <p className="text-green-400 font-semibold">✅ Bạn đã sở hữu game này</p>
+                  <button 
+                    onClick={() => setActiveTab("download")}
+                    className="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition"
+                  >
+                    Tải xuống ngay
+                  </button>
+                </div>
+              ) : isInCart ? (
+                <div className="text-center p-4 bg-yellow-600/20 border border-yellow-500/50 rounded-lg">
+                  <p className="text-yellow-400 font-semibold">🛒 Đã có trong giỏ hàng</p>
+                  <button 
+                    onClick={handleGoToCart}
+                    className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition"
+                  >
+                    Đến giỏ hàng
+                  </button>
+                </div>
+              ) : null}
+              
+              <button 
+                onClick={handleAddToCart} 
                 className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"
+                disabled={isOwned} // ✅ Disable nút nếu đã sở hữu
               >
-                <ShoppingCart size={20} /> Mua Ngay
-              </button>
+                <ShoppingCart size={20}/> 
+                {isOwned ? "Đã sở hữu" : (isInCart ? "Thêm vào giỏ hàng" : "Mua Ngay")}
+              </button> 
+              
               <button className="w-full bg-transparent hover:bg-purple-800 text-white font-semibold py-3 rounded-lg border border-purple-600 transition flex items-center justify-center gap-2">
-                <Heart size={20} /> Yêu Thích
+                <Heart size={20}/> Yêu Thích
               </button>
             </div>
           </div>

@@ -15,7 +15,11 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const role = user?.role;
+<<<<<<< HEAD
   
+=======
+  //const isGuest = !user;
+>>>>>>> ff151ca (save work before rebase)
 
   // Đóng dropdown khi click ngoài
   useEffect(() => {

@@ -1,24 +1,7 @@
 // src/api/orders.js
 import { API_BASE_URL } from "../config/api";
 
-<<<<<<< HEAD
-/**
- * Lấy orders (pageable) của user theo userId
- * Trả về object { content: [...], totalElements, totalPages, page, size }
- */
-export async function fetchOrdersByUserId(userId, page = 0, size = 20, token = "") {
-  // Sử dụng endpoint /api/orders thay vì /api/users/{id}/orders
-  const url = `${API_BASE_URL}/api/orders?page=${page}&size=${size}`;
-  const resp = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
-  });
-=======
 const BASE = `${API_BASE_URL}/api`;
->>>>>>> 991eb97 (done admin,customer profile)
 
 function getAuthHeader() {
   const t =

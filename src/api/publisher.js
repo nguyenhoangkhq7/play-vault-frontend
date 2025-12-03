@@ -1,4 +1,7 @@
 import { api } from './authApi.js';
+import {API_BASE_URL} from "../config/api.js"
+
+const API_URL = `${API_BASE_URL}/api/publishers`
 
 export async function getAllPublisher(setAccessToken) {
   try {
@@ -8,38 +11,7 @@ export async function getAllPublisher(setAccessToken) {
     throw error;
   }
 }
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-export async function approvePublisherRequest(requestId, setAccessToken) {
-  try {
-    return await api.post(`/api/publisher-requests/${requestId}/approve`, {}, setAccessToken);
-  } catch (error) {
-    console.error('Error approving publisher request:', error);
-    throw error;
-  }
-}
-
-export async function blockPublisher(publisherId, reason, setAccessToken) {
-  try {
-    return await api.post(`/api/publishers/${publisherId}/block`, { reason }, setAccessToken);
-  } catch (error) {
-    console.error('Error blocking publisher:', error);
-    throw error;
-  }
-}
-
-export async function unblockPublisher(publisherId, setAccessToken) {
-  try {
-    return await api.post(`/api/publishers/${publisherId}/unblock`, {}, setAccessToken);
-  } catch (error) {
-    console.error('Error unblocking publisher:', error);
-    throw error;
-  }
-=======
-const BASE = import.meta.env.VITE_API_URL ?? "";
-=======
->>>>>>> d531280 (done profilePublisher)
 
 export async function getPublisherByUsername(username) {
   const token = localStorage.getItem("accessToken");
@@ -77,9 +49,36 @@ export async function updatePublisherProfileById(publisherId, payload) {
     throw new Error(`updatePublisherProfileById failed: ${res.status} ${text}`);
   }
   return res.json();
-<<<<<<< HEAD
->>>>>>> 991eb97 (done admin,customer profile)
 }
-=======
+
+export async function approvePublisherRequest(requestId, setAccessToken) {
+  try {
+    return await api.post(`/api/publisher-requests/${requestId}/approve`, {}, setAccessToken);
+  } catch (error) {
+    console.error('Error approving publisher request:', error);
+    throw error;
+  }
 }
->>>>>>> d531280 (done profilePublisher)
+
+export async function blockPublisher(publisherId, reason, setAccessToken) {
+  try {
+    return await api.post(`/api/publishers/${publisherId}/block`, { reason }, setAccessToken);
+  } catch (error) {
+    console.error('Error blocking publisher:', error);
+    throw error;
+  }
+}
+
+export async function unblockPublisher(publisherId, setAccessToken) {
+  try {
+    return await api.post(`/api/publishers/${publisherId}/unblock`, {}, setAccessToken);
+  } catch (error) {
+    console.error('Error unblocking publisher:', error);
+    throw error;
+  }
+
+
+
+
+}
+

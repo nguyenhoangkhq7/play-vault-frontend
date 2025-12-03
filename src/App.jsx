@@ -92,11 +92,7 @@ function App() {
           <Route path="/revenue" element={<PublisherManagerRevenue />} />
           <Route path="/report" element={<Report />} />
           <Route path="/publisher/games" element={<PublishserManageGame />} />
-<<<<<<< HEAD
-          <Route path="/publisher/register" element={<PublisherRegisterPage />} />
-=======
           <Route path="/publisher/profile" element={<PublisherProfile />} />
->>>>>>> 991eb97 (done admin,customer profile)
         </Route>
         {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
         <Route path="/publisher/upload" element={<PublisherUpload />}>

@@ -18,13 +18,24 @@ import { gameService } from "@/api/gameService";
 /** Chuẩn hoá DTO -> đối tượng UI */
 function normalizeGame(g) {
   const base = g?.gameBasicInfos || g?.gameBasicInfo || g || {};
+
+  // Lấy status từ nhiều nguồn, ưu tiên server
+  const rawStatus =
+    g?.status ??
+    g?.currentStatus ??
+    g?.submissionStatus ??
+    g?.submission?.status ??
+    null;
+
+  const status = typeof rawStatus === "string" ? rawStatus.toLowerCase() : null;
+
   return {
     id: g?.id ?? base?.id,
     title: base?.name || g?.title || "Unknown",
     publisher: base?.publisherName || base?.publisher?.name || g?.publisherName || "—",
     price: base?.price ?? g?.price ?? 0,
     coverImage: base?.thumbnail || base?.coverUrl || g?.thumbnail || g?.coverUrl,
-    status: g?.status?.toLowerCase?.() || "pending",
+    status: status, // nếu server không có, tạm pending (sẽ override ở fetchGames)
   };
 }
 
@@ -41,16 +52,10 @@ export default function ApprovalPage() {
     setLoading(true);
     setError("");
     try {
-      const statuses = ["PENDING", "APPROVED", "REJECTED"];
-      const results = await Promise.all(
-        statuses.map((s) => gameService.listByStatus(s).catch(() => []))
-      );
-      const map = new Map();
-      results.flat().forEach((g) => {
-        const x = normalizeGame(g);
-        map.set(x.id, x);
-      });
-      setGames(Array.from(map.values()));
+      // backend trả tất cả game + status đúng cho từng game
+      const list = await gameService.listAll(); 
+      const items = Array.isArray(list) ? list.map(normalizeGame) : [];
+      setGames(items);
     } catch (e) {
       console.error(e);
       setError("Không tải được danh sách game.");
@@ -110,25 +115,33 @@ export default function ApprovalPage() {
   const handleCardClick = (id) => navigate(`/admin/approval/games/${id}`);
 
   const mutateStatus = async (id, next) => {
-    setWorkingId(id);
-    const snapshot = games.map((g) => ({ ...g })); // rollback nếu lỗi
+  setWorkingId(id);
+  const snapshot = games.map((g) => ({ ...g })); // rollback nếu lỗi
 
-    // optimistic UI
+  // optimistic
+  setGames((prev) => prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g)));
+
+  try {
+    const res = await gameService.updateStatus(id, next);
+    const returnedStatus =
+      (res?.data?.status || res?.status || next)?.toString().toUpperCase();
+
+    // đồng bộ item vừa cập nhật theo response
     setGames((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g))
+      prev
+        .map((g) => (g.id === id ? { ...g, status: returnedStatus.toLowerCase() } : g))
     );
 
-    try {
-      await gameService.updateStatus(id, next); // "APPROVED" | "REJECTED"
-      await fetchGames(); // đồng bộ lại với DB
-    } catch (e) {
-      console.error("Update status failed:", e);
-      alert("Cập nhật trạng thái thất bại.");
-      setGames(snapshot); // rollback
-    } finally {
-      setWorkingId(null);
-    }
-  };
+    // Nếu trang này hiển thị list theo filter PENDING, có thể refetch để đồng bộ toàn trang:
+    // await fetchGames();
+  } catch (e) {
+    console.error("Update status failed:", e);
+    alert(e?.response?.data?.message || "Cập nhật trạng thái thất bại.");
+    setGames(snapshot); // rollback
+  } finally {
+    setWorkingId(null);
+  }
+};
 
   const handleApprove = (id) => mutateStatus(id, "APPROVED");
   const handleReject = (id) => mutateStatus(id, "REJECTED");

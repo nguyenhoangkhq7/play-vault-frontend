@@ -55,7 +55,12 @@ export default function ApprovalPage() {
       // backend trả tất cả game + status đúng cho từng game
       const list = await gameService.listAll(); 
       const items = Array.isArray(list) ? list.map(normalizeGame) : [];
-      setGames(items);
+
+      const approvalGames = items.filter(g => 
+          g.status === 'pending' || g.status === 'rejected'
+      );
+
+      setGames(approvalGames);
     } catch (e) {
       console.error(e);
       setError("Không tải được danh sách game.");
@@ -149,7 +154,7 @@ export default function ApprovalPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 flex flex-col">
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-50 flex-shrink-0">
+        <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-0 flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-center items-center">
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white text-center tracking-wide drop-shadow-lg">
               Quản lý duyệt game
@@ -177,7 +182,6 @@ export default function ApprovalPage() {
               <SelectContent className="bg-gray-900 border-purple-700/30 text-white z-[9999]">
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="pending">Chờ duyệt</SelectItem>
-                <SelectItem value="approved">Đã duyệt</SelectItem>
                 <SelectItem value="rejected">Từ chối</SelectItem>
               </SelectContent>
             </Select>

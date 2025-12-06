@@ -98,6 +98,28 @@ export const createPromotion = async (setAccessToken, promotionData) => {
 };
 
 /**
+ * Cập nhật khuyến mãi
+ * @param {function} setAccessToken - Function để update access token
+ * @param {number} promotionId - ID của khuyến mãi cần cập nhật
+ * @param {object} promotionData - Dữ liệu khuyến mãi cần cập nhật
+ * @returns {Promise<object>} Khuyến mãi đã được cập nhật
+ */
+export const updatePromotion = async (setAccessToken, promotionId, promotionData) => {
+  try {
+    console.log(`📝 Updating promotion ${promotionId}:`, promotionData);
+    const response = await api.put(`/api/promotions/${promotionId}`, promotionData, setAccessToken);
+    console.log("✅ Updated promotion:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error updating promotion:", error);
+    console.error("❌ Error status:", error.response?.status);
+    console.error("❌ Error data:", error.response?.data);
+    console.error("❌ Error message:", error.message);
+    throw error;
+  }
+};
+
+/**
  * Áp dụng khuyến mãi cho các game
  * @param {function} setAccessToken - Function để update access token
  * @param {number} promotionId - ID của khuyến mãi
@@ -138,5 +160,27 @@ export const removePromotionFromGame = async (setAccessToken, gameId) => {
   } catch (error) {
     console.error("❌ Error removing promotion:", error);
     throw error;
+  }
+};
+
+/**
+ * Lấy danh sách game đã áp dụng một khuyến mãi cụ thể
+ * @param {function} setAccessToken - Function để update access token
+ * @param {number} promotionId - ID của khuyến mãi
+ * @returns {Promise<Array<number>>} Danh sách ID các game
+ */
+export const getGamesForPromotion = async (setAccessToken, promotionId) => {
+  try {
+    console.log(`🎮 Fetching games for promotion ${promotionId}`);
+    const response = await api.get(
+      `/api/promotions/${promotionId}/games`,
+      setAccessToken
+    );
+    console.log(`✅ Games for promotion ${promotionId}:`, response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Error fetching games for promotion ${promotionId}:`, error);
+    // Nếu endpoint không tồn tại, trả về mảng rỗng
+    return [];
   }
 };

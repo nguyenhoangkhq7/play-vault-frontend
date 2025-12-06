@@ -97,16 +97,6 @@ export default function Navbar() {
 
         {/* Cột Phải: User Actions */}
         <div className="flex items-center justify-end gap-3 w-full">
-          {role === "PUBLISHER" && (
-            <Button
-              onClick={() => navigate("/publisher/upload")}
-              className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 rounded-full font-bold shadow-md hover:shadow-cyan-500/20 transition-all text-sm flex items-center"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Up Game
-            </Button>
-          )}
-
           {role === "ADMIN" && (
             <Button
               onClick={() => navigate("/admin")}

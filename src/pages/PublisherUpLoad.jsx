@@ -57,12 +57,6 @@ function PublisherUploadInner() {
 
   const pickFile = (ref) => ref.current?.click();
 
-  const togglePlatform = (value) => {
-    setPlatforms((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
-  };
-
   // Drag & drop binders (generic)
   const prevent = (e) => {
     e.preventDefault();
@@ -306,7 +300,7 @@ const categoryIdMapped = categoryMap[genre] || 1;
                   title, setTitle,
                   summary, setSummary,
                   genre, setGenre,
-                  platforms, togglePlatform,    // dùng togglePlatform để chọn bỏ/chọn nền tảng
+                  platforms, setPlatforms,    // hoặc togglePlatform nếu bạn đang dùng
                   release, setRelease,
                   trailer, setTrailer,
                   isFree, setIsFree,

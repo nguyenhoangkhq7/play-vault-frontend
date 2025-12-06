@@ -4,7 +4,7 @@ import { useOutletContext } from "react-router-dom";
 export default function PublisherBuild() {
   const {
     buildInputRef, pickFile, prevent, onBuildFiles,
-    buildProgress, isUploading, buildName, buildUrl,
+    buildProgress, isUploading, buildName,
     // --- state đồng bộ backend ---
     notes, setNotes,        // description (ghi chú phát hành)
     ram, setRam,
@@ -92,21 +92,6 @@ export default function PublisherBuild() {
                   : "Chưa tải lên"}
               </span>
             </div>
-            {/* Link tải/preview build sau khi upload */}
-            {!!buildUrl && !isUploading && (
-              <div className="mt-3 text-xs text-purple-300/80">
-                <a
-                  href="{buildUrl}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-+                            border border-purple-500/40 bg-purple-900/40
-+                            hover:border-pink-500/60 hover:bg-purple-800/40 transition"
-                >
-                  <i className="bi bi-box-arrow-down" />
-+                 Tải build từ Drive
-                </a>
-              </div>)}
           </div>
         </div>
 

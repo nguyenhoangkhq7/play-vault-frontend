@@ -118,7 +118,7 @@ export default function Sidebar() {
   else if (role === "ADMIN") menuItems = adminMenu;
 
   return (
-    // 2. Bọc toàn bộ Sidebar trong TooltipProvider
+    // Consolidated sidebar wrapped in TooltipProvider
     <TooltipProvider delayDuration={0}>
       <div className="w-24 bg-gradient-to-b from-purple-950 via-purple-900 to-indigo-950 flex flex-col items-center py-6 fixed top-0 left-0 h-screen z-50 shadow-2xl border-r border-purple-800/40 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
         {/* Logo */}
@@ -128,14 +128,14 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Menu chính */}
+        {/* Main menu */}
         <div className="flex flex-col items-center space-y-4 w-full px-2 pb-4 flex-grow">
           {menuItems.map((item, index) => (
             <NavItem
               key={index}
               to={item.path}
               icon={item.icon}
-              label={item.label} // Dùng label làm tooltip luôn nếu không có prop tooltip riêng
+              label={item.label}
               isActive={
                 item.path === "/"
                   ? location.pathname === "/"
@@ -146,9 +146,9 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* Các nút dưới đáy */}
-        {role === "CUSTOMER" && (
-          <div className="mt-auto mb-6 pt-4 shrink-0">
+        {/* Bottom actions per role */}
+        <div className="mt-auto mb-6 pt-4 shrink-0">
+          {role === "CUSTOMER" && (
             <NavItem
               to="/report"
               icon={Flag}
@@ -156,23 +156,9 @@ export default function Sidebar() {
               isActive={location.pathname === "/report"}
               gradient="from-red-500 to-pink-600"
             />
-          </div>
-        )}
+          )}
 
-        {role === "PUBLISHER" && (
-          <div className="mt-auto mb-6 pt-4 shrink-0">
-            <NavItem
-              to="/publisher/profile"
-              icon={User}
-              label="Hồ sơ"
-              isActive={location.pathname === "/publisher/profile"}
-              gradient="from-cyan-500 to-blue-600"
-            />
-          </div>
-        )}
-
-        {role === "ADMIN" && (
-          <div className="mt-auto mb-6 pt-4 shrink-0">
+          {role === "ADMIN" && (
             <NavItem
               to="/admin/profile"
               icon={User}
@@ -180,15 +166,16 @@ export default function Sidebar() {
               isActive={location.pathname === "/admin/profile"}
               gradient="from-gray-600 to-gray-800"
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </TooltipProvider>
   );
 }
 
 // 3. Viết lại NavItem sử dụng Shadcn Tooltip
-function NavItem({ to, icon: Icon, label, isActive, gradient }) {
+function NavItem({ to, icon, label, isActive, gradient }) {
+  const Icon = icon;
   const defaultGradient = "from-pink-600 to-purple-600";
 
   return (

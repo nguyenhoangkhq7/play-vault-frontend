@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 export default function PublisherInfo() {
@@ -19,12 +19,62 @@ export default function PublisherInfo() {
     setIsFree,
     price,
     setPrice,
-    coverUrl,
-    coverInputRef,
-    pickFile,
-    prevent,
-    onCoverFiles,
+
+    // from parent
+    coverUrl,            // URL ảnh bìa hiện có (nếu parent set)
+    coverInputRef,       // ref tới <input type="file">
+    pickFile,            // hàm mở file dialog: pickFile(ref)
+    prevent,             // e.preventDefault + e.stopPropagation
+    onCoverFiles,        // hàm parent nhận FileList để xử lý lưu/gửi
   } = useOutletContext();
+
+  // Preview local khi user vừa chọn ảnh (nếu parent chưa set coverUrl)
+  const [localPreview, setLocalPreview] = useState(null);
+  const revokeRef = useRef(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (revokeRef.current) URL.revokeObjectURL(revokeRef.current);
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    };
+  }, []);
+
+  const acceptTypes = /^image\/(png|jpe?g|webp|gif)$/i;
+  const MAX_SIZE = 7 * 1024 * 1024; // 7MB
+
+  const handleFiles = (files) => {
+    if (!files || !files.length) return;
+    const file = files[0];
+
+    if (!acceptTypes.test(file.type)) {
+      alert("Chỉ hỗ trợ PNG/JPG/WEBP/GIF");
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      alert("Ảnh không được vượt quá 5MB");
+      return;
+    }
+
+    // tạo preview local
+    if (revokeRef.current) URL.revokeObjectURL(revokeRef.current);
+    const url = URL.createObjectURL(file);
+    revokeRef.current = url;
+
+    // show loading skeleton for 3s to give parent time to upload/update coverUrl
+    setPreviewLoading(true);
+    // clear previous timer if any
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => {
+      setLocalPreview(url);
+      setPreviewLoading(false);
+      previewTimerRef.current = null;
+    }, 3000);
+
+    // chuyển FileList cho parent xử lý tiếp (upload/gửi form…)
+    onCoverFiles(files);
+  };
 
   return (
     <section className="text-white">
@@ -34,8 +84,7 @@ export default function PublisherInfo() {
         <div className="lg:w-2/3 w-full">
           <div
             className="
-              h-full
-              rounded-2xl border border-purple-500/40
+              h-full rounded-2xl border border-purple-500/40
               bg-purple-900/40 p-4 md:p-6
               shadow-[0_0_25px_rgba(236,72,153,0.25)]
               backdrop-blur-xl
@@ -95,8 +144,7 @@ export default function PublisherInfo() {
                 <select
                   className="
                     w-full rounded-lg border border-white/20 bg-black/20
-                    text-sm text-white
-                    px-3 py-2 outline-none
+                    text-sm text-white px-3 py-2 outline-none
                     focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
                     focus:bg-purple-800/40 transition
                   "
@@ -128,13 +176,10 @@ export default function PublisherInfo() {
                       key={p}
                       className={`
                         flex items-center gap-2 text-xs font-medium
-                        rounded-lg
-                        border border-purple-400/40
-                        bg-purple-900/40
+                        rounded-lg border border-purple-400/40 bg-purple-900/40
                         px-3 py-2 cursor-pointer
                         shadow-[0_0_10px_rgba(236,72,153,0.15)]
-                        hover:border-pink-400/60 hover:bg-purple-800/40
-                        transition
+                        hover:border-pink-400/60 hover:bg-purple-800/40 transition
                         ${
                           platforms.includes(p)
                             ? "border-pink-500/70 bg-purple-800/50 text-white shadow-[0_0_16px_rgba(236,72,153,0.4)]"
@@ -144,11 +189,8 @@ export default function PublisherInfo() {
                     >
                       <input
                         type="checkbox"
-                        className="
-                          h-4 w-4 rounded border border-white/30 bg-black/40
-                          text-pink-500
-                          focus:ring-2 focus:ring-pink-500/40 focus:ring-offset-0
-                        "
+                        className="h-4 w-4 rounded border border-white/30 bg-black/40 text-pink-500
+                                   focus:ring-2 focus:ring-pink-500/40 focus:ring-offset-0"
                         checked={platforms.includes(p)}
                         onChange={() => togglePlatform(p)}
                       />
@@ -161,7 +203,6 @@ export default function PublisherInfo() {
 
             {/* Ngày phát hành + Trailer */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {/* Ngày phát hành */}
               <div>
                 <label className="block text-sm font-medium text-purple-200/80 mb-1">
                   Ngày phát hành dự kiến
@@ -173,15 +214,13 @@ export default function PublisherInfo() {
                   onChange={(e) => setRelease(e.target.value)}
                   className="
                     w-full rounded-lg border border-white/20 bg-black/20
-                    text-sm text-white
-                    px-3 py-2 outline-none
+                    text-sm text-white px-3 py-2 outline-none
                     focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
                     focus:bg-purple-800/40 transition
                   "
                 />
               </div>
 
-              {/* Trailer */}
               <div>
                 <label className="block text-sm font-medium text-purple-200/80 mb-1">
                   Trailer (YouTube URL)
@@ -205,7 +244,6 @@ export default function PublisherInfo() {
 
             {/* Miễn phí + Giá */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {/* Switch Miễn phí */}
               <div className="flex flex-col justify-end">
                 <label className="block text-sm font-medium text-purple-200/80 mb-2">
                   Hình thức phát hành
@@ -216,12 +254,13 @@ export default function PublisherInfo() {
                   onClick={() => setIsFree(!isFree)}
                   className="flex items-center gap-3 text-left"
                 >
-                  {/* custom switch */}
                   <span
                     className={`
                       relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full
                       border border-white/20 transition
-                      ${isFree ? "bg-gradient-to-r from-pink-500 to-purple-500 shadow-[0_0_16px_rgba(236,72,153,0.6)] border-pink-400/50" : "bg-black/40"}
+                      ${isFree
+                        ? "bg-gradient-to-r from-pink-500 to-purple-500 shadow-[0_0_16px_rgba(236,72,153,0.6)] border-pink-400/50"
+                        : "bg-black/40"}
                     `}
                     role="switch"
                     aria-checked={isFree}
@@ -245,7 +284,6 @@ export default function PublisherInfo() {
                 </button>
               </div>
 
-              {/* Giá VND */}
               {!isFree && (
                 <div>
                   <label className="block text-sm font-medium text-purple-200/80 mb-1">
@@ -285,7 +323,7 @@ export default function PublisherInfo() {
             "
           >
             <label className="block text-sm font-medium text-purple-200/80 mb-3">
-              Ảnh bìa (JPG/PNG)
+              Ảnh bìa (JPG/PNG/WEBP ≤ 7MB)
             </label>
 
             {/* Dropzone upload cover */}
@@ -300,17 +338,16 @@ export default function PublisherInfo() {
                 transition
               "
               onClick={() => pickFile(coverInputRef)}
-              onDragOver={prevent}
-              onDragEnter={prevent}
+              onDragOver={(e) => prevent(e)}
+              onDragEnter={(e) => prevent(e)}
               onDrop={(e) => {
                 prevent(e);
-                onCoverFiles(e.dataTransfer.files);
+                handleFiles(e.dataTransfer.files);
               }}
             >
               <i className="bi bi-cloud-upload text-2xl mb-2 text-pink-400" />
               <span className="leading-relaxed">
-                Kéo thả hoặc{" "}
-                <span className="text-white font-semibold">chọn tệp</span>
+                Kéo thả hoặc <span className="text-white font-semibold">chọn tệp</span>
               </span>
 
               <input
@@ -318,21 +355,31 @@ export default function PublisherInfo() {
                 type="file"
                 accept="image/*"
                 hidden
-                onChange={(e) => onCoverFiles(e.target.files)}
+                onChange={(e) => handleFiles(e.target.files)}
               />
             </div>
 
             {/* Preview + note */}
             <div className="flex items-start gap-3 mt-4">
-              {coverUrl ? (
+              {previewLoading ? (
+                <div className="w-[120px] h-[68px] rounded-lg border border-purple-400/20 bg-purple-900/30 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-6 h-6 border-4 border-t-transparent border-white/60 rounded-full animate-spin" />
+                    <div className="text-[11px] text-purple-200/70">Đang tải...</div>
+                  </div>
+                </div>
+              ) : (localPreview || coverUrl) ? (
                 <img
-                  src={coverUrl}
-                  alt="cover preview"
+                  src={localPreview}
+                  alt="Preview"
                   className="
                     w-[120px] h-[68px] rounded-lg object-cover
                     border border-purple-400/40
                     shadow-[0_0_16px_rgba(236,72,153,0.4)]
                   "
+                  onError={(e) => {
+                    e.currentTarget.src = "/images/placeholder-16x9.png";
+                  }}
                 />
               ) : (
                 <div
@@ -347,12 +394,9 @@ export default function PublisherInfo() {
                   Chưa có ảnh
                 </div>
               )}
-
               <div className="text-[11px] leading-relaxed text-purple-200/70">
-                Tối thiểu{" "}
-                <span className="text-white font-medium">1200×675px</span>.
-                <br />
-                Dung lượng ≤ <span className="text-white font-medium">2MB</span>.
+                Tối thiểu <span className="text-white font-medium">1200×675px</span>.<br />
+                Dung lượng ≤ <span className="text-white font-medium">7MB</span>.
               </div>
             </div>
           </div>

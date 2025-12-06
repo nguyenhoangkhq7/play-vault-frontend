@@ -47,22 +47,19 @@ import PublisherRegisterPage from "./pages/PublisherRegisterPage.jsx";
 import { CartProvider } from "./store/CartContext";
 import PublisherProfile from "./components/userprofile/PublisherProfile.jsx";
 import { useUser } from "./store/UserContext";
-// Layout component to wrap pages with Sidebar, Navbar, and Footer
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 function MainLayout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-500 to-indigo-800 flex">
-      {/* Sidebar Width: w-24 (Giữ nguyên từ bước trước hoặc chỉnh về w-24 nếu chưa có) */}
       <div className="fixed top-0 left-0 h-full w-24 z-10">
         <Sidebar />
       </div>
 
       <div className="flex-1 ml-24 flex flex-col">
-        {/* Navbar Height đã giảm, vị trí fixed vẫn thế */}
         <div className="fixed top-0 left-24 right-0 z-20">
           <Navbar />
         </div>
 
-        {/* THAY ĐỔI: mt-20 -> mt-16 (Khớp với chiều cao Navbar mới) */}
         <div className="container mx-auto p-4 flex-grow mt-16">
           <div className="bg-black/20 backdrop-blur-md rounded-3xl overflow-hidden shadow-2xl">
             <div className="p-4 overflow-y-auto">
@@ -93,43 +90,78 @@ function App() {
       <BrowserRouter>
         <Toaster richColors position="top-right" />
         <Routes>
-          {/* Main layout for all pages except login, register, forgot-password, and admin */}
+          {/* ============================================================ */}
+          {/* MAIN LAYOUT ROUTES (Sidebar + Navbar)                        */}
+          {/* ============================================================ */}
           <Route element={<MainLayout />}>
+            {/* --- Public Routes (Ai cũng xem được) --- */}
             <Route path="/" element={<HomeEntry />} />
             <Route path="/products" element={<ProductPages />} />
-            <Route path="/favorites" element={<Favorite />} />
-            <Route path="/bought" element={<Bought />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/profile" element={<UserProfiles />} />
             <Route path="/game/:id" element={<GameDetail />} />
             <Route path="/product/:id" element={<ProductDetailPage />} />
-            <Route path="/promotions" element={<PublisherManagerDiscount />} />
-            <Route path="/revenue" element={<PublisherManagerRevenue />} />
-            <Route path="/report" element={<Report />} />
-            <Route path="/publisher/games" element={<PublishserManageGame />} />
-            <Route path="/publisher/profile" element={<PublisherProfile />} />
+
+            {/* --- Authenticated Routes (Phải đăng nhập mới xem được) --- */}
+            {/* Cho phép Customer và Publisher truy cập các tính năng người dùng cơ bản */}
+            <Route element={<ProtectedRoute allowedRoles={["CUSTOMER"]} />}>
+              <Route path="/favorites" element={<Favorite />} />
+              <Route path="/bought" element={<Bought />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/profile" element={<UserProfiles />} />
+              <Route path="/report" element={<Report />} />
+            </Route>
+
+            {/* --- PUBLISHER Routes (Chỉ Publisher mới xem được) --- */}
+            <Route element={<ProtectedRoute allowedRoles={["PUBLISHER"]} />}>
+              <Route
+                path="/promotions"
+                element={<PublisherManagerDiscount />}
+              />
+              <Route path="/revenue" element={<PublisherManagerRevenue />} />
+              <Route
+                path="/publisher/games"
+                element={<PublishserManageGame />}
+              />
+              <Route path="/publisher/profile" element={<PublisherProfile />} />
+            </Route>
           </Route>
-          {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
-          <Route path="/publisher/upload" element={<PublisherUpload />}>
-            <Route index element={<PublisherInfo />} />
-            <Route path="build" element={<PublisherBuild />} />
-            <Route path="store" element={<PublisherStore />} />
+
+          {/* ============================================================ */}
+          {/* PUBLISHER UPLOAD LAYOUT (Full screen, riêng biệt)            */}
+          {/* ============================================================ */}
+          <Route element={<ProtectedRoute allowedRoles={["PUBLISHER"]} />}>
+            <Route path="/publisher/upload" element={<PublisherUpload />}>
+              <Route index element={<PublisherInfo />} />
+              <Route path="build" element={<PublisherBuild />} />
+              <Route path="store" element={<PublisherStore />} />
+            </Route>
           </Route>
-          {/* Independent routes for login, register, and forgot-password */} */
+
+          {/* ============================================================ */}
+          {/* ADMIN ROUTES (AdminLayout)                                   */}
+          {/* ============================================================ */}
+          <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="users" element={<Users />} />
+              <Route path="games/*" element={<Games />} />
+              <Route path="approval/*" element={<Approval />} />
+              <Route path="monitoring" element={<Monitoring />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="profile" element={<AdminProfile />} />
+              <Route path="orders" element={<AdminOrders />} />
+            </Route>
+          </Route>
+
+          {/* ============================================================ */}
+          {/* AUTH ROUTES (Login/Register)                                 */}
+          {/* ============================================================ */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          {/* Admin routes nested under AdminLayout */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="users" element={<Users />} />
-            <Route path="games/*" element={<Games />} />
-            <Route path="approval/*" element={<Approval />} />
-            <Route path="monitoring" element={<Monitoring />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="profile" element={<AdminProfile />} />
-            <Route path="orders" element={<AdminOrders />} />
-          </Route>
+          <Route
+            path="/publisher/register"
+            element={<PublisherRegisterPage />}
+          />
         </Routes>
       </BrowserRouter>
     </CartProvider>

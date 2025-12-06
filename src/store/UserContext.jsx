@@ -3,17 +3,15 @@ import { createContext, useContext, useState, useEffect } from "react";
 export const UserContext = createContext();
 
 export function UserProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-
-  useEffect(() => {
+  // SỬA ĐỔI: Lấy dữ liệu ngay khi khởi tạo (Lazy Initialization)
+  const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("accessToken");
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setAccessToken(storedToken);
-    }
-  }, []);
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+
+  const [accessToken, setAccessToken] = useState(() => {
+    return localStorage.getItem("accessToken");
+  });
 
   const login = (userInfo, token) => {
     setUser(userInfo);
@@ -27,7 +25,8 @@ export function UserProvider({ children }) {
     setAccessToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
-    window.location.href = "/";
+    // Chuyển hướng cứng về trang chủ hoặc login
+    window.location.href = "/login";
   };
 
   const updateUser = (updatedUserData) => {

@@ -82,13 +82,17 @@ export default function LoginPage() {
       // Lưu vào UserContext + localStorage
       login(user, accessToken);
 
+      // Điều hướng theo role: admin vào trang quản trị, còn lại về home
+      const role = user?.role;
+      const redirectPath = role === "ADMIN" ? "/admin" : "/";
+
       toast.success("Đăng nhập thành công!", {
         description: "Chào mừng bạn quay lại!",
       });
 
       setTimeout(() => {
-        navigate("/"); // redirect về home
-      }, 1000);
+        navigate(redirectPath, { replace: true });
+      }, 1000); // giữ delay nhẹ cho toast
     } catch (error) {
       console.error("❌ Lỗi đăng nhập:", error);
       console.error("📄 Error response:", error.response);

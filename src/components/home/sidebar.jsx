@@ -1,4 +1,3 @@
-// components/home/Sidebar.jsx
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Crown,
@@ -12,7 +11,11 @@ import {
   GamepadIcon,
   DollarSign,
   Shield,
-  ClipboardList,
+  Activity,
+  Users,
+  FileText,
+  CheckCircle,
+  Flag,
 } from "lucide-react";
 import { useUser } from "../../store/UserContext";
 
@@ -23,22 +26,24 @@ export default function Sidebar() {
   const role = user?.role;
 
   // === MENU RIÊNG CHO TỪNG ROLE ===
+
+  // 1. GUEST: Chỉ Trang chủ, Sản phẩm
   const guestMenu = [
     { icon: Diamond, label: "Trang chủ", path: "/" },
     { icon: LayoutGrid, label: "Sản phẩm", path: "/products" },
   ];
 
+  // 2. CUSTOMER: Guest + Yêu thích, Đã mua, Giỏ hàng
+  // Đã bỏ "Đăng ký làm NPH"
   const customerMenu = [
     ...guestMenu,
     { icon: Heart, label: "Ưa thích", path: "/favorites" },
     { icon: Download, label: "Đã mua", path: "/bought" },
     { icon: ShoppingCart, label: "Giỏ hàng", path: "/cart" },
-    { icon: ClipboardList, label: "Đăng ký làm nhà phát hành", path: "/publisher/register" },
   ];
 
+  // 3. PUBLISHER: Chỉ hiển thị các chức năng quản lý, bỏ Trang chủ/Sản phẩm
   const publisherMenu = [
-    { icon: Diamond, label: "Trang chủ", path: "/" },
-    { icon: LayoutGrid, label: "Sản phẩm", path: "/products" },
     {
       icon: Upload,
       label: "Up Game",
@@ -59,12 +64,43 @@ export default function Sidebar() {
     },
   ];
 
+  // 4. ADMIN: Hiển thị chi tiết nội dung Admin Panel thay vì 1 nút
   const adminMenu = [
     {
-      icon: Shield,
-      label: "Admin Panel",
+      icon: LayoutGrid,
+      label: "Dashboard",
       path: "/admin",
-      gradient: "from-red-600 to-orange-600",
+      gradient: "from-blue-600 to-indigo-600",
+    },
+    {
+      icon: Users,
+      label: "Người dùng",
+      path: "/admin/users",
+      gradient: "from-blue-500 to-cyan-500",
+    },
+    {
+      icon: GamepadIcon,
+      label: "Quản lý Game",
+      path: "/admin/games",
+      gradient: "from-purple-500 to-pink-500",
+    },
+    {
+      icon: CheckCircle,
+      label: "Duyệt Game",
+      path: "/admin/approval",
+      gradient: "from-green-500 to-emerald-500",
+    },
+    {
+      icon: Activity,
+      label: "Giám sát",
+      path: "/admin/monitoring",
+      gradient: "from-red-500 to-orange-500",
+    },
+    {
+      icon: FileText,
+      label: "Báo cáo",
+      path: "/admin/reports",
+      gradient: "from-gray-500 to-slate-500",
     },
   ];
 
@@ -75,16 +111,16 @@ export default function Sidebar() {
   else if (role === "ADMIN") menuItems = adminMenu;
 
   return (
-    <div className="w-20 bg-gradient-to-b from-purple-950 via-purple-900 to-indigo-950 flex flex-col items-center py-8 fixed top-0 left-0 h-screen z-50 shadow-2xl border-r border-purple-800/40">
-      {/* Logo */}
-      <div className="mb-12">
-        <div className="w-12 h-12 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-white/10">
-          <Crown className="w-7 h-7 text-white" />
+    <div className="w-24 bg-gradient-to-b from-purple-950 via-purple-900 to-indigo-950 flex flex-col items-center py-6 fixed top-0 left-0 h-screen z-50 shadow-2xl border-r border-purple-800/40 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+      {/* Logo - Giảm margin bottom một chút cho gọn */}
+      <div className="mb-6 shrink-0">
+        <div className="w-10 h-10 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/10">
+          <Crown className="w-6 h-6 text-white" />
         </div>
       </div>
 
       {/* Menu chính */}
-      <div className="flex flex-col items-center space-y-7">
+      <div className="flex flex-col items-center space-y-4 w-full px-2 pb-4 flex-grow">
         {menuItems.map((item, index) => (
           <NavItem
             key={index}
@@ -92,45 +128,59 @@ export default function Sidebar() {
             icon={item.icon}
             label={item.label}
             isActive={
-              location.pathname === item.path ||
-              location.pathname.startsWith(item.path + "/")
+              item.path === "/"
+                ? location.pathname === "/"
+                : location.pathname.startsWith(item.path)
             }
             gradient={item.gradient}
           />
         ))}
       </div>
 
-      {/* Hồ sơ – chỉ hiện cho Customer & Publisher */}
-      {(role === "CUSTOMER") && (
-        <div className="mt-auto mb-10">
+      {/* Nút dưới đáy Sidebar */}
+
+      {/* 1. CUSTOMER: Nút Report thay vì Hồ sơ */}
+      {role === "CUSTOMER" && (
+        <div className="mt-auto mb-6 pt-4 shrink-0">
           <NavItem
-            to="/profile"
+            to="/report"
+            icon={Flag}
+            label="Báo cáo"
+            isActive={location.pathname === "/report"}
+            gradient="from-red-500 to-pink-600"
+          />
+        </div>
+      )}
+
+      {/* 2. PUBLISHER: Nút Hồ sơ Publisher */}
+      {role === "PUBLISHER" && (
+        <div className="mt-auto mb-6 pt-4 shrink-0">
+          <NavItem
+            to="/publisher/profile"
             icon={User}
             label="Hồ sơ"
-            isActive={location.pathname === "/profile"}
+            isActive={location.pathname === "/publisher/profile"}
             gradient="from-cyan-500 to-blue-600"
           />
         </div>
       )}
 
-      {/* Hồ sơ Publisher */}
-{role === "PUBLISHER" && (
-  <div className="mt-auto mb-10">
-    <NavItem
-      to="/publisher/profile"
-      icon={User}
-      label="Hồ sơ Publisher"
-      isActive={location.pathname === "/publisher/profile"}
-      gradient="from-cyan-500 to-blue-600"
-    />
-  </div>
-)}
-
+      {role === "ADMIN" && (
+        <div className="mt-auto mb-6 pt-4 shrink-0">
+          <NavItem
+            to="/admin/profile"
+            icon={User}
+            label="Profile"
+            isActive={location.pathname === "/admin/profile"}
+            gradient="from-gray-600 to-gray-800"
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// NavItem – giữ nguyên hiệu ứng đẹp
+// NavItem
 function NavItem({ to, icon: Icon, label, isActive, gradient }) {
   const defaultGradient = "from-pink-600 to-purple-600";
 
@@ -154,10 +204,12 @@ function NavItem({ to, icon: Icon, label, isActive, gradient }) {
         </div>
       </NavLink>
 
-      <div className="absolute left-20 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300">
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-semibold py-2 px-4 rounded-xl shadow-2xl border border-white/20">
+      {/* Tooltip Label */}
+      <div className="absolute left-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 z-50 pl-4">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-semibold py-2 px-4 rounded-xl shadow-2xl border border-white/20 whitespace-nowrap">
           {label}
-          <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-0 h-0 border-8 border-transparent border-r-purple-600"></div>
+          {/* Mũi tên tooltip */}
+          <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[8px] border-r-purple-600"></div>
         </div>
       </div>
     </div>

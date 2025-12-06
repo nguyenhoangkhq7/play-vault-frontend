@@ -425,7 +425,7 @@ export default function ProductDetailPage() {
                 <span>Giá:</span>{" "}
                 <span className="font-semibold text-white">
                   {game.price > 0
-                    ? `${game.price.toLocaleString()} đ`
+                    ? `${game.price.toLocaleString()} GCoin`
                     : "Miễn Phí"}
                 </span>
               </div>

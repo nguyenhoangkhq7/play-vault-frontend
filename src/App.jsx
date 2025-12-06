@@ -155,6 +155,7 @@ function App() {
           {/* ============================================================ */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/publisher-register" element={<PublisherRegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
             path="/publisher/register"

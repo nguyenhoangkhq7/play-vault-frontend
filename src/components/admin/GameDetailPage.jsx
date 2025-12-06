@@ -284,11 +284,11 @@ export function GameDetailPage() {
               Thông tin kỹ thuật
             </h3>
             
-            {/* Giá */}
+            {/* Giá - ĐÃ CẬP NHẬT THÀNH GCoin */}
             <div>
               <p className="text-xs text-gray-400 uppercase">Giá bán</p>
               <p className="text-white font-medium text-xl text-green-400">
-                 {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)}
+                 {new Intl.NumberFormat('vi-VN').format(price)} GCoin
               </p>
             </div>
 

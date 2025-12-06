@@ -5,6 +5,7 @@ import {
   Route,
   Outlet,
   NavLink,
+  Navigate,
 } from "react-router-dom";
 import HomePage from "./pages/Home.jsx";
 import Sidebar from "./components/home/sidebar";
@@ -45,24 +46,27 @@ import AdminOrders from "./pages/AdminOrders.jsx";
 import PublisherRegisterPage from "./pages/PublisherRegisterPage.jsx";
 import { CartProvider } from "./store/CartContext";
 import PublisherProfile from "./components/userprofile/PublisherProfile.jsx";
+import { useUser } from "./store/UserContext";
 // Layout component to wrap pages with Sidebar, Navbar, and Footer
 function MainLayout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-500 to-indigo-800 flex">
-      {/* Fixed Sidebar on the left */}
-      <div className="fixed top-0 left-0 h-full w-20 z-10">
+      {/* Sidebar Width: w-24 (Giữ nguyên từ bước trước hoặc chỉnh về w-24 nếu chưa có) */}
+      <div className="fixed top-0 left-0 h-full w-24 z-10">
         <Sidebar />
       </div>
-      <div className="flex-1 ml-20 flex flex-col">
-        {/* Fixed Navbar at the top */}
-        <div className="fixed top-0 left-20 right-0 z-20">
+
+      <div className="flex-1 ml-24 flex flex-col">
+        {/* Navbar Height đã giảm, vị trí fixed vẫn thế */}
+        <div className="fixed top-0 left-24 right-0 z-20">
           <Navbar />
         </div>
-        {/* Add padding-top to avoid content being overlapped by Navbar */}
-        <div className="container mx-auto p-4 flex-grow mt-24">
+
+        {/* THAY ĐỔI: mt-20 -> mt-16 (Khớp với chiều cao Navbar mới) */}
+        <div className="container mx-auto p-4 flex-grow mt-16">
           <div className="bg-black/20 backdrop-blur-md rounded-3xl overflow-hidden shadow-2xl">
             <div className="p-4 overflow-y-auto">
-              <Outlet /> {/* Render child routes here */}
+              <Outlet />
             </div>
           </div>
         </div>
@@ -72,51 +76,62 @@ function MainLayout() {
   );
 }
 
+// Redirect admin khỏi trang "/" sang "/admin"
+function HomeEntry() {
+  const { user } = useUser();
+
+  if (user?.role === "ADMIN") {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <HomePage />;
+}
+
 function App() {
   return (
     <CartProvider>
-    <BrowserRouter>
-      <Toaster richColors position="top-right" />
-      <Routes>
-        {/* Main layout for all pages except login, register, forgot-password, and admin */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/products" element={<ProductPages />} />
-          <Route path="/favorites" element={<Favorite />} />
-          <Route path="/bought" element={<Bought />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/profile" element={<UserProfiles />} />
-          <Route path="/game/:id" element={<GameDetail />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route path="/promotions" element={<PublisherManagerDiscount />} />
-          <Route path="/revenue" element={<PublisherManagerRevenue />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/publisher/games" element={<PublishserManageGame />} />
-          <Route path="/publisher/profile" element={<PublisherProfile />} />
-        </Route>
-        {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
-        <Route path="/publisher/upload" element={<PublisherUpload />}>
-          <Route index element={<PublisherInfo />} />
-          <Route path="build" element={<PublisherBuild />} />
-          <Route path="store" element={<PublisherStore />} />
-        </Route>
-        {/* Independent routes for login, register, and forgot-password */} */
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        {/* Admin routes nested under AdminLayout */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="users" element={<Users />} />
-          <Route path="games/*" element={<Games />} />
-          <Route path="approval/*" element={<Approval />} />
-          <Route path="monitoring" element={<Monitoring />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="profile" element={<AdminProfile />} />
-          <Route path="orders" element={<AdminOrders />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+      <BrowserRouter>
+        <Toaster richColors position="top-right" />
+        <Routes>
+          {/* Main layout for all pages except login, register, forgot-password, and admin */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomeEntry />} />
+            <Route path="/products" element={<ProductPages />} />
+            <Route path="/favorites" element={<Favorite />} />
+            <Route path="/bought" element={<Bought />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/profile" element={<UserProfiles />} />
+            <Route path="/game/:id" element={<GameDetail />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
+            <Route path="/promotions" element={<PublisherManagerDiscount />} />
+            <Route path="/revenue" element={<PublisherManagerRevenue />} />
+            <Route path="/report" element={<Report />} />
+            <Route path="/publisher/games" element={<PublishserManageGame />} />
+            <Route path="/publisher/profile" element={<PublisherProfile />} />
+          </Route>
+          {/* Publisher upload uses its own fullscreen layout, don't wrap with MainLayout */}
+          <Route path="/publisher/upload" element={<PublisherUpload />}>
+            <Route index element={<PublisherInfo />} />
+            <Route path="build" element={<PublisherBuild />} />
+            <Route path="store" element={<PublisherStore />} />
+          </Route>
+          {/* Independent routes for login, register, and forgot-password */} */
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          {/* Admin routes nested under AdminLayout */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="users" element={<Users />} />
+            <Route path="games/*" element={<Games />} />
+            <Route path="approval/*" element={<Approval />} />
+            <Route path="monitoring" element={<Monitoring />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="profile" element={<AdminProfile />} />
+            <Route path="orders" element={<AdminOrders />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
     </CartProvider>
   );
 }

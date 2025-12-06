@@ -206,15 +206,24 @@ export default function ApprovalPage() {
                     className="bg-gray-900/80 border border-purple-700/30 rounded-xl overflow-hidden hover:border-purple-600/50 hover:shadow-lg hover:shadow-purple-900/50 transition-all duration-300 group cursor-pointer flex flex-col h-full"
                   >
                     <div className="aspect-video bg-gray-800 overflow-hidden relative">
-                      <img
-                        src={game.coverImage || "/images/placeholder-16x9.png"}
-                        alt={game.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) =>
-                          (e.currentTarget.src =
-                            "https://via.placeholder.com/300x200?text=Error")
-                        }
-                      />
+                      <a
+  href={game.coverImage}
+  target="_blank"
+  rel="noopener noreferrer"
+  onClick={(e) => e.stopPropagation()} // tránh trigger onClick card
+  className="block aspect-video bg-gray-800 overflow-hidden relative"
+>
+  <img
+    src={game.coverImage}
+    alt={game.title}
+    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+    referrerPolicy="no-referrer"
+    onError={(e) => {
+      // fallback nếu ảnh thật sự lỗi
+      e.currentTarget.src = "https://via.placeholder.com/300x200?text=Image+Not+Available";
+    }}
+  />
+</a>
                     </div>
 
                     <div className="p-5 flex-1 flex flex-col">

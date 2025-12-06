@@ -1,6 +1,7 @@
 // pages/ProductDetailPage.jsx
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { Download, ShoppingBag, Gift, CheckCircle } from "lucide-react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -52,13 +53,13 @@ export default function ProductDetailPage() {
         setIsOwnedState(owned);
 
         // ✅ Kiểm tra xem game đã có trong giỏ hàng chưa (dùng cart từ Context)
-        const inCart =
-          cart?.items?.some((item) => item.gameId === gameData.id) || false;
-        setIsInCart(inCart);
+        // const inCart =
+        //   cart?.items?.some((item) => item.gameId === gameData.id) || false;
+        // setIsInCart(inCart);
 
-        if (owned && activeTab !== "download") {
-          setActiveTab("download");
-        }
+        // if (owned && activeTab !== "download") {
+        //   setActiveTab("download");
+        // }
       } catch (error) {
         console.error("Lỗi tải chi tiết game:", error);
         setGame(null);
@@ -70,7 +71,18 @@ export default function ProductDetailPage() {
     };
 
     fetchDetail();
-  }, [id, accessToken, cart, location.pathname]); // ✅ Thêm cart vào dependency
+  }, [id, accessToken]); // ✅ Thêm cart vào dependency
+
+  // Effect riêng chỉ để theo dõi sự thay đổi của cart
+  useEffect(() => {
+    if (!game || !cart?.items) {
+      setIsInCart(false);
+      return;
+    }
+
+    const inCart = cart.items.some((item) => item.gameId === game.id);
+    setIsInCart(inCart);
+  }, [cart, game]); // Chỉ chạy khi cart hoặc game thay đổi
 
   // ✅ Effect riêng để theo dõi cart thay đổi và cập nhật isInCart
   useEffect(() => {
@@ -333,14 +345,14 @@ export default function ProductDetailPage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    {" "}
+                   {" "}
                     <GameReviews
                       gameId={game.id}
                       isOwned={isOwned}
                       accessToken={accessToken}
                       userId={user?.id} // Truyền thông tin user nếu cần
                     />
-                    {" "}
+                   {" "}
                   </motion.div>
                 )}
                 {activeTab === "download" && (
@@ -420,49 +432,108 @@ export default function ProductDetailPage() {
             </div>
 
             {/* ✅ Hiển thị trạng thái game */}
-            <div className="space-y-3 pt-4 border-t border-purple-700">
+            {/* ✅ Hiển thị trạng thái game - Phiên bản đẹp, hiện đại & chuyên nghiệp */}
+            <div className="space-y-4 pt-6 border-t border-purple-700/50">
+              {/* Đã sở hữu - Xanh lá sang trọng */}
               {isOwned ? (
-                <div className="text-center p-4 bg-green-600/20 border border-green-500/50 rounded-lg">
-                  <p className="text-green-400 font-semibold">
-                    ✅ Bạn đã sở hữu game này
-                  </p>
-                  <button
-                    onClick={() => setActiveTab("download")}
-                    className="mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition"
-                  >
-                    Tải xuống ngay
-                  </button>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/20 via-emerald-500/20 to-teal-600/20 border border-emerald-500/40 backdrop-blur-sm p-6 text-center shadow-xl"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative z-10">
+                    <div className="text-4xl mb-3">🎮✅</div>
+                    <p className="text-emerald-300 text-lg font-bold tracking-wide">
+                      Bạn đã sở hữu trò chơi này
+                    </p>
+                    <p className="text-emerald-400 text-sm mt-1 opacity-90">
+                      Game đã có trong thư viện của bạn
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("download")}
+                      className="mt-5 px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto"
+                    >
+                      <Download className="w-5 h-5" />
+                      Tải xuống ngay
+                    </button>
+                  </div>
+                </motion.div>
               ) : isInCart ? (
-                <div className="text-center p-4 bg-yellow-600/20 border border-yellow-500/50 rounded-lg">
-                  <p className="text-yellow-400 font-semibold">
-                    🛒 Đã có trong giỏ hàng
-                  </p>
-                  <button
-                    onClick={handleGoToCart}
-                    className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition"
-                  >
-                    Đến giỏ hàng
-                  </button>
-                </div>
+                /* Đang trong giỏ hàng - Vàng cam nổi bật */
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-600/20 via-orange-500/20 to-yellow-600/20 border border-amber-500/50 backdrop-blur-sm p-6 text-center shadow-xl"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative z-10">
+                    <div className="text-4xl mb-3">🛒✨</div>
+                    <p className="text-amber-300 text-lg font-bold tracking-wide">
+                      Đã có trong giỏ hàng
+                    </p>
+                    <p className="text-amber-400 text-sm mt-1 opacity-90">
+                      Sẵn sàng thanh toán khi bạn muốn
+                    </p>
+                    <div className="flex gap-3 mt-5 justify-center">
+                      <button
+                        onClick={handleGoToCart}
+                        className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                      >
+                        <ShoppingCart className="w-5 h-5" />
+                        Xem giỏ hàng
+                      </button>
+                      <button
+                        onClick={handleAddToCart}
+                        className="px-6 py-3 bg-white/10 hover:bg-white/20 text-amber-200 border border-amber-400/50 rounded-full backdrop-blur-sm transition-all duration-300"
+                      >
+                        Thêm lần nữa
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
               ) : null}
 
-              <button
-                onClick={handleAddToCart}
-                className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"
-                disabled={isOwned} // ✅ Disable nút nếu đã sở hữu
-              >
-                <ShoppingCart size={20} />
-                {isOwned
-                  ? "Đã sở hữu"
-                  : isInCart
-                  ? "Thêm vào giỏ hàng"
-                  : "Mua Ngay"}
-              </button>
+              {/* Nút hành động chính */}
+              <div className="space-y-3">
+                <button
+                  onClick={isOwned ? () => setActiveTab("download") : handleBuyNow}
+                  className="w-full bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:via-purple-500 hover:to-indigo-500 text-white font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isOwned}
+                >
+                  {isOwned ? (
+                    <>
+                      <CheckCircle className="w-6 h-6" />
+                      Đã sở hữu
+                    </>
+                  ) : game.price === 0 ? (
+                    <>
+                      <Gift className="w-6 h-6" />
+                      Nhận miễn phí ngay
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-6 h-6" />
+                      {`Mua ngay • ${game.price.toLocaleString()} đ`}
+                    </>
+                  )}
+                </button>
 
-              <button className="w-full bg-transparent hover:bg-purple-800 text-white font-semibold py-3 rounded-lg border border-purple-600 transition flex items-center justify-center gap-2">
-                <Heart size={20} /> Yêu Thích
-              </button>
+                {!isOwned && (
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-purple-500/50 text-white font-semibold py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 group"
+                  >
+                    <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    {isInCart ? "Thêm vào giỏ hàng (lần nữa)" : "Thêm vào giỏ hàng"}
+                  </button>
+                )}
+
+                <button className="w-full bg-transparent hover:bg-white/10 text-purple-300 hover:text-white font-semibold py-4 rounded-2xl border border-purple-500/50 transition-all duration-300 flex items-center justify-center gap-3 group">
+                  <Heart className="w-5 h-5 group-hover:fill-pink-500 group-hover:text-pink-500 transition-all" />
+                  Thêm vào danh sách yêu thích
+                </button>
+              </div>
             </div>
           </div>
         </div>

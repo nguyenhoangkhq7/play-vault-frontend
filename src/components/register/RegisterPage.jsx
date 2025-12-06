@@ -4,7 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, Calendar as CalendarIcon, CheckCircle2, Check, Phone, MapPin, Briefcase } from "lucide-react";
 import { motion } from "framer-motion";
@@ -14,7 +20,287 @@ import { vi } from "date-fns/locale";
 import { checkIfUserExists, registerUser, getUsers } from "../../api/users.js";
 
 export default function RegisterPage() {
-    const [formState, setFormState] = useState({
+  const [formState, setFormState] = useState({
+    username: "",
+    email: "",
+    phone: "",
+    gender: "",
+    address: "",
+    password: "",
+    confirmPassword: "",
+    f_name: "",
+    l_name: "",
+    dob: null,
+    acceptTerms: false,
+  });
+  const [touched, setTouched] = useState({
+    username: false,
+    email: false,
+    phone: false,
+    gender: false,
+    address: false,
+    password: false,
+    confirmPassword: false,
+    f_name: false,
+    l_name: false,
+    dob: false,
+    acceptTerms: false,
+  });
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [registrationError, setRegistrationError] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    console.log("Form state:", formState);
+    console.log("Touched:", touched);
+    console.log("Password:", formState.password);
+    console.log("Confirm Password:", formState.confirmPassword);
+    console.log(
+      "Passwords match:",
+      formState.password === formState.confirmPassword &&
+        formState.password.length > 0
+    );
+    console.log("Errors:", errors);
+    console.log("Error keys:", Object.keys(errors));
+    console.log(
+      "Button disabled:",
+      isLoading || Object.keys(errors).length > 0
+    );
+    console.log("Modal state:", { isSuccess, userInfo });
+  }, [formState, touched, errors, isLoading, isSuccess, userInfo]);
+
+  const validateForm = (validateAll = false) => {
+    const newErrors = {};
+    console.log("Validating with validateAll:", validateAll);
+
+    if (validateAll || touched.username) {
+      if (!formState.username) {
+        newErrors.username = "Tên người dùng là bắt buộc";
+      } else if (formState.username.length < 3) {
+        newErrors.username = "Tên người dùng phải có ít nhất 3 ký tự";
+      } else if (!/^[a-zA-Z0-9_]+$/.test(formState.username)) {
+        newErrors.username =
+          "Tên người dùng chỉ được chứa chữ, số và dấu gạch dưới";
+      }
+    }
+
+    if (validateAll || touched.email) {
+      if (!formState.email) {
+        newErrors.email = "Email là bắt buộc";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.email)) {
+        newErrors.email = "Email không hợp lệ";
+      }
+    }
+
+    if (validateAll || touched.phone) {
+      if (!formState.phone) {
+        newErrors.phone = "Số điện thoại là bắt buộc";
+      } else if (!/^0\d{9}$/.test(formState.phone)) {
+        newErrors.phone = "Số điện thoại phải là 10 chữ số, bắt đầu bằng 0";
+      }
+    }
+
+    if (validateAll || touched.gender) {
+      if (!formState.gender) {
+        newErrors.gender = "Giới tính là bắt buộc";
+      }
+    }
+
+    if (validateAll || touched.address) {
+      if (!formState.address) {
+        newErrors.address = "Địa chỉ là bắt buộc";
+      } else if (formState.address.length < 5) {
+        newErrors.address = "Địa chỉ phải có ít nhất 5 ký tự";
+      }
+    }
+
+    if (validateAll || touched.password) {
+      if (!formState.password) {
+        newErrors.password = "Mật khẩu là bắt buộc";
+      } else if (formState.password.length <= 7) {
+        newErrors.password = "Mật khẩu phải có hơn 7 ký tự";
+      }
+    }
+
+    if (validateAll || touched.confirmPassword) {
+      if (!formState.confirmPassword) {
+        newErrors.confirmPassword = "Xác nhận mật khẩu là bắt buộc";
+      } else if (formState.confirmPassword !== formState.password) {
+        newErrors.confirmPassword = "Mật khẩu không khớp";
+      }
+    }
+
+    if (validateAll || touched.f_name) {
+      if (!formState.f_name) {
+        newErrors.f_name = "Họ là bắt buộc";
+      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formState.f_name)) {
+        newErrors.f_name = "Họ chỉ được chứa chữ cái và khoảng trắng";
+      }
+    }
+
+    if (validateAll || touched.l_name) {
+      if (!formState.l_name) {
+        newErrors.l_name = "Tên là bắt buộc";
+      } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formState.l_name)) {
+        newErrors.l_name = "Tên chỉ được chứa chữ cái và khoảng trắng";
+      }
+    }
+
+    if (validateAll || touched.dob) {
+      if (!formState.dob) {
+        newErrors.dob = "Ngày sinh là bắt buộc";
+      } else {
+        const today = new Date();
+        const minAgeDate = new Date(
+          today.getFullYear() - 18,
+          today.getMonth(),
+          today.getDate()
+        );
+        if (formState.dob > minAgeDate) {
+          newErrors.dob = "Bạn phải từ 18 tuổi trở lên";
+        }
+      }
+    }
+
+    if (validateAll || touched.acceptTerms) {
+      if (!formState.acceptTerms) {
+        newErrors.acceptTerms = "Bạn phải đồng ý với điều khoản và điều kiện";
+      }
+    }
+
+    console.log("New errors:", newErrors);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "f_name" || name === "l_name") {
+      if (!/^[a-zA-ZÀ-ỹ\s]*$/.test(value)) return;
+    }
+    if (name === "username") {
+      if (!/^[a-zA-Z0-9_]*$/.test(value)) return;
+    }
+    if (name === "phone") {
+      if (!/^[0-9]*$/.test(value)) return;
+    }
+    setFormState((prev) => ({ ...prev, [name]: value }));
+    setRegistrationError("");
+  };
+
+  const handleGenderChange = (value) => {
+    setFormState((prev) => ({ ...prev, gender: value }));
+    setTouched((prev) => ({ ...prev, gender: true }));
+    validateForm();
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    validateForm();
+  };
+
+  const handleDateChange = (date) => {
+    setFormState((prev) => ({ ...prev, dob: date }));
+    setTouched((prev) => ({ ...prev, dob: true }));
+    setIsCalendarOpen(false);
+    validateForm();
+  };
+
+  const handleCheckboxChange = (checked) => {
+    setFormState((prev) => ({ ...prev, acceptTerms: checked }));
+    setTouched((prev) => ({ ...prev, acceptTerms: true }));
+    validateForm();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isLoading) return;
+
+    setIsLoading(true);
+    setRegistrationError("");
+    console.log("Submitting form with state:", formState);
+
+    try {
+      // 1. Validate Form Client-side
+      const isValid = validateForm(true);
+      if (!isValid) {
+        console.log("Validation failed, stopping registration");
+        setIsLoading(false);
+        return;
+      }
+
+      /* LƯU Ý: Đã bỏ đoạn checkIfUserExists và đoạn tự tính ID (maxId).
+       Lý do: Backend sẽ tự kiểm tra trùng username và tự sinh ID.
+    */
+
+      // 2. Chuẩn bị dữ liệu để gửi lên Backend
+      // Cần map lại field name cho khớp với Java (CustomerRegisterRequest)
+      const payload = {
+        username: formState.username,
+        password: formState.password,
+        email: formState.email,
+        phone: formState.phone,
+        // Ghép họ và tên thành fullName
+        fullName: `${formState.f_name} ${formState.l_name}`.trim(),
+        // Chuyển Date object sang ISO string (YYYY-MM-DD...)
+        dateOfBirth: formState.dob ? formState.dob.toISOString() : null,
+        gender: formState.gender,
+        address: formState.address,
+        // Không cần gửi: role, status, avatar (Backend tự set default)
+      };
+
+      console.log("📤 Sending payload to Backend:", payload);
+
+      // 3. Gọi API thông qua Wrapper
+      const responseData = await registerUser(payload);
+
+      console.log("✅ Register success:", responseData);
+
+      // Giả sử Backend trả về JSON dạng: { message: "...", user: { ... } }
+      // Nếu Backend chưa sửa trả về JSON, bạn cần sửa Backend trước (xem lưu ý bên dưới)
+      const newUser = responseData.user || {};
+      const accountInfo = newUser.account || {};
+
+      // 4. Thông báo thành công
+      toast.success("Đăng ký thành công", {
+        description: `Chào mừng ${
+          newUser.fullName || formState.f_name
+        }! Tài khoản đã được tạo.`,
+        duration: 5000,
+      });
+
+      // 5. Cập nhật State hiển thị thông tin User mới
+      setUserInfo({
+        id: newUser.id, // ID lấy từ Backend trả về
+        username: accountInfo.username || formState.username,
+        email: accountInfo.email || formState.email,
+        phone: accountInfo.phone || formState.phone,
+        gender: newUser.gender || formState.gender,
+        address: newUser.address || formState.address,
+        fullName: newUser.fullName || `${formState.f_name} ${formState.l_name}`,
+        dob: newUser.dateOfBirth
+          ? format(new Date(newUser.dateOfBirth), "dd/MM/yyyy", { locale: vi })
+          : format(new Date(formState.dob), "dd/MM/yyyy", { locale: vi }),
+        role: accountInfo.role || "CUSTOMER",
+        status: accountInfo.status || "active",
+        created_at: accountInfo.createdAt
+          ? format(new Date(accountInfo.createdAt), "dd/MM/yyyy HH:mm:ss", {
+              locale: vi,
+            })
+          : format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: vi }),
+      });
+
+      // 6. Reset Form
+      setFormState({
         username: "",
         email: "",
         phone: "",
@@ -26,8 +312,8 @@ export default function RegisterPage() {
         l_name: "",
         dob: null,
         acceptTerms: false,
-    });
-    const [touched, setTouched] = useState({
+      });
+      setTouched({
         username: false,
         email: false,
         phone: false,
@@ -39,109 +325,108 @@ export default function RegisterPage() {
         l_name: false,
         dob: false,
         acceptTerms: false,
-    });
-    const [errors, setErrors] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [registrationError, setRegistrationError] = useState("");
-    const [isSuccess, setIsSuccess] = useState(false);
-    const [userInfo, setUserInfo] = useState(null);
-    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-    const navigate = useNavigate();
+      });
+      setErrors({});
+      setIsSuccess(true);
+    } catch (error) {
+      console.error("❌ Error in handleSubmit:", error);
 
-    // ... (Giữ nguyên các hàm useEffect, validateForm, handle... như cũ)
-    useEffect(() => {
-        // console.log("Form state:", formState); 
-        // Giữ logic cũ của bạn ở đây
-    }, [formState, touched, errors, isLoading, isSuccess, userInfo]);
+      // Lấy thông báo lỗi từ Backend gửi về (nếu có)
+      // Cấu trúc lỗi thường là error.response.data hoặc error.response.data.message
+      let errorMsg = "Đăng ký thất bại. Vui lòng thử lại.";
 
-    const validateForm = (validateAll = false) => {
-        const newErrors = {};
-        // ... (Giữ nguyên logic validateForm như cũ)
-        if (validateAll || touched.username) {
-            if (!formState.username) {
-                newErrors.username = "Tên người dùng là bắt buộc";
-            } else if (formState.username.length < 3) {
-                newErrors.username = "Tên người dùng phải có ít nhất 3 ký tự";
-            } else if (!/^[a-zA-Z0-9_]+$/.test(formState.username)) {
-                newErrors.username = "Tên người dùng chỉ được chứa chữ, số và dấu gạch dưới";
-            }
+      if (error.response) {
+        // Nếu Backend trả về object lỗi (ví dụ: Map<String, String>)
+        if (typeof error.response.data === "object") {
+          errorMsg =
+            error.response.data.message || JSON.stringify(error.response.data);
+        } else {
+          // Nếu Backend trả về string
+          errorMsg = error.response.data;
         }
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
 
-        if (validateAll || touched.email) {
-            if (!formState.email) {
-                newErrors.email = "Email là bắt buộc";
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.email)) {
-                newErrors.email = "Email không hợp lệ";
-            }
-        }
+      setRegistrationError(errorMsg);
 
-        if (validateAll || touched.phone) {
-            if (!formState.phone) {
-                newErrors.phone = "Số điện thoại là bắt buộc";
-            } else if (!/^0\d{9}$/.test(formState.phone)) {
-                newErrors.phone = "Số điện thoại phải là 10 chữ số, bắt đầu bằng 0";
-            }
-        }
+      toast.error("Đăng ký thất bại", {
+        description: errorMsg,
+      });
+    } finally {
+      setIsLoading(false);
+      console.log("isLoading set to false");
+    }
+  };
 
-        if (validateAll || touched.gender) {
-            if (!formState.gender) {
-                newErrors.gender = "Giới tính là bắt buộc";
-            }
-        }
+  const togglePasswordVisibility = () => {
+    if (!isLoading) setShowPassword((prev) => !prev);
+  };
 
-        if (validateAll || touched.address) {
-            if (!formState.address) {
-                newErrors.address = "Địa chỉ là bắt buộc";
-            } else if (formState.address.length < 5) {
-                newErrors.address = "Địa chỉ phải có ít nhất 5 ký tự";
-            }
-        }
+  const toggleConfirmPasswordVisibility = () => {
+    if (!isLoading) setShowConfirmPassword((prev) => !prev);
+  };
 
-        if (validateAll || touched.password) {
-            if (!formState.password) {
-                newErrors.password = "Mật khẩu là bắt buộc";
-            } else if (formState.password.length <= 7) {
-                newErrors.password = "Mật khẩu phải có hơn 7 ký tự";
-            }
-        }
+  return (
+    <motion.div
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 via-purple-700 to-purple-900 px-4 py-10"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      <Card className="bg-purple-950/60 backdrop-blur-xl border border-purple-700 shadow-[0_0_30px_rgba(168,85,247,0.4)] w-full max-w-lg rounded-2xl text-white">
+        <CardContent className="p-8">
+          <motion.h1
+            className="text-3xl font-bold text-center mb-6"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            Đăng Ký Tài Khoản
+          </motion.h1>
 
-        if (validateAll || touched.confirmPassword) {
-            if (!formState.confirmPassword) {
-                newErrors.confirmPassword = "Xác nhận mật khẩu là bắt buộc";
-            } else if (formState.confirmPassword !== formState.password) {
-                newErrors.confirmPassword = "Mật khẩu không khớp";
-            }
-        }
+          {registrationError && (
+            <motion.div
+              className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 flex items-start text-sm"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AlertCircle
+                className="text-red-400 mr-2 mt-0.5 flex-shrink-0"
+                size={16}
+              />
+              <p className="text-red-200">{registrationError}</p>
+            </motion.div>
+          )}
 
-        if (validateAll || touched.f_name) {
-            if (!formState.f_name) {
-                newErrors.f_name = "Họ là bắt buộc";
-            } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formState.f_name)) {
-                newErrors.f_name = "Họ chỉ được chứa chữ cái và khoảng trắng";
-            }
-        }
-
-        if (validateAll || touched.l_name) {
-            if (!formState.l_name) {
-                newErrors.l_name = "Tên là bắt buộc";
-            } else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formState.l_name)) {
-                newErrors.l_name = "Tên chỉ được chứa chữ cái và khoảng trắng";
-            }
-        }
-
-        if (validateAll || touched.dob) {
-            if (!formState.dob) {
-                newErrors.dob = "Ngày sinh là bắt buộc";
-            } else {
-                const today = new Date();
-                const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-                if (formState.dob > minAgeDate) {
-                    newErrors.dob = "Bạn phải từ 18 tuổi trở lên";
-                }
-            }
-        }
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+                  <Input
+                    type="text"
+                    name="f_name"
+                    placeholder="Họ"
+                    className="pl-10 bg-purple-900/40 border-purple-700/50 focus:border-purple-500 text-white placeholder-purple-300 focus:ring-pink-500/30 rounded-lg h-10"
+                    value={formState.f_name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    aria-invalid={!!errors.f_name}
+                    disabled={isLoading}
+                  />
+                  {!errors.f_name && touched.f_name && formState.f_name && (
+                    <Check
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500"
+                      size={18}
+                    />
+                  )}
+                </div>
+                {errors.f_name && (
+                  <p className="text-pink-400 text-sm ml-1">{errors.f_name}</p>
+                )}
+              </div>
 
         if (validateAll || touched.acceptTerms) {
             if (!formState.acceptTerms) {

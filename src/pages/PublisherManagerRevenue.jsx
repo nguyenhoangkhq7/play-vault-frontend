@@ -181,11 +181,11 @@ export default function PublisherManagerRevenue() {
 
     // Thêm thống kê tổng quan
     csvRows.push("TỔNG QUAN");
-    csvRows.push(`Tổng doanh thu,${totalRevenue.toLocaleString()}đ`);
+    csvRows.push(`Tổng doanh thu,${totalRevenue.toLocaleString()} GCoin`);
     csvRows.push(`Số lượng mua,${totalPlayers.toLocaleString()}`);
     csvRows.push(`Số lượng game,${totalGames}`);
     csvRows.push(
-      `TB doanh thu/game,${Math.round(avgRevenuePerGame).toLocaleString()}đ`
+      `TB doanh thu/game,${Math.round(avgRevenuePerGame).toLocaleString()} GCoin`
     );
     csvRows.push("");
 
@@ -193,7 +193,7 @@ export default function PublisherManagerRevenue() {
     csvRows.push("DOANH THU THEO THÁNG");
     csvRows.push("Tháng,Doanh thu");
     monthlyRevenueData.forEach((item) => {
-      csvRows.push(`${item.month},${item.revenue}đ`);
+      csvRows.push(`${item.month},${item.revenue} GCoin`);
     });
     csvRows.push("");
 
@@ -204,7 +204,7 @@ export default function PublisherManagerRevenue() {
     );
     filteredGames.forEach((game) => {
       csvRows.push(
-        `${game.name},${game.revenue}đ,${game.players},${
+        `${game.name},${game.revenue} GCoin,${game.players},${
           game.conversionRate
         }%,${game.trend > 0 ? "+" : ""}${game.trend}%,${game.status}`
       );
@@ -238,12 +238,12 @@ export default function PublisherManagerRevenue() {
       ["BÁO CÁO DOANH THU"],
       [],
       ["TỔNG QUAN"],
-      ["Tổng doanh thu", `${totalRevenue.toLocaleString()}đ`],
+      ["Tổng doanh thu", `${totalRevenue.toLocaleString()} GCoin`],
       ["Tổng số lượng mua", totalPlayers.toLocaleString()],
       ["Số lượng game", totalGames],
       [
         "TB doanh thu/game",
-        `${Math.round(avgRevenuePerGame).toLocaleString()}đ`,
+        `${Math.round(avgRevenuePerGame).toLocaleString()} GCoin`,
       ],
     ];
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -254,7 +254,7 @@ export default function PublisherManagerRevenue() {
       ["DOANH THU THEO THÁNG"],
       [],
       ["Tháng", "Doanh thu"],
-      ...monthlyRevenueData.map((item) => [item.month, `${item.revenue}đ`]),
+      ...monthlyRevenueData.map((item) => [item.month, `${item.revenue} GCoin`]),
     ];
     const monthlySheet = XLSX.utils.aoa_to_sheet(monthlyData);
     XLSX.utils.book_append_sheet(wb, monthlySheet, "Doanh thu theo tháng");
@@ -272,7 +272,7 @@ export default function PublisherManagerRevenue() {
       ],
       ...filteredGames.map((game) => [
         game.name,
-        `${game.revenue}đ`,
+        `${game.revenue} GCoin`,
         game.players,
         `${game.conversionRate}%`,
         `${game.trend > 0 ? "+" : ""}${game.trend}%`,
@@ -363,101 +363,12 @@ export default function PublisherManagerRevenue() {
           <h1 className="text-3xl font-bold text-white">Báo cáo doanh thu</h1>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          {/* Bộ lọc thời gian */}
-          <div className="relative group">
-            <select
-              value={selectedTimeRange}
-              onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="appearance-none p-2 pr-8 rounded-lg bg-[#8130CD]/40 border border-white/20 
-                 text-white focus:ring-2 focus:ring-[#8130CD] outline-none 
-                 hover:bg-[#8130CD]/60 cursor-pointer transition-all"
-              style={{ colorScheme: "dark" }}
-            >
-              {timeRanges.map((range) => (
-                <option
-                  key={range.value}
-                  value={range.value}
-                  className="bg-[#8130CD] text-white"
-                >
-                  {range.label}
-                </option>
-              ))}
-            </select>
-            <svg
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-200 pointer-events-none"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </div>
-
-          {/* Ô tìm kiếm */}
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="p-2 rounded-lg bg-[#8130CD]/40 text-white border border-white/20 
-               placeholder-white/50 focus:ring-2 focus:ring-[#8130CD] 
-               outline-none hover:bg-[#8130CD]/60 transition-all"
-          />
-
-          {/* Bộ lọc game */}
-          <div className="relative group">
-            <select
-              value={selectedGame}
-              onChange={(e) => setSelectedGame(e.target.value)}
-              className="appearance-none p-2 pr-8 rounded-lg bg-[#8130CD]/40 border border-white/20 
-                 text-white focus:ring-2 focus:ring-[#8130CD] outline-none 
-                 hover:bg-[#8130CD]/60 cursor-pointer transition-all"
-              style={{ colorScheme: "dark" }}
-            >
-              <option value="all" className="bg-[#8130CD] text-white">
-                Tất cả game
-              </option>
-              {gamesData.map((game) => (
-                <option
-                  key={game.id}
-                  value={game.id.toString()}
-                  className="bg-[#8130CD] text-white"
-                >
-                  {game.name}
-                </option>
-              ))}
-            </select>
-            <svg
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-200 pointer-events-none"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </div>
-        </div>
-
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg bg-white/10 p-6 backdrop-blur-sm">
             <p className="text-sm text-white/80">Tổng doanh thu</p>
             <p className="mt-2 text-3xl font-bold text-white">
-              {totalRevenue.toLocaleString()}đ
+              {totalRevenue.toLocaleString()} GCoin
             </p>
             <p
               className={`mt-1 flex items-center gap-1 text-sm ${
@@ -486,7 +397,7 @@ export default function PublisherManagerRevenue() {
           <div className="rounded-lg bg-white/10 p-6 backdrop-blur-sm">
             <p className="text-sm text-white/80">TB doanh thu/game</p>
             <p className="mt-2 text-3xl font-bold text-white">
-              {Math.round(avgRevenuePerGame).toLocaleString()}đ
+              {Math.round(avgRevenuePerGame).toLocaleString()} GCoin
             </p>
           </div>
         </div>
@@ -518,7 +429,7 @@ export default function PublisherManagerRevenue() {
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
             />
             <Tooltip
-              formatter={(value) => `${Number(value).toLocaleString()}đ`}
+              formatter={(value) => `${Number(value).toLocaleString()} GCoin`}
             />
             <Area
               type="monotone"
@@ -534,6 +445,96 @@ export default function PublisherManagerRevenue() {
           <h2 className="mb-4 text-lg font-semibold text-white">
             Chi tiết doanh thu theo game
           </h2>
+          
+          {/* Filters inside table section */}
+          <div className="flex flex-wrap gap-4 mb-6">
+            {/* Bộ lọc thời gian */}
+            <div className="relative group">
+              <select
+                value={selectedTimeRange}
+                onChange={(e) => setSelectedTimeRange(e.target.value)}
+                className="appearance-none p-2 pr-8 rounded-lg bg-[#8130CD]/40 border border-white/20 
+                   text-white focus:ring-2 focus:ring-[#8130CD] outline-none 
+                   hover:bg-[#8130CD]/60 cursor-pointer transition-all"
+                style={{ colorScheme: "dark" }}
+              >
+                {timeRanges.map((range) => (
+                  <option
+                    key={range.value}
+                    value={range.value}
+                    className="bg-[#8130CD] text-white"
+                  >
+                    {range.label}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-200 pointer-events-none"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+
+            {/* Ô tìm kiếm */}
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="p-2 rounded-lg bg-[#8130CD]/40 text-white border border-white/20 
+                 placeholder-white/50 focus:ring-2 focus:ring-[#8130CD] 
+                 outline-none hover:bg-[#8130CD]/60 transition-all"
+            />
+
+            {/* Bộ lọc game */}
+            <div className="relative group">
+              <select
+                value={selectedGame}
+                onChange={(e) => setSelectedGame(e.target.value)}
+                className="appearance-none p-2 pr-8 rounded-lg bg-[#8130CD]/40 border border-white/20 
+                   text-white focus:ring-2 focus:ring-[#8130CD] outline-none 
+                   hover:bg-[#8130CD]/60 cursor-pointer transition-all"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="all" className="bg-[#8130CD] text-white">
+                  Tất cả game
+                </option>
+                {gamesData.map((game) => (
+                  <option
+                    key={game.id}
+                    value={game.id.toString()}
+                    className="bg-[#8130CD] text-white"
+                  >
+                    {game.name}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-200 pointer-events-none"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+          </div>
+          
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -563,7 +564,7 @@ export default function PublisherManagerRevenue() {
                   >
                     <td className="py-4 text-white">{game.name}</td>
                     <td className="py-4 text-white">
-                      {game.revenue.toLocaleString()}đ
+                      {game.revenue.toLocaleString()} GCoin
                     </td>
                     <td className="py-4 text-white">
                       {game.players.toLocaleString()}
@@ -643,7 +644,7 @@ export default function PublisherManagerRevenue() {
               <div className="rounded-lg bg-white/10 p-4">
                 <p className="text-sm text-white/80">Tổng doanh thu</p>
                 <p className="mt-2 text-2xl font-bold">
-                  {selectedGameDetail.revenue.toLocaleString()}đ
+                  {selectedGameDetail.revenue.toLocaleString()} GCoin
                 </p>
               </div>
               <div className="rounded-lg bg-white/10 p-4">
@@ -697,7 +698,7 @@ export default function PublisherManagerRevenue() {
                     tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                   />
                   <Tooltip
-                    formatter={(value) => `${Number(value).toLocaleString()}đ`}
+                    formatter={(value) => `${Number(value).toLocaleString()} GCoin`}
                   />
                   <Bar dataKey="revenue" fill="#a78bfa" radius={[8, 8, 0, 0]} />
                 </BarChart>

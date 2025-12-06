@@ -35,14 +35,8 @@ export default function HeroSlideshow() {
           // image: "http://localhost:8080/images/game.jpg",
           rating: game.avgRating || 0,
           commentCount: game.reviewCount || 0,
-          price: new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(game.gameBasicInfos?.price || 0),
-          originalPrice: new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format((game.gameBasicInfos?.price || 0) - (game.discount || 0)),
+          price: `${new Intl.NumberFormat("vi-VN").format(game.gameBasicInfos?.price || 0)} đ`,
+          originalPrice: `${new Intl.NumberFormat("vi-VN").format((game.gameBasicInfos?.price || 0) - (game.discount || 0))} đ`,
           isNew: false,
           badge: game.gameBasicInfos?.publisherName || "Featured",
           genres: [game.categoryName || "Unknown"],

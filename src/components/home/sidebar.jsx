@@ -16,6 +16,7 @@ import {
   FileText,
   CheckCircle,
   Flag,
+  Percent,
 } from "lucide-react";
 import { useUser } from "../../store/UserContext";
 
@@ -55,6 +56,12 @@ export default function Sidebar() {
       label: "Quản lý Game",
       path: "/publisher/games",
       gradient: "from-purple-500 to-pink-500",
+    },
+    {
+      icon: Percent,
+      label: "Promotions",
+      path: "/promotions",
+      gradient: "from-orange-500 to-red-500",
     },
     {
       icon: DollarSign,

@@ -27,20 +27,28 @@ export function UserProvider({ children }) {
     setAccessToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   const updateUser = (updatedUserData) => {
-    const newUser = typeof updatedUserData === 'function' 
-      ? updatedUserData(user) 
-      : updatedUserData;
+    const newUser =
+      typeof updatedUserData === "function"
+        ? updatedUserData(user)
+        : updatedUserData;
     setUser(newUser);
     localStorage.setItem("user", JSON.stringify(newUser));
   };
 
   return (
     <UserContext.Provider
-      value={{ user, accessToken, login, logout, setAccessToken, setUser: updateUser }}
+      value={{
+        user,
+        accessToken,
+        login,
+        logout,
+        setAccessToken,
+        setUser: updateUser,
+      }}
     >
       {children}
     </UserContext.Provider>

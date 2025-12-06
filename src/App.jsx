@@ -31,7 +31,6 @@ import Report from "./pages/ReportPage.jsx";
 import PublisherUpload from "./pages/PublisherUpLoad.jsx";
 import PublisherInfo from "./components/publisher/PublisherInfo.jsx";
 import PublisherBuild from "./components/publisher/PublisherBuild.jsx";
-import PublisherStore from "./components/publisher/PublisherStore.jsx";
 import PublishserManageGame from "./pages/PublishserManageGame.jsx";
 import { Toaster } from "@/components/ui/sonner";
 import AdminLayout from "./layouts/AdminLayout";
@@ -132,7 +131,6 @@ function App() {
             <Route path="/publisher/upload" element={<PublisherUpload />}>
               <Route index element={<PublisherInfo />} />
               <Route path="build" element={<PublisherBuild />} />
-              <Route path="store" element={<PublisherStore />} />
             </Route>
           </Route>
 

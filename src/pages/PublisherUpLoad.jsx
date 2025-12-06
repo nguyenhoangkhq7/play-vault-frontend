@@ -42,20 +42,26 @@ function PublisherUploadInner() {
   const ssRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
   const [ssUrls, setSsUrls] = useState(["", "", "", ""]);
 
-  // Store config
-  const [slug, setSlug] = useState("");
-  const [tags, setTags] = useState("");
-  const [age18, setAge18] = useState(false);
-  const [controller, setController] = useState(false);
+  // --- FORM STATE BỔ SUNG (đồng bộ backend) ---
+  const [notes, setNotes] = useState("");        // description (ghi chú phát hành)
+  const [age18, setAge18] = useState(0);         // requiredAge
+  const [controller, setController] = useState(false); // isSupportController
+
+  const [cpu, setCpu] = useState("");
+  const [gpu, setGpu] = useState("");
+  const [storage, setStorage] = useState("");
+  const [ram, setRam] = useState("");
+
 
   // ---------------------- Helpers ----------------------
+
+  const pickFile = (ref) => ref.current?.click();
+
   const togglePlatform = (value) => {
     setPlatforms((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
   };
-
-  const pickFile = (ref) => ref.current?.click();
 
   // Drag & drop binders (generic)
   const prevent = (e) => {
@@ -75,14 +81,31 @@ function PublisherUploadInner() {
   setCoverUrl("");
   setBuildName("");
   setSsUrls(["", "", "", ""]);
-  setSlug("");
-  setTags("");
-  setAge18(false);
-  setController(false);
   setBuildUrl("");
+  setNotes("");
+  setAge18(0);
+  setController(false);
+  setCpu(""); setGpu(""); setStorage(""); setRam("");
 };
 
-  
+  const osMap = { Windows: "WINDOWS", macOS: "MAC", Linux: "LINUX" };
+  const primaryOs = platforms[0] ? (osMap[platforms[0]] || "WINDOWS") : "WINDOWS";
+
+  const platformIds = platforms.length ? [1] : [];
+
+  // Thể loại (VN) -> id (theo DB dump của bạn)
+  const categoryMap = {
+    "Hành động": 1,
+    "Phiêu lưu": 2,
+    "Nhập vai": 3,
+    "Mô phỏng": 4,
+    "Chiến thuật": 5,
+    "Giải đố": 6,
+    "Kinh dị": 7,
+    "Đua xe": 8,
+  };
+const categoryIdMapped = categoryMap[genre] || 1;
+
   // ====================== Cover handlers (UPLOAD THẬT) ======================
   const onCoverFiles = async (files) => {
     const f = files?.[0];
@@ -157,8 +180,6 @@ function PublisherUploadInner() {
     }
   };
 
-  const platformMap = { Windows: "WINDOWS", macOS: "MACOS", Linux: "LINUX" };
-  const platformsForApi = platforms.map(p => platformMap[p] || p);                    // đã có link ảnh bìa
 
 
   // ---------------------- Progress compute ----------------------
@@ -182,18 +203,25 @@ function PublisherUploadInner() {
   const onSubmitReview = async () => {
     try {
       const payload = {
-        title,
-        summary,
-        genre,
-        releaseDate: release || null,
-        trailerUrl: trailer || null,
-        coverUrl,
-        isFree,
+        name: title,
+        shortDescription: summary,
+        description: notes,
         price: isFree ? 0 : Number(price || 0),
-        filePath: buildUrl,
-        screenshots: ssUrls.filter(Boolean),
-        tags: String(tags || "").split(",").map(s => s.trim()).filter(Boolean),
-        platforms: platformsForApi, // <— dùng biến đã map
+        releaseDate: release || null,             // "yyyy-MM-dd"
+        trailerUrl: trailer || null,
+        categoryId: categoryIdMapped,
+        requiredAge: Number(age18 || 0),
+        isSupportController: Boolean(controller),
+        platformIds,                              // [1] = PC
+        systemRequirement: {
+          os: primaryOs,                          // WINDOWS | MAC | LINUX
+          cpu,
+          gpu,
+          storage,
+          ram,
+        },
+        filePath: buildUrl,                       // gbi.file_path
+        thumbnail: coverUrl,                      // gbi.thumbnail
       };
 
       const token = localStorage.getItem("accessToken") || localStorage.getItem("token"); // nếu có auth
@@ -212,15 +240,13 @@ function PublisherUploadInner() {
   // ---------------------- Step Navigation ----------------------
   const goNextStep = () => {
     if (location.pathname.endsWith("/build")) {
-      navigate("/publisher/upload/store");
-    } else if (location.pathname.endsWith("/store")) {
-      return;
+      return; // Last step
     } else {
       navigate("/publisher/upload/build");
     }
   };
 
-  const isLastStep = location.pathname.endsWith("/store");
+  const isLastStep = location.pathname.endsWith("/build");
 
   // ---------------------- Render ----------------------
   return (
@@ -257,19 +283,10 @@ function PublisherUploadInner() {
                     type="button"
                     onClick={() => navigate("/publisher/upload/build")}
                     className={`btn px-4 ${location.pathname.endsWith("/build") ? "btn-gradient" : "btn-outline-light"}`}
-                    style={{ minWidth: "140px", marginRight: "10px" }}
+                    style={{ minWidth: "140px" }}
                   >
                     <i className="bi bi-hdd-network me-2"></i>
                     Build
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/publisher/upload/store")}
-                    className={`btn px-4 ${location.pathname.endsWith("/store") ? "btn-gradient" : "btn-outline-light"}`}
-                    style={{ minWidth: "140px" }}
-                  >
-                    <i className="bi bi-shop me-2"></i>
-                    Store
                   </button>
                 </div>
               </div>
@@ -285,24 +302,29 @@ function PublisherUploadInner() {
             <form onSubmit={(e) => e.preventDefault()} className="tab-content">
               <Outlet
                 context={{
-                  // form state
+                  // --- state phần Thông tin ---
                   title, setTitle,
                   summary, setSummary,
                   genre, setGenre,
-                  platforms, togglePlatform,
+                  platforms, togglePlatform,    // dùng togglePlatform để chọn bỏ/chọn nền tảng
                   release, setRelease,
                   trailer, setTrailer,
                   isFree, setIsFree,
                   price, setPrice,
-                  // cover
+
+                  // --- Cover & Build hiện có ---
                   coverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
-                  // build
-                  buildInputRef, onBuildFiles, buildName, buildProgress, isUploading,buildUrl,
-                  // screenshots
+                  buildInputRef, onBuildFiles, buildName, buildProgress, isUploading, buildUrl,
+
+                  // --- Screenshots (nếu có) ---
                   ssRefs, ssUrls, onPickSS,
-                  // store
-                  slug, setSlug,
-                  tags, setTags,
+
+                  // --- state BỔ SUNG cho tab Build ---
+                  notes, setNotes,
+                  cpu, setCpu,
+                  gpu, setGpu,
+                  storage, setStorage,
+                  ram, setRam,
                   age18, setAge18,
                   controller, setController,
                 }}

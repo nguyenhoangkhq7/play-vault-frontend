@@ -34,7 +34,7 @@ function GameCard({ game }) {
 
         <div className="flex items-center justify-between">
           <p className="font-semibold text-white">
-            {game.price === 0 ? "Free" : `${game.price.toLocaleString("vi-VN")} VND`}
+            {game.price === 0 ? "Free" : `${game.price.toLocaleString("vi-VN")} đ`}
           </p>
           <div className="flex items-center">
             {[...Array(5)].map((_, i) => (

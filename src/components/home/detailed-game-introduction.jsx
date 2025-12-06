@@ -1,12 +1,10 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { LazyLoadImage } from "react-lazy-load-image-component"
-import { Star, Award, Clock, Users, Gamepad2, Monitor, Smartphone, Loader2 } from "lucide-react"
+import { Star, Award, Users, Gamepad2, Monitor, Smartphone, Loader2 } from "lucide-react"
 import { getTopNGame } from "../../api/games.js"
-//import { getCommentsByGameId } from "../../api/comments.js"
-import { addToCart, getCart, removeFromCart } from "../../api/cart.js"
-import { API_BASE_URL } from "../../config/api.js"
 import { useUser } from "../../store/UserContext.jsx"
+import { useCart } from "../../store/CartContext.jsx"
 
 
 export default function GameDetail() {
@@ -14,8 +12,10 @@ export default function GameDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isInCart, setIsInCart] = useState(false)
+  const [cartLoading, setCartLoading] = useState(false)
   const navigate = useNavigate()
-  const { user } = useUser()
+  const { user, accessToken } = useUser()
+  const { cart, addToCart, removeFromCart, refreshCart } = useCart()
 
 
 
@@ -43,8 +43,8 @@ useEffect(() => {
           platforms: g.platforms || [],
 
           price: g.gameBasicInfos.price,
-          originalPrice: `${g.gameBasicInfos.price}$`,
-          formattedPrice: `${(g.gameBasicInfos.price - g.discount).toFixed(2)}$`,
+          originalPrice: `${new Intl.NumberFormat("vi-VN").format(g.gameBasicInfos.price)} đ`,
+          formattedPrice: `${new Intl.NumberFormat("vi-VN").format(g.gameBasicInfos.price - g.discount)} đ`,
 
           // players: "Single-player",
 
@@ -86,38 +86,22 @@ useEffect(() => {
 }, [])
 
 
-  // Check if game is in cart
-const checkCartStatus = useCallback(async () => {
-    // user đã có sẵn từ useUser()
-    if (user?.customerId && game?.id) {
-      try {
-        const accessToken = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") // ⬅️ Vẫn cần lấy token nếu API yêu cầu
-        if (!accessToken) {
-          console.warn("Access Token not found for cart check.")
-          setIsInCart(false)
-          return
-        }
-
-        const currentCart = await getCart(user.id)
-        console.log("Cart data:", currentCart)
-        // Logic kiểm tra giỏ hàng
-        const inCart = Array.isArray(currentCart) ? currentCart.some((item) => item.id === game.id) : false
-        setIsInCart(inCart)
-        console.log(`Game ${game.title} (ID: ${game.id}) is${inCart ? "" : " not"} in cart`)
-      } catch (err) {
-        console.error("Error checking cart status:", err)
-        setIsInCart(false)
-      }
+  // Check if game is in cart - sử dụng cart từ CartContext
+  useEffect(() => {
+    if (cart && game?.id) {
+      const inCart = cart.items?.some((item) => item.gameId === game.id) || false
+      setIsInCart(inCart)
     } else {
-      // Nếu user không tồn tại hoặc game chưa load, giỏ hàng không được kiểm tra
       setIsInCart(false)
     }
-  }, [user, game]) // Phụ thuộc vào user và game
+  }, [cart, game])
 
-
+  // Refresh cart on mount
   useEffect(() => {
-    checkCartStatus()
-  }, [checkCartStatus])
+    if (accessToken) {
+      refreshCart(accessToken)
+    }
+  }, [accessToken, refreshCart])
 
   // Hàm xử lý khi nhấn "Mua Ngay"
  const handleBuyNow = async () => {
@@ -150,36 +134,35 @@ const checkCartStatus = useCallback(async () => {
 
   // Hàm xử lý khi nhấn "Thêm Vào Giỏ" hoặc "Xóa Khỏi Giỏ"
   const handleAddToCart = async () => {
-    if (!user || !user.customerId) {
+    if (!user) {
       alert("Vui lòng đăng nhập để thêm game vào giỏ hàng!")
       navigate("/login")
       return
     }
-    // ... (Logic Add/Remove Cart giữ nguyên)
+    
     if (!game?.id) {
       console.error("Invalid game ID for cart action:", game)
       alert("Không thể thực hiện hành động. Dữ liệu game không hợp lệ.")
       return
     }
 
-    const previousCartState = isInCart
+    setCartLoading(true)
     try {
       if (isInCart) {
-        setIsInCart(false) // Optimistic update
-        await removeFromCart(user.customerId, game.id)
-        console.log(`Removed from cart: ${game.title} (ID: ${game.id})`)
-        alert(`${game.title} đã được xóa khỏi giỏ hàng!`)
+        // Tìm cartItemId để xóa
+        const cartItem = cart?.items?.find((item) => item.gameId === game.id)
+        if (cartItem) {
+          await removeFromCart(cartItem.id, accessToken)
+          console.log(`Removed from cart: ${game.title} (ID: ${game.id})`)
+        }
       } else {
-        setIsInCart(true) // Optimistic update
-        await addToCart(user.customerId, game.id)
+        await addToCart(game.id, user, accessToken)
         console.log(`Added to cart: ${game.title} (ID: ${game.id}, Price: ${game.price})`)
-        alert(`${game.title} đã được thêm vào giỏ hàng!`)
       }
-      await checkCartStatus() // Sync with backend
     } catch (err) {
-      console.error(`Error ${previousCartState ? "removing from" : "adding to"} cart:`, err)
-      setIsInCart(previousCartState) // Revert on failure
-      alert(`Không thể ${previousCartState ? "xóa khỏi" : "thêm vào"} giỏ hàng. Vui lòng thử lại.`)
+      console.error(`Error ${isInCart ? "removing from" : "adding to"} cart:`, err)
+    } finally {
+      setCartLoading(false)
     }
   }
 
@@ -302,7 +285,7 @@ const checkCartStatus = useCallback(async () => {
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-xl font-bold text-white">{game.formattedPrice}</span>
-            {game.originalPrice && (
+            {game.originalPrice !== game.formattedPrice && (
               <div className="flex items-center space-x-2">
                 <span className="text-gray-400 text-sm line-through">{game.originalPrice}</span>
               </div>
@@ -317,12 +300,13 @@ const checkCartStatus = useCallback(async () => {
             </button>
             <button
               onClick={handleAddToCart}
+              disabled={cartLoading}
               className={`${isInCart
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-white/10 hover:bg-white/20"
-                } text-white px-5 py-2 rounded-full font-medium hover:shadow-lg transition-all transform hover:scale-105 duration-200`}
+                } text-white px-5 py-2 rounded-full font-medium hover:shadow-lg transition-all transform hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {isInCart ? "Xóa Khỏi Giỏ" : "Thêm Vào Giỏ"}
+              {cartLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isInCart ? "Xóa Khỏi Giỏ" : "Thêm Vào Giỏ")}
             </button>
           </div>
         </div>

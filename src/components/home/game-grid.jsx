@@ -101,14 +101,8 @@ export default function GameGrid() {
           const originalPriceValue = priceValue - (g.discount || 0);
 
           // Định dạng tiền tệ
-          const formattedPrice = new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(priceValue);
-          const formattedOriginalPrice = new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(originalPriceValue);
+          const formattedPrice = `${new Intl.NumberFormat("vi-VN").format(priceValue)} đ`;
+          const formattedOriginalPrice = `${new Intl.NumberFormat("vi-VN").format(originalPriceValue)} đ`;
 
           return {
             id: g.id,

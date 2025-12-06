@@ -324,8 +324,8 @@ export default function ProductDetailPage() {
                     </div>
                   </motion.div>
                 )}
-                {/* 🔥 KHỐI ĐÁNH GIÁ MỚI - Tích hợp GameReviews */}             
-                 {" "}
+                {/* 🔥 KHỐI ĐÁNH GIÁ MỚI - Tích hợp GameReviews */}
+                {" "}
                 {activeTab === "reviews" && (
                   <motion.div
                     key="reviews"
@@ -333,14 +333,14 @@ export default function ProductDetailPage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                                       {" "}
+                    {" "}
                     <GameReviews
                       gameId={game.id}
                       isOwned={isOwned}
                       accessToken={accessToken}
                       userId={user?.id} // Truyền thông tin user nếu cần
                     />
-                                     {" "}
+                    {" "}
                   </motion.div>
                 )}
                 {activeTab === "download" && (
@@ -413,7 +413,7 @@ export default function ProductDetailPage() {
                 <span>Giá:</span>{" "}
                 <span className="font-semibold text-white">
                   {game.price > 0
-                    ? `${game.price.toLocaleString()} đ`
+                    ? `${game.price.toLocaleString()} GCoin`
                     : "Miễn Phí"}
                 </span>
               </div>

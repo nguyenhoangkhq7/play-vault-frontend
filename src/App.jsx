@@ -118,6 +118,7 @@ function App() {
           {/* Independent routes for login, register, and forgot-password */} */
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/publisher-register" element={<PublisherRegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           {/* Admin routes nested under AdminLayout */}
           <Route path="/admin" element={<AdminLayout />}>

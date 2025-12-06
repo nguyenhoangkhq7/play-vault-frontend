@@ -195,10 +195,9 @@ export default function ApprovalPage() {
               {filteredGames.map((game) => {
                 const statusConfig = getStatusConfig(game.status);
                 const StatusIcon = statusConfig.icon;
-                const priceDisplay = new Intl.NumberFormat("vi-VN", {
-                  style: "currency",
-                  currency: "VND",
-                }).format(Number(game.price || 0));
+                
+                // --- CHỈNH SỬA TẠI ĐÂY: Format GCoin ---
+                const priceDisplay = new Intl.NumberFormat("vi-VN").format(Number(game.price || 0)) + " GCoin";
 
                 return (
                   <div

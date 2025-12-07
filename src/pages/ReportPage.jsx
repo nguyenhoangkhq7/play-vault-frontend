@@ -1,15 +1,18 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { submitReport, checkOrderExists } from "../api/report.js";
 import { useUser } from "../store/UserContext";
+import { useSearchParams } from "react-router-dom";
 
 export default function ReportPage() {
   const { setAccessToken } = useUser();
+  const [searchParams] = useSearchParams();
+
   const [formData, setFormData] = useState({
-    orderId: "",
+    orderId: searchParams.get("orderId") || "",
     title: "",
     description: "",
     transactionCode: "",
@@ -23,7 +26,7 @@ export default function ReportPage() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
+
     // Clear order error when user starts typing
     if (name === "orderId" && orderError) {
       setOrderError("");
@@ -32,12 +35,14 @@ export default function ReportPage() {
 
   const validateOrderId = async (orderId) => {
     if (!orderId.trim()) return;
-    
+
     setIsValidatingOrder(true);
     try {
       const exists = await checkOrderExists(orderId, setAccessToken);
       if (!exists) {
-        setOrderError("Đơn hàng không tồn tại. Vui lòng kiểm tra lại mã đơn hàng.");
+        setOrderError(
+          "Đơn hàng không tồn tại. Vui lòng kiểm tra lại mã đơn hàng."
+        );
       } else {
         setOrderError("");
       }
@@ -59,12 +64,14 @@ export default function ReportPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    
+
     // Validate order exists before submitting
     if (formData.orderId && !isValidatingOrder) {
       const exists = await checkOrderExists(formData.orderId, setAccessToken);
       if (!exists) {
-        setOrderError("Đơn hàng không tồn tại. Vui lòng kiểm tra lại mã đơn hàng.");
+        setOrderError(
+          "Đơn hàng không tồn tại. Vui lòng kiểm tra lại mã đơn hàng."
+        );
         return;
       }
     }
@@ -76,7 +83,12 @@ export default function ReportPage() {
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
       setTimeout(() => {
         setIsSubmitted(false);
-        setFormData({ orderId: "", title: "", description: "", transactionCode: "" });
+        setFormData({
+          orderId: "",
+          title: "",
+          description: "",
+          transactionCode: "",
+        });
         setOrderError("");
       }, 3500);
     } catch (err) {
@@ -95,7 +107,9 @@ export default function ReportPage() {
       >
         <div className="bg-white/10 p-10 rounded-2xl text-center shadow-2xl backdrop-blur-md animate-fade-in">
           <CheckCircle2 className="w-16 h-16 mx-auto text-green-400 mb-4 animate-bounce" />
-          <h2 className="text-3xl font-bold mb-2">Báo cáo đã gửi thành công!</h2>
+          <h2 className="text-3xl font-bold mb-2">
+            Báo cáo đã gửi thành công!
+          </h2>
           <p className="text-purple-200">
             Cảm ơn bạn đã gửi báo cáo. Chúng tôi sẽ xem xét sớm nhất có thể.
           </p>
@@ -138,7 +152,9 @@ export default function ReportPage() {
               } focus:ring-2 focus:ring-[#8130CD] outline-none`}
               required
             />
-            {orderError && <p className="text-red-400 text-sm mt-1">{orderError}</p>}
+            {orderError && (
+              <p className="text-red-400 text-sm mt-1">{orderError}</p>
+            )}
             {isValidatingOrder && (
               <p className="text-yellow-400 text-sm mt-1 flex items-center gap-1">
                 <Loader2 className="w-4 h-4 animate-spin" />

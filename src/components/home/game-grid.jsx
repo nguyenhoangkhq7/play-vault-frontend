@@ -71,7 +71,7 @@ const GameCard = ({ game, idx, onFavoriteToggle, isInWishlist, isWishlistLoading
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
             <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-              {game.originalPrice === "0 đ" ? 'Free' : game.originalPrice.replace('đ', 'GCoin')}
+              {game.originalPrice === "0 GCoin" ? 'Free' : game.originalPrice}
             </span>
             <Link to={`/product/${game.id}`}>
               <motion.div 
@@ -176,8 +176,8 @@ export default function GameGrid() {
           const originalPriceValue = priceValue - (g.discount || 0);
 
           // Định dạng tiền tệ
-          const formattedPrice = `${new Intl.NumberFormat("vi-VN").format(priceValue)} đ`;
-          const formattedOriginalPrice = `${new Intl.NumberFormat("vi-VN").format(originalPriceValue)} đ`;
+          const formattedPrice = `${new Intl.NumberFormat("vi-VN").format(priceValue)} GCoin`;
+          const formattedOriginalPrice = `${new Intl.NumberFormat("vi-VN").format(originalPriceValue)} GCoin`;
 
           return {
             id: g.id,

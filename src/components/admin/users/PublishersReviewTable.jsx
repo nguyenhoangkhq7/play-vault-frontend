@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 
 export default function PublishersReviewTable({ publishers, onApprove, onReject, actionLoading = {} }) {
   const [selectedPublisher, setSelectedPublisher] = useState(null);
@@ -56,7 +57,14 @@ export default function PublishersReviewTable({ publishers, onApprove, onReject,
                 <td className="p-4 max-w-xs truncate text-gray-300">{pub.description || "N/A"}</td>
                 <td className="p-4 flex justify-center items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
-                    onClick={() => onApprove(pub.publisherRequestId)}
+                    onClick={async () => {
+                      try {
+                        await onApprove(pub.publisherRequestId);
+                        toast.success(`Duyệt ${pub.name} thành công!`);
+                      } catch (err) {
+                        toast.error(`Lỗi khi duyệt ${pub.name}`);
+                      }
+                    }}
                     disabled={actionLoading[pub.publisherRequestId]}
                     className={`flex items-center justify-center gap-2 w-24 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg bg-gradient-to-r from-green-500 to-teal-600 shadow-teal-500/30 ${actionLoading[pub.publisherRequestId] ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -68,7 +76,14 @@ export default function PublishersReviewTable({ publishers, onApprove, onReject,
                   </button>
 
                   <button
-                    onClick={() => onReject(pub.publisherRequestId)}
+                    onClick={async () => {
+                      try {
+                        await onReject(pub.publisherRequestId);
+                        toast.success(`Từ chối ${pub.name}`);
+                      } catch (err) {
+                        toast.error(`Lỗi khi từ chối ${pub.name}`);
+                      }
+                    }}
                     disabled={actionLoading[pub.publisherRequestId]}
                     className={`flex items-center justify-center gap-2 w-24 py-2 rounded-lg font-semibold text-sm text-white transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/30 ${actionLoading[pub.publisherRequestId] ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -115,42 +130,16 @@ export default function PublishersReviewTable({ publishers, onApprove, onReject,
                   <p className="text-white bg-purple-900/30 rounded-lg p-3">{selectedPublisher.email || "N/A"}</p>
                 </div>
 
-                {/* Ngày tạo */}
+
+              </div>
+
+              {/* Ngày tạo */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-400 mb-2">Ngày tạo</label>
                   <p className="text-white bg-purple-900/30 rounded-lg p-3">{formatDate(selectedPublisher.date)}</p>
                 </div>
 
-                {/* Trạng thái */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">Trạng thái</label>
-                  <div className={`inline-block px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusClass(selectedPublisher.status)}`}>
-                    {selectedPublisher.status === "ACTIVE" || selectedPublisher.status === "Active" ? "Hoạt động" : selectedPublisher.status === "Blocked" ? "Bị chặn" : "Chờ duyệt"}
-                  </div>
-                </div>
-
-                {/* Số game */}
-                {selectedPublisher.games && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-400 mb-2">Số game</label>
-                    <p className="text-white bg-purple-900/30 rounded-lg p-3">{selectedPublisher.games}</p>
-                  </div>
-                )}
-
-                {/* ID */}
-                {selectedPublisher.id && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-400 mb-2">ID</label>
-                    <p className="text-white bg-purple-900/30 rounded-lg p-3">{selectedPublisher.id}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Mô tả */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">Mô tả</label>
-                <p className="text-white bg-purple-900/30 rounded-lg p-3 whitespace-pre-wrap">{selectedPublisher.description || "N/A"}</p>
-              </div>
+              
 
               {/* Các trường khác nếu có */}
               {selectedPublisher.phone && (
@@ -159,6 +148,12 @@ export default function PublishersReviewTable({ publishers, onApprove, onReject,
                   <p className="text-white bg-purple-900/30 rounded-lg p-3">{selectedPublisher.phone}</p>
                 </div>
               )}
+
+              {/* Mô tả */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">Mô tả</label>
+                <p className="text-white bg-purple-900/30 rounded-lg p-3 whitespace-pre-wrap">{selectedPublisher.description || "N/A"}</p>
+              </div>
 
               {selectedPublisher.address && (
                 <div>

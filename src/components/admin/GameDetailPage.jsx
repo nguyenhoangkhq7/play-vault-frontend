@@ -132,19 +132,67 @@ export function GameDetailPage() {
 
   // --- MAPPING DATA BACKEND -> UI VARIABLES ---
   const title = gameData.name || gameData.title || "No Title";
-  const image = gameData.image || gameData.coverImage || "https://via.placeholder.com/800x400";
+  //const image = gameData.image || gameData.coverImage || "https://via.placeholder.com/800x400";
   const developer = gameData.developer || "Unknown Dev";
   const publisher = gameData.publisher || "Unknown Publisher";
   // Xử lý genre/category (cho phép chuỗi hoặc mảng)
-  const genres = Array.isArray(gameData.category) ? gameData.category : [gameData.category || "General"];
-  const description = gameData.description || "Chưa có mô tả.";
-  const screenshots = gameData.screenshots || gameData.previewImages || [];
-  const videoUrl = gameData.trailerUrl || gameData.videoUrl;
-  const platform = Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
-  const reqs = gameData.systemRequirements || gameData.minimumRequirements || {};
-  const price = gameData.price || 0;
+  //const genres = Array.isArray(gameData.category) ? gameData.category : [gameData.category || "General"];
+  // description = gameData.description || "Chưa có mô tả.";
+  //const screenshots = gameData.screenshots || gameData.previewImages || [];
+  //const videoUrl = gameData.trailerUrl || gameData.videoUrl;
+  //const platform = Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
+  // reqs = gameData.systemRequirements || gameData.minimumRequirements || {};
+  //const price = gameData.price || 0;
   // THÔNG TIN MỚI
-  const requireAged = gameData.requireAged || gameData.ageRating || "12"; 
+  //const requireAged = gameData.requireAged || gameData.ageRating || "12"; 
+
+  // Lấy block basic info (nếu backend bọc trong gameBasicInfo)
+const gbi = gameData.gameBasicInfo || gameData.basicInfo || gameData;
+
+// Ảnh bìa
+const image =
+  gbi?.thumbnail ||
+  gameData.thumbnail ||
+  gameData.image ||
+  gameData.coverImage ||
+  "https://via.placeholder.com/800x400";
+
+// Thể loại
+const genres = Array.isArray(gbi?.category)
+  ? gbi.category
+  : [gbi?.category?.name || gbi?.category || "General"];
+
+// Mô tả
+const description = gbi?.description || gameData.description || "Chưa có mô tả.";
+
+// Trailer
+const videoUrl = gbi?.trailerUrl || gameData.trailerUrl || gameData.videoUrl;
+
+// Hệ máy
+const platform = Array.isArray(gbi?.platforms)
+  ? gbi.platforms.map(p => p.name || p) 
+  : Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
+
+// Yêu cầu hệ thống
+const reqs = gbi?.systemRequirement || gameData.systemRequirements || {};
+
+// Giá
+const price = gbi?.price ?? gameData.price ?? 0;
+
+// Độ tuổi
+const requireAged = gbi?.requiredAge ?? gameData.requiredAge ?? gameData.requireAged ?? "12";
+
+// ⭐ Screenshots: chấp nhận cả mảng string lẫn mảng object {url}
+const screenshotsRaw =
+  gbi?.previewImages ||
+  gameData.previewImages ||
+  gameData.screenshots ||
+  gameData.gallery ||
+  [];
+
+const screenshots = screenshotsRaw
+  .map(it => (typeof it === "string" ? it : it?.url))
+  .filter(Boolean);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-gray-200">

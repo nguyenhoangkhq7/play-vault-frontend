@@ -19,7 +19,6 @@ import { gameService } from "@/api/gameService";
 function normalizeGame(g) {
   const base = g?.gameBasicInfos || g?.gameBasicInfo || g || {};
 
-  // Lấy status từ nhiều nguồn, ưu tiên server
   const rawStatus =
     g?.status ??
     g?.currentStatus ??
@@ -35,7 +34,7 @@ function normalizeGame(g) {
     publisher: base?.publisherName || base?.publisher?.name || g?.publisherName || "—",
     price: base?.price ?? g?.price ?? 0,
     coverImage: base?.thumbnail || base?.coverUrl || g?.thumbnail || g?.coverUrl,
-    status: status, // nếu server không có, tạm pending (sẽ override ở fetchGames)
+    status,
   };
 }
 
@@ -52,10 +51,10 @@ export default function ApprovalPage() {
     setLoading(true);
     setError("");
     try {
-      // backend trả tất cả game + status đúng cho từng game
-      const list = await gameService.listAll(); 
+      const list = await gameService.listAll();
       const items = Array.isArray(list) ? list.map(normalizeGame) : [];
       setGames(items);
+      // Debug nếu cần: console.table(items.map(({id,title,coverImage})=>({id,title,coverImage})));
     } catch (e) {
       console.error(e);
       setError("Không tải được danh sách game.");
@@ -65,7 +64,7 @@ export default function ApprovalPage() {
   }, []);
 
   useEffect(() => {
-    fetchGames(); // load lần đầu
+    fetchGames();
   }, [fetchGames]);
 
   const getStatusConfig = (status) => {
@@ -115,33 +114,31 @@ export default function ApprovalPage() {
   const handleCardClick = (id) => navigate(`/admin/approval/games/${id}`);
 
   const mutateStatus = async (id, next) => {
-  setWorkingId(id);
-  const snapshot = games.map((g) => ({ ...g })); // rollback nếu lỗi
+    setWorkingId(id);
+    const snapshot = games.map((g) => ({ ...g }));
 
-  // optimistic
-  setGames((prev) => prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g)));
-
-  try {
-    const res = await gameService.updateStatus(id, next);
-    const returnedStatus =
-      (res?.data?.status || res?.status || next)?.toString().toUpperCase();
-
-    // đồng bộ item vừa cập nhật theo response
     setGames((prev) =>
-      prev
-        .map((g) => (g.id === id ? { ...g, status: returnedStatus.toLowerCase() } : g))
+      prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g))
     );
 
-    // Nếu trang này hiển thị list theo filter PENDING, có thể refetch để đồng bộ toàn trang:
-    // await fetchGames();
-  } catch (e) {
-    console.error("Update status failed:", e);
-    alert(e?.response?.data?.message || "Cập nhật trạng thái thất bại.");
-    setGames(snapshot); // rollback
-  } finally {
-    setWorkingId(null);
-  }
-};
+    try {
+      const res = await gameService.updateStatus(id, next);
+      const returnedStatus =
+        (res?.data?.status || res?.status || next)?.toString().toUpperCase();
+
+      setGames((prev) =>
+        prev.map((g) =>
+          g.id === id ? { ...g, status: returnedStatus.toLowerCase() } : g
+        )
+      );
+    } catch (e) {
+      console.error("Update status failed:", e);
+      alert(e?.response?.data?.message || "Cập nhật trạng thái thất bại.");
+      setGames(snapshot);
+    } finally {
+      setWorkingId(null);
+    }
+  };
 
   const handleApprove = (id) => mutateStatus(id, "APPROVED");
   const handleReject = (id) => mutateStatus(id, "REJECTED");
@@ -206,24 +203,16 @@ export default function ApprovalPage() {
                     className="bg-gray-900/80 border border-purple-700/30 rounded-xl overflow-hidden hover:border-purple-600/50 hover:shadow-lg hover:shadow-purple-900/50 transition-all duration-300 group cursor-pointer flex flex-col h-full"
                   >
                     <div className="aspect-video bg-gray-800 overflow-hidden relative">
-                      <a
-  href={game.coverImage}
-  target="_blank"
-  rel="noopener noreferrer"
-  onClick={(e) => e.stopPropagation()} // tránh trigger onClick card
-  className="block aspect-video bg-gray-800 overflow-hidden relative"
->
-  <img
-    src={game.coverImage}
-    alt={game.title}
-    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-    referrerPolicy="no-referrer"
-    onError={(e) => {
-      // fallback nếu ảnh thật sự lỗi
-      e.currentTarget.src = "https://via.placeholder.com/300x200?text=Image+Not+Available";
-    }}
-  />
-</a>
+                      <img
+                        src={game.coverImage || "/images/placeholder-16x9.png"}
+                        alt={game.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "https://via.placeholder.com/300x200?text=Image+Not+Available";
+                        }}
+                      />
                     </div>
 
                     <div className="p-5 flex-1 flex flex-col">
@@ -250,9 +239,7 @@ export default function ApprovalPage() {
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${statusConfig.badgeColor} w-fit`}
                       >
                         <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
-                        <span
-                          className={`text-sm font-medium ${statusConfig.color}`}
-                        >
+                        <span className={`text-sm font-medium ${statusConfig.color}`}>
                           {statusConfig.label}
                         </span>
                       </div>

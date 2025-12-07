@@ -53,15 +53,43 @@ function PublisherUploadInner() {
   const [ram, setRam] = useState("");
 
 
+  const togglePlatform = (p) =>
+  setPlatforms((prev) =>
+    prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+  );
+  // ===== Gallery (4 ô) =====
+  const galleryInputRefs = [
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+  ];
+  const [galleryUrls, setGalleryUrls] = useState(["", "", "", ""]);
+  // Upload lên Drive ngay khi chọn, lưu URL trả về
+const onGalleryFiles = async (index, files) => {
+  const f = files?.[0];
+  if (!f) return;
+  if (!f.type.startsWith("image/")) {
+    alert("Vui lòng chọn ảnh (JPG/PNG/WEBP/GIF)");
+    return;
+  }
+  try {
+    const up = await driveService.uploadFile(f, true);
+    const link = up.directLink || up.viewLink || up.downloadLink; // server sẽ convert sang lh3 khi lưu
+    setGalleryUrls((prev) => {
+      const next = [...prev];
+      next[index] = link;
+      return next;
+    });
+  } catch (e) {
+    console.error(e);
+    alert("Upload ảnh gallery thất bại!");
+  }
+};
+
   // ---------------------- Helpers ----------------------
 
   const pickFile = (ref) => ref.current?.click();
-
-  const togglePlatform = (value) => {
-    setPlatforms((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
-  };
 
   // Drag & drop binders (generic)
   const prevent = (e) => {
@@ -196,12 +224,11 @@ const categoryIdMapped = categoryMap[genre] || 1;
     return pct;
   }, [title, summary, genre, isFree, price, buildName]);
 
-  // ---------------------- Actions ----------------------
-  const onSaveDraft = () => alert("Đã lưu bản nháp (demo).");
-
   // ✅ Gửi duyệt thật: POST /api/games
   const onSubmitReview = async () => {
     try {
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+
       const payload = {
         name: title,
         shortDescription: summary,
@@ -222,10 +249,10 @@ const categoryIdMapped = categoryMap[genre] || 1;
         },
         filePath: buildUrl,                       // gbi.file_path
         thumbnail: coverUrl,                      // gbi.thumbnail
+        gallery: (galleryUrls || []).filter(Boolean),
       };
 
-      const token = localStorage.getItem("accessToken") || localStorage.getItem("token"); // nếu có auth
-      await gameService.create(payload, token);
+      await gameService.createPendingJson(payload, token);
 
       alert("Đã gửi duyệt thành công!");
       // Điều hướng tuỳ ý: qua trang build/store hoặc về admin approval
@@ -306,11 +333,12 @@ const categoryIdMapped = categoryMap[genre] || 1;
                   title, setTitle,
                   summary, setSummary,
                   genre, setGenre,
-                  platforms, togglePlatform,    // dùng togglePlatform để chọn bỏ/chọn nền tảng
+                  platforms, setPlatforms,    // hoặc togglePlatform nếu bạn đang dùng
                   release, setRelease,
                   trailer, setTrailer,
                   isFree, setIsFree,
                   price, setPrice,
+                  togglePlatform,  
 
                   // --- Cover & Build hiện có ---
                   coverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
@@ -318,6 +346,10 @@ const categoryIdMapped = categoryMap[genre] || 1;
 
                   // --- Screenshots (nếu có) ---
                   ssRefs, ssUrls, onPickSS,
+
+                  galleryUrls,
+                  galleryInputRefs,
+                  onGalleryFiles,
 
                   // --- state BỔ SUNG cho tab Build ---
                   notes, setNotes,
@@ -337,13 +369,12 @@ const categoryIdMapped = categoryMap[genre] || 1;
                     Tiếp tục <i className="bi bi-arrow-right-circle ms-1" />
                   </button>
                 )}
-                <button type="button" className="btn btn-outline-light mr-3" onClick={onSaveDraft}>
-                  <i className="bi bi-save me-3" />
-                  Lưu nháp
-                </button>
-                <button type="button" className="btn btn-gradient mr-3" onClick={onSubmitReview}>
-                  Gửi duyệt <i className="bi bi-arrow-right-circle ms-1" />
-                </button>
+                
+                {isLastStep && (
+                  <button type="button" className="btn btn-gradient mr-3" onClick={onSubmitReview}>
+                    Gửi duyệt <i className="bi bi-arrow-right-circle ms-1" />
+                  </button>
+                )}
               </div>
             </form>
           </div>

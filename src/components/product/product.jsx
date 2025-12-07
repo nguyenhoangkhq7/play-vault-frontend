@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import searchApi from "../../api/searchApi"; 
 import { 
   ChevronLeft, ChevronRight, Star, Heart, Search, 
@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GamesPage() {
+  const [searchParams] = useSearchParams();
   const [games, setGames] = useState([]); 
   const [featuredGames, setFeaturedGames] = useState([]); 
   const [loading, setLoading] = useState(false);
@@ -50,24 +51,44 @@ export default function GamesPage() {
     }
   };
 
-  // 2. Fetch Games
-  const fetchGames = async () => {
-    try {
-      setLoading(true);
-      const response = await searchApi.searchGames(filterParams);
-      
-      if (response && response.content) {
-        setGames(response.content); 
-        setTotalPages(response.totalPages); 
-      } else {
-        setGames([]);
+  // 2. Fetch Games - Kết hợp API search thường và AI
+const fetchGames = async () => {
+  try {
+    setLoading(true);
+    
+    // Gọi API search thường
+    const normalResponse = await searchApi.searchGames(filterParams);
+    let normalGames = normalResponse?.content || [];
+    let totalPagesFromApi = normalResponse?.totalPages || 0;
+    
+    // Nếu có keyword, gọi thêm API search-ai và kết hợp kết quả
+    if (filterParams.keyword && filterParams.keyword.trim() !== '') {
+      try {
+        const aiResponse = await searchApi.searchGamesAI(filterParams.keyword);
+        const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
+        
+        // Kết hợp và loại bỏ trùng lặp dựa trên id
+        const existingIds = new Set(normalGames.map(g => g.id));
+        const uniqueAiGames = aiGames.filter(g => !existingIds.has(g.id));
+        
+        // Gộp kết quả: games từ search thường + games mới từ AI
+        normalGames = [...normalGames, ...uniqueAiGames];
+        
+        console.log(`Search kết hợp: ${normalResponse?.content?.length || 0} từ search thường + ${uniqueAiGames.length} từ AI = ${normalGames.length} kết quả`);
+      } catch (aiError) {
+        console.warn("Lỗi khi gọi search-ai, sử dụng kết quả search thường:", aiError);
       }
-    } catch (error) {
-      console.error("Lỗi:", error);
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    setGames(normalGames);
+    setTotalPages(totalPagesFromApi);
+  } catch (error) {
+    console.error("Lỗi:", error);
+    setGames([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchFeaturedGames = async () => {
     try {
@@ -82,9 +103,13 @@ export default function GamesPage() {
 
   // Gọi API Categories khi mount
   useEffect(() => {
+    const keyword = searchParams.get('keyword');
+    if (keyword) {
+      setSearchQuery(keyword);
+    }
     fetchCategories();
     fetchFeaturedGames();
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchGames();

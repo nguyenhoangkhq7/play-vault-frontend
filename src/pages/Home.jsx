@@ -8,7 +8,6 @@ export default function Home() {
     return (
         <>
             <HeroSlideshow />
-            <GameCategories />
             <DetailedGameIntroduction />
             <GameGrid />
         </>

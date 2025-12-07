@@ -50,7 +50,8 @@ export default function Navbar() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/products?search=${searchQuery}`);
+      navigate(`/products?keyword=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery("");
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import UsersTable from '../components/admin/users/UsersTable';
 import PublishersTable from '../components/admin/users/PublishersTable';
 import PublishersReviewTable from '../components/admin/users/PublishersReviewTable';
@@ -86,6 +87,8 @@ export default function Users() {
   const fetchPublishers = async () => {
     try {
       const data = await getAllPublisher(setAccessToken);
+      console.log(data);
+      
 
       const publishersWithHistory = await Promise.all(
         (data && data.data ? data.data : (Array.isArray(data) ? data : []))
@@ -101,7 +104,6 @@ export default function Users() {
           const newStatus = request && (request.status === "PENDING" || request.status === "PENDING")
             ? "Pending review"
             : pub.status;
-
           return {
             ...pub,
             status: newStatus,
@@ -170,13 +172,13 @@ export default function Users() {
           }
           return u;
         }));
-        alert(isActive ? '✅ Chặn user thành công!' : '✅ Bỏ chặn user thành công!');
+        toast.success(isActive ? `Chặn user thành công!` : `Kích hoạt user thành công!`);
       } else {
-        alert('❌ Thao tác thất bại.');
+        toast.error('Thao tác thất bại.');
       }
     } catch (error) {
       console.error('Error toggling user status:', error);
-      alert('❌ Lỗi khi thực hiện thao tác.');
+      toast.error('Lỗi khi thực hiện thao tác.');
     } finally {
       setUserActionLoading(prev => ({ ...prev, [userId]: false }));
     }
@@ -209,13 +211,13 @@ export default function Users() {
           }
           return p;
         }));
-        alert(isActive ? '✅ Chặn publisher thành công!' : '✅ Bỏ chặn publisher thành công!');
+        toast.success(isActive ? `Chặn publisher thành công!` : `Kích hoạt publisher thành công!`);
       } else {
-        alert('❌ Thao tác thất bại.');
+        toast.error('Thao tác thất bại.');
       }
     } catch (error) {
       console.error('Error toggling publisher status:', error);
-      alert('❌ Lỗi khi thực hiện thao tác.');
+      toast.error('Lỗi khi thực hiện thao tác.');
     } finally {
       setPublisherActionLoading(prev => ({ ...prev, [pubId]: false }));
     }
@@ -228,15 +230,13 @@ const handlePublisherApprove = async (publisherRequestId) => {
     const success = await approvePublisherRequest(publisherRequestId, setAccessToken);
     if (success) {
       setPublishers(prev => prev.map(pub => pub.publisherRequestId === publisherRequestId ? { ...pub, status: 'Active', publisherRequestId: null } : pub));
-      // optional user feedback
-      alert('✅ Duyệt Publisher thành công!');
+      toast.success('Duyệt Publisher thành công!');
     } else {
-      // server reported failure
-      alert('❌ Duyệt Publisher thất bại: server trả về không thành công.');
+      toast.error('Duyệt Publisher thất bại: server trả về không thành công.');
     }
   } catch (error) {
     console.error('Error approving publisher request:', error);
-    alert('❌ Lỗi khi gọi API duyệt publisher.');
+    toast.error('Lỗi khi gọi API duyệt publisher.');
   } finally {
     setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: false }));
   }
@@ -249,13 +249,13 @@ const handlePublisherReject = async (publisherRequestId) => {
     const success = await rejectPublisherRequest(publisherRequestId, setAccessToken);
     if (success) {
       setPublishers(prev => prev.map(pub => pub.publisherRequestId === publisherRequestId ? { ...pub, status: 'Rejected', publisherRequestId: null } : pub));
-      alert('✅ Từ chối Publisher thành công!');
+      toast.error('Từ chối Publisher thành công!');
     } else {
-      alert('❌ Từ chối Publisher thất bại: server trả về không thành công.');
+      toast.error('Từ chối Publisher thất bại: server trả về không thành công.');
     }
   } catch (error) {
     console.error('Error rejecting publisher request:', error);
-    alert('❌ Lỗi khi gọi API từ chối publisher.');
+    toast.error('Lỗi khi gọi API từ chối publisher.');
   } finally {
     setPublisherActionLoading(prev => ({ ...prev, [publisherRequestId]: false }));
   }

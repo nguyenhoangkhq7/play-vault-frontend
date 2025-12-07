@@ -3,6 +3,7 @@
 import { api } from "./authApi"; 
 
 // 1. Lấy danh sách Wishlist (GET)
+// Backend: GET /api/wishlist
 export async function getWishlist() {
   // api.get tự động thêm API_BASE_URL và Header Authorization
   const response = await api.get("/api/wishlist");
@@ -10,14 +11,14 @@ export async function getWishlist() {
 }
 
 // 2. Thêm game vào wishlist (POST)
+// Backend: POST /api/wishlist/add/{gameId}
 export async function createWishlist(gameId) {
-  // Tham số thứ 2 là body (data), ở đây backend không cần body nên để null
-  const response = await api.post(`/api/wishlist/${gameId}`, null);
+  const response = await api.post(`/api/wishlist/add/${gameId}`);
   return response.data;
 }
 
 // 3. Xóa game khỏi wishlist (DELETE)
-// (Tên hàm giữ nguyên là updateWishlist để không lỗi code cũ, dù logic là Delete)
+// Backend: DELETE /api/wishlist/{gameId}
 export async function updateWishlist(gameId) {
   const response = await api.delete(`/api/wishlist/${gameId}`);
   return response.data;

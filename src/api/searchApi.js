@@ -11,6 +11,16 @@ const searchApi = {
     return axiosClient.get(url, { params });
   },
 
+  
+  /**
+   * Tìm kiếm game bằng AI
+   * @param {string} query - Từ khóa tìm kiếm
+   */
+  searchGamesAI: (query) => {
+    const url = '/games/search-ai';
+    return axiosClient.get(url, { params: { query } });
+  },
+
   // API phụ: Lấy danh sách Category để đổ vào thẻ Select (nếu bạn đã có API này)
   getAllCategories: () => {
     return axiosClient.get('/categories'); 

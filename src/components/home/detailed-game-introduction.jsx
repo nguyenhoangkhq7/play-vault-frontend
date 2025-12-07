@@ -96,12 +96,11 @@ useEffect(() => {
     }
   }, [cart, game])
 
-  // Refresh cart on mount
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && user?.customerId) {
       refreshCart(accessToken)
     }
-  }, [accessToken, refreshCart])
+  }, [])
 
   // Hàm xử lý khi nhấn "Mua Ngay"
  const handleBuyNow = async () => {
@@ -118,18 +117,6 @@ useEffect(() => {
     }
     console.log(`Buy Now: ${game.title} (ID: ${game.id})`)
     navigate(`/product/${game.id}`)
-    // try {
-    //   if (!isInCart) {
-    //     setIsInCart(true) // Optimistic update
-    //     await addToCart(user.customerId, game.id)
-    //     await checkCartStatus() // Sync with backend
-    //   }
-    //   navigate(`/product/${game.id}`) // Redirect to game detail page
-    // } catch (err) {
-    //   console.error("Error adding to cart for Buy Now:", err)
-    //   setIsInCart(false) // Revert on failure
-    //   alert("Không thể thêm game vào giỏ hàng để mua. Vui lòng thử lại.")
-    // }
   }
 
   // Hàm xử lý khi nhấn "Thêm Vào Giỏ" hoặc "Xóa Khỏi Giỏ"

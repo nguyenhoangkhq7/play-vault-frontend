@@ -104,7 +104,7 @@ export default function GamesPage() {
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
       setFilterParams(prev => ({ ...prev, page: newPage }));
-      window.scrollTo({ top: 500, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -128,16 +128,13 @@ export default function GamesPage() {
     }));
   };
 
-  const currentGame = featuredGames.length > 0 ? featuredGames[currentSlide] : null;
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % featuredGames.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + featuredGames.length) % featuredGames.length);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-950 via-purple-900 to-purple-950 font-sans text-slate-200">
       
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-purple-950/80 border-b border-purple-800/50">
+      {/* --- HEADER --- */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-purple-950/80 border-b border-purple-800/50 shadow-lg shadow-purple-900/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-purple-500 bg-clip-text text-transparent">
                 Khám Phá Các Tựa Game
@@ -154,7 +151,35 @@ export default function GamesPage() {
             </div>
           </div>
 
-          <div className="max-w-2xl mx-auto md:mx-0 relative z-20">
+          {/* --- DANH MỤC (CATEGORIES) --- */}
+          <div className="w-full overflow-x-auto pb-2 no-scrollbar">
+            <div className="flex flex-nowrap gap-2 min-w-max">
+              {genres.map((genre) => (
+                <motion.button 
+                  key={genre.id || 'all'} 
+                  whileHover={{ scale: 1.05 }} 
+                  whileTap={{ scale: 0.95 }} 
+                  onClick={() => handleGenreSelect(genre.id)} 
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition border whitespace-nowrap ${
+                    filterParams.categoryId === genre.id 
+                    ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20' 
+                    : 'bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600'
+                  }`}
+                >
+                  {genre.name}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* --- MAIN CONTENT (Đã tăng khoảng cách top: py-12 và mt-4) --- */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-4 space-y-8">
+        
+        {/* --- TÌM KIẾM (SEARCH & FILTER) --- */}
+        <section>
+          <div className="max-w-2xl relative z-20">
             <div className="flex gap-2">
               <div className="relative group flex-1">
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-500" />
@@ -173,7 +198,6 @@ export default function GamesPage() {
                 <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -10, height: 0 }} className="absolute top-full left-0 right-0 mt-2 overflow-hidden shadow-2xl z-30">
                   <div className="bg-purple-900/95 border border-purple-700 backdrop-blur-xl rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
-                      {/* Đã đổi VNĐ -> GCoin */}
                       <span className="text-sm font-bold text-white">Khoảng giá (GCoin)</span>
                       <button onClick={handleResetPriceFilter} className="text-xs text-slate-400 hover:text-pink-400 flex items-center gap-1"><X size={12} /> Đặt lại</button>
                     </div>
@@ -187,35 +211,6 @@ export default function GamesPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-        {/* SLIDER */}
-        
-        {/* CATEGORIES - DYNAMIC RENDER */}
-        <section>
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-purple-300 uppercase tracking-wider">Danh mục & Thể loại</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {genres.map((genre) => (
-              <motion.button 
-                key={genre.id || 'all'} 
-                whileHover={{ scale: 1.05 }} 
-                whileTap={{ scale: 0.95 }} 
-                onClick={() => handleGenreSelect(genre.id)} 
-                className={`px-5 py-2 rounded-full text-sm font-medium transition border ${
-                  filterParams.categoryId === genre.id 
-                  ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20' 
-                  : 'bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600'
-                }`}
-              >
-                {/* Sử dụng field 'name' từ API thay vì 'label' */}
-                {genre.name}
-              </motion.button>
-            ))}
           </div>
         </section>
 
@@ -268,7 +263,6 @@ export default function GamesPage() {
                           </div>
 
                           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
-                            {/* Đã đổi đ -> GCoin */}
                             <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} GCoin` : 'Free'}</span>
                             <Link to={`/product/${game.id}`}>
                               <motion.div whileHover={{ scale: 1.05 }} className="px-4 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/50 text-pink-300 text-xs font-bold cursor-pointer">Xem</motion.div>
@@ -299,7 +293,6 @@ export default function GamesPage() {
                           </div>
                         </div>
                         <div className="flex flex-col items-center sm:items-end gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-700/50 pt-3 sm:pt-0 sm:pl-4">
-                          {/* Đã đổi đ -> GCoin */}
                           <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} GCoin` : 'Free'}</span>
                           <div className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20">Chi tiết</div>
                         </div>

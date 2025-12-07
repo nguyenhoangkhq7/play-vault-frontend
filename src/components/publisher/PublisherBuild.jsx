@@ -3,14 +3,16 @@ import { useOutletContext } from "react-router-dom";
 
 export default function PublisherBuild() {
   const {
-    buildInputRef,
-    pickFile,
-    prevent,
-    onBuildFiles,
-    buildProgress,
-    isUploading,
-    buildName,
-    buildUrl,
+    buildInputRef, pickFile, prevent, onBuildFiles,
+    buildProgress, isUploading, buildName,
+    // --- state đồng bộ backend ---
+    notes, setNotes,        // description (ghi chú phát hành)
+    ram, setRam,
+    storage, setStorage,
+    cpu, setCpu,
+    gpu, setGpu,
+    age18, setAge18,        // requiredAge
+    controller, setController, // isSupportController
   } = useOutletContext();
 
   return (
@@ -90,21 +92,6 @@ export default function PublisherBuild() {
                   : "Chưa tải lên"}
               </span>
             </div>
-            {/* Link tải/preview build sau khi upload */}
-            {!!buildUrl && !isUploading && (
-              <div className="mt-3 text-xs text-purple-300/80">
-                <a
-                  href="{buildUrl}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-+                            border border-purple-500/40 bg-purple-900/40
-+                            hover:border-pink-500/60 hover:bg-purple-800/40 transition"
-                >
-                  <i className="bi bi-box-arrow-down" />
-+                 Tải build từ Drive
-                </a>
-              </div>)}
           </div>
         </div>
 
@@ -123,16 +110,17 @@ export default function PublisherBuild() {
               Ghi chú phát hành
             </h6>
 
+
+              
             <textarea
-              className="
-                w-full rounded-lg border border-white/20 bg-black/20
+              className="w-full rounded-lg border border-white/20 bg-black/20
                 text-sm text-white placeholder-purple-200/50
                 px-3 py-2 outline-none
                 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
                 focus:bg-purple-800/40 transition
-                mb-4
-              "
-              rows={7}
+                mb-4"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="Nội dung cập nhật, yêu cầu cấu hình, known issues..."
             />
 
@@ -144,13 +132,14 @@ export default function PublisherBuild() {
                 </label>
                 <input
                   type="text"
-                  className="
-                    w-full rounded-lg border border-white/20 bg-black/20
+                  className="w-full rounded-lg border border-white/20 bg-black/20
                     text-sm text-white placeholder-purple-200/50
                     px-3 py-2 outline-none
                     focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
                     focus:bg-purple-800/40 transition
-                  "
+                    mb-4"
+                  value={ram}
+                  onChange={(e) => setRam(e.target.value)}
                   placeholder="8 GB"
                 />
               </div>
@@ -162,6 +151,42 @@ export default function PublisherBuild() {
                 </label>
                 <input
                   type="text"
+                  className="w-full rounded-lg border border-white/20 bg-black/20
+                    text-sm text-white placeholder-purple-200/50
+                    px-3 py-2 outline-none
+                    focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
+                    focus:bg-purple-800/40 transition
+                    mb-4"
+                  value={storage}
+                  onChange={(e) => setStorage(e.target.value)}
+                  placeholder="10 GB"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-purple-200/80 mb-1">
+                  CPU tối thiểu
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-lg border border-white/20 bg-black/20
+                    text-sm text-white placeholder-purple-200/50
+                    px-3 py-2 outline-none
+                    focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
+                    focus:bg-purple-800/40 transition
+                    mb-4"
+                  value={cpu}
+                  onChange={(e) => setCpu(e.target.value)}
+                  placeholder="Intel i5-2400/AMD FX-6300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-purple-200/80 mb-1">
+                  GPU tối thiểu
+                </label>
+                <input
+                  type="text"
                   className="
                     w-full rounded-lg border border-white/20 bg-black/20
                     text-sm text-white placeholder-purple-200/50
@@ -169,8 +194,64 @@ export default function PublisherBuild() {
                     focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
                     focus:bg-purple-800/40 transition
                   "
-                  placeholder="10 GB"
+                  value={gpu}
+                  onChange={(e) => setGpu(e.target.value)}
+                  placeholder="RGTX 1050 Ti/GTX 960"
                 />
+              </div>
+
+              {/* Tuổi tối thiểu */}
+              <div>
+                <label className="block text-xs font-medium text-purple-200/80 mb-1">
+                  Tuổi tối thiểu
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="
+                    w-full rounded-lg border border-white/20 bg-black/20
+                    text-sm text-white placeholder-purple-200/50
+                    px-3 py-2 outline-none
+                    focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
+                    focus:bg-purple-800/40 transition
+                  "
+                  placeholder="0"
+                  value={age18}
+                  onChange={(e) => setAge18(e.target.value)}
+                />
+              </div>
+
+              {/* Hỗ trợ tay cầm */}
+              <div className="col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setController(!controller)}
+                  className="flex items-center gap-3 text-left w-full"
+                >
+                  <span
+                    className={`
+                      relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full
+                      border border-white/20 transition
+                      ${controller
+                        ? "bg-gradient-to-r from-pink-500 to-purple-500 shadow-[0_0_16px_rgba(236,72,153,0.6)] border-pink-400/50"
+                        : "bg-black/40"
+                      }
+                    `}
+                  >
+                    <span
+                      className={`
+                        pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition
+                        ${controller ? "translate-x-5" : "translate-x-1"}
+                      `}
+                    />
+                  </span>
+                  <span className="text-sm text-white">
+                    Hỗ trợ tay cầm
+                    <span className="block text-xs text-purple-200/70">
+                      {controller ? "Có hỗ trợ" : "Không hỗ trợ"}
+                    </span>
+                  </span>
+                </button>
               </div>
             </div>
           </div>

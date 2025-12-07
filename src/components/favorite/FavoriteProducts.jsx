@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { getWishlist, updateWishlist } from "../../api/wishlist.js";
 
 export default function FavoriteProducts() {
@@ -85,7 +84,7 @@ export default function FavoriteProducts() {
         ...game,
         status: "not_purchased",
         downloadProgress: 0,
-        price: `${game.price?.toLocaleString() || 0}đ`,
+        price: `${game.price?.toLocaleString("fr-FR") || 0} GCoin`,
         tags: game.tags || [],
         thumbnailImage:
           game.thumbnail ||

@@ -34,9 +34,20 @@ import { useUser } from "../../store/UserContext.jsx";
 
 export default function PurchasedProducts() {
     const [view, setView] = useState("list");
-    const [statusFilter, setStatusFilter] = useState("all");
     const [priceFilter, setPriceFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
+    
+    // Danh sách thể loại game từ database
+    const gameCategories = [
+        { id: 1, name: "Action" },
+        { id: 2, name: "Adventure" },
+        { id: 3, name: "RPG" },
+        { id: 4, name: "Simulation" },
+        { id: 5, name: "Strategy" },
+        { id: 6, name: "Puzzle" },
+        { id: 7, name: "Horror" },
+        { id: 8, name: "Racing" },
+    ];
     const [searchQuery, setSearchQuery] = useState("");
     const [searchInput, setSearchInput] = useState(""); // Input tạm, chỉ update searchQuery khi Enter
     const [products, setProducts] = useState([]);
@@ -132,11 +143,8 @@ export default function PurchasedProducts() {
         }
     };
 
-    // ✅ Filter theo status, search, price, category (client-side)
+    // ✅ Filter theo search, price, category (client-side)
     const filteredProducts = products.filter((product) => {
-        // Filter theo status
-        const matchesStatus = statusFilter === "all" || product.status === statusFilter;
-        
         // Filter theo search query (tên game)
         const matchesSearch = searchQuery === "" || product.name.toLowerCase().includes(searchQuery.toLowerCase());
         
@@ -154,20 +162,15 @@ export default function PurchasedProducts() {
             matchesPrice = product.price > 300000;
         }
         
-        return matchesStatus && matchesSearch && matchesCategory && matchesPrice;
+        return matchesSearch && matchesCategory && matchesPrice;
     });
 
     const formatCurrency = (amount) => {
         // Nếu amount là số, format bình thường
         const numAmount = Number(amount);
-        if (isNaN(numAmount)) return "0₫";
+        if (isNaN(numAmount)) return "0 GCoin";
         
-        return new Intl.NumberFormat("vi-VN", {
-            style: "currency",
-            currency: "VND",
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2,
-        }).format(numAmount);
+        return numAmount.toLocaleString('vi-VN') + " GCoin";
     };
 
     // Handle login click
@@ -275,15 +278,17 @@ export default function PurchasedProducts() {
                         />
                     </div>
 
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                         <SelectTrigger className="w-[180px] bg-purple-900/80 border-purple-700/50 hover:border-purple-600 shadow-lg rounded-lg text-white">
-                            <SelectValue placeholder="Trạng thái đơn hàng" />
+                            <SelectValue placeholder="Thể loại" />
                         </SelectTrigger>
                         <SelectContent className="bg-purple-900 border-purple-700 text-white rounded-lg">
-                            <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                            <SelectItem value="processing" className="text-yellow-400">
-                                Đang xử lý
-                            </SelectItem>
+                            <SelectItem value="all">Tất cả thể loại</SelectItem>
+                            {gameCategories.map(cat => (
+                                <SelectItem key={cat.id} value={cat.name}>
+                                    {cat.name}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
 
@@ -294,40 +299,13 @@ export default function PurchasedProducts() {
                         <SelectContent className="bg-purple-900 border-purple-700 text-white rounded-lg">
                             <SelectItem value="all">Tất cả mức giá</SelectItem>
                             <SelectItem value="under100k">
-                                Dưới 100.000₫
+                                Dưới 100,000 GCoin
                             </SelectItem>
                             <SelectItem value="100k-300k">
-                                100.000₫ - 300.000₫
+                                100,000 - 300,000 GCoin
                             </SelectItem>
                             <SelectItem value="over300k">
-                                Trên 300.000₫
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[180px] bg-purple-900/80 border-purple-700/50 hover:border-purple-600 shadow-lg rounded-lg text-white">
-                            <SelectValue placeholder="Thể loại" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-purple-900 border-purple-700 text-white rounded-lg">
-                            <SelectItem value="all">Tất cả thể loại</SelectItem>
-                            <SelectItem value="action">
-                                Hành động
-                            </SelectItem>
-                            <SelectItem value="adventure">
-                                Phiêu lưu
-                            </SelectItem>
-                            <SelectItem value="rpg">
-                                Nhập vai
-                            </SelectItem>
-                            <SelectItem value="strategy">
-                                Chiến thuật
-                            </SelectItem>
-                            <SelectItem value="simulation">
-                                Mô phỏng
-                            </SelectItem>
-                            <SelectItem value="other">
-                                Thể loại khác
+                                Trên 300,000 GCoin
                             </SelectItem>
                         </SelectContent>
                     </Select>
@@ -335,7 +313,6 @@ export default function PurchasedProducts() {
                     <Button
                         className="bg-purple-700 hover:bg-purple-600 text-white"
                         onClick={() => {
-                            setStatusFilter("all");
                             setPriceFilter("all");
                             setCategoryFilter("all");
                             setSearchQuery("");
@@ -368,7 +345,6 @@ export default function PurchasedProducts() {
                             <Button
                                 className="mt-2 bg-purple-700 hover:bg-purple-600 text-white"
                                 onClick={() => {
-                                    setStatusFilter("all");
                                     setPriceFilter("all");
                                     setCategoryFilter("all");
                                     setSearchQuery("");

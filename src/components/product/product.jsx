@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import searchApi from "../../api/searchApi"; 
 import { 
   ChevronLeft, ChevronRight, Star, Heart, Search, 
@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GamesPage() {
+  const [searchParams] = useSearchParams();
   const [games, setGames] = useState([]); 
   const [featuredGames, setFeaturedGames] = useState([]); 
   const [loading, setLoading] = useState(false);
@@ -50,24 +51,44 @@ export default function GamesPage() {
     }
   };
 
-  // 2. Fetch Games
-  const fetchGames = async () => {
-    try {
-      setLoading(true);
-      const response = await searchApi.searchGames(filterParams);
-      
-      if (response && response.content) {
-        setGames(response.content); 
-        setTotalPages(response.totalPages); 
-      } else {
-        setGames([]);
+  // 2. Fetch Games - Kết hợp API search thường và AI
+const fetchGames = async () => {
+  try {
+    setLoading(true);
+    
+    // Gọi API search thường
+    const normalResponse = await searchApi.searchGames(filterParams);
+    let normalGames = normalResponse?.content || [];
+    let totalPagesFromApi = normalResponse?.totalPages || 0;
+    
+    // Nếu có keyword, gọi thêm API search-ai và kết hợp kết quả
+    if (filterParams.keyword && filterParams.keyword.trim() !== '') {
+      try {
+        const aiResponse = await searchApi.searchGamesAI(filterParams.keyword);
+        const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
+        
+        // Kết hợp và loại bỏ trùng lặp dựa trên id
+        const existingIds = new Set(normalGames.map(g => g.id));
+        const uniqueAiGames = aiGames.filter(g => !existingIds.has(g.id));
+        
+        // Gộp kết quả: games từ search thường + games mới từ AI
+        normalGames = [...normalGames, ...uniqueAiGames];
+        
+        console.log(`Search kết hợp: ${normalResponse?.content?.length || 0} từ search thường + ${uniqueAiGames.length} từ AI = ${normalGames.length} kết quả`);
+      } catch (aiError) {
+        console.warn("Lỗi khi gọi search-ai, sử dụng kết quả search thường:", aiError);
       }
-    } catch (error) {
-      console.error("Lỗi:", error);
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    setGames(normalGames);
+    setTotalPages(totalPagesFromApi);
+  } catch (error) {
+    console.error("Lỗi:", error);
+    setGames([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchFeaturedGames = async () => {
     try {
@@ -82,9 +103,13 @@ export default function GamesPage() {
 
   // Gọi API Categories khi mount
   useEffect(() => {
+    const keyword = searchParams.get('keyword');
+    if (keyword) {
+      setSearchQuery(keyword);
+    }
     fetchCategories();
     fetchFeaturedGames();
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchGames();
@@ -104,7 +129,7 @@ export default function GamesPage() {
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
       setFilterParams(prev => ({ ...prev, page: newPage }));
-      window.scrollTo({ top: 500, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -128,16 +153,13 @@ export default function GamesPage() {
     }));
   };
 
-  const currentGame = featuredGames.length > 0 ? featuredGames[currentSlide] : null;
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % featuredGames.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + featuredGames.length) % featuredGames.length);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-950 via-purple-900 to-purple-950 font-sans text-slate-200">
       
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-purple-950/80 border-b border-purple-800/50">
+      {/* --- HEADER --- */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-purple-950/80 border-b border-purple-800/50 shadow-lg shadow-purple-900/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-purple-500 bg-clip-text text-transparent">
                 Khám Phá Các Tựa Game
@@ -154,7 +176,35 @@ export default function GamesPage() {
             </div>
           </div>
 
-          <div className="max-w-2xl mx-auto md:mx-0 relative z-20">
+          {/* --- DANH MỤC (CATEGORIES) --- */}
+          <div className="w-full overflow-x-auto pb-2 no-scrollbar">
+            <div className="flex flex-nowrap gap-2 min-w-max">
+              {genres.map((genre) => (
+                <motion.button 
+                  key={genre.id || 'all'} 
+                  whileHover={{ scale: 1.05 }} 
+                  whileTap={{ scale: 0.95 }} 
+                  onClick={() => handleGenreSelect(genre.id)} 
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition border whitespace-nowrap ${
+                    filterParams.categoryId === genre.id 
+                    ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20' 
+                    : 'bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600'
+                  }`}
+                >
+                  {genre.name}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* --- MAIN CONTENT (Đã tăng khoảng cách top: py-12 và mt-4) --- */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-4 space-y-8">
+        
+        {/* --- TÌM KIẾM (SEARCH & FILTER) --- */}
+        <section>
+          <div className="max-w-2xl relative z-20">
             <div className="flex gap-2">
               <div className="relative group flex-1">
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition duration-500" />
@@ -173,7 +223,7 @@ export default function GamesPage() {
                 <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -10, height: 0 }} className="absolute top-full left-0 right-0 mt-2 overflow-hidden shadow-2xl z-30">
                   <div className="bg-purple-900/95 border border-purple-700 backdrop-blur-xl rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-white">Khoảng giá (VNĐ)</span>
+                      <span className="text-sm font-bold text-white">Khoảng giá (GCoin)</span>
                       <button onClick={handleResetPriceFilter} className="text-xs text-slate-400 hover:text-pink-400 flex items-center gap-1"><X size={12} /> Đặt lại</button>
                     </div>
                     <div className="flex items-center gap-3">
@@ -186,72 +236,6 @@ export default function GamesPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-        {/* SLIDER */}
-        {featuredGames.length > 0 && currentGame && (
-          <section>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-purple-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition duration-500" />
-              <div className="relative overflow-hidden rounded-2xl border border-purple-800/50 bg-purple-900/50 backdrop-blur-xl shadow-2xl h-[400px] sm:h-[500px]">
-                <AnimatePresence mode="wait">
-                  <motion.div key={currentGame.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }} className="relative h-full">
-                    <img src={currentGame.thumbnail || currentGame.image || fallbackImage} alt={currentGame.name} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.src = fallbackImage)} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-                  </motion.div>
-                </AnimatePresence>
-                <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10 pointer-events-none">
-                  <motion.div key={currentGame.id + "-content"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="space-y-4 max-w-3xl pointer-events-auto">
-                    <div>
-                      <Link to={`/product/${currentGame.id}`}>
-                        <h2 className="text-3xl sm:text-5xl font-bold text-white mb-3 leading-tight hover:text-pink-400 transition drop-shadow-lg">{currentGame.name}</h2>
-                      </Link>
-                      <p className="text-slate-300 text-sm sm:text-base line-clamp-2 drop-shadow-md">{currentGame.description || "Trải nghiệm thế giới game đỉnh cao."}</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-6 pt-4 border-t border-slate-700/50">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{currentGame.price ? `${currentGame.price.toLocaleString()} đ` : 'Liên hệ'}</span>
-                      </div>
-                      <div className="flex gap-3">
-                        <Link to={`/product/${currentGame.id}`}>
-                          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-3 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold shadow-lg transition">Xem Ngay</motion.button>
-                        </Link>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-                <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/40 hover:bg-purple-600/80 border border-white/10 text-white transition backdrop-blur-md z-10"><ChevronLeft size={24} /></button>
-                <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/40 hover:bg-purple-600/80 border border-white/10 text-white transition backdrop-blur-md z-10"><ChevronRight size={24} /></button>
-              </div>
-            </motion.div>
-          </section>
-        )}
-
-        {/* CATEGORIES - DYNAMIC RENDER */}
-        <section>
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-purple-300 uppercase tracking-wider">Danh mục & Thể loại</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {genres.map((genre) => (
-              <motion.button 
-                key={genre.id || 'all'} 
-                whileHover={{ scale: 1.05 }} 
-                whileTap={{ scale: 0.95 }} 
-                onClick={() => handleGenreSelect(genre.id)} 
-                className={`px-5 py-2 rounded-full text-sm font-medium transition border ${
-                    filterParams.categoryId === genre.id 
-                    ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20' 
-                    : 'bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600'
-                }`}
-              >
-                {/* Sử dụng field 'name' từ API thay vì 'label' */}
-                {genre.name}
-              </motion.button>
-            ))}
           </div>
         </section>
 
@@ -304,7 +288,7 @@ export default function GamesPage() {
                           </div>
 
                           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
-                            <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} đ` : 'Free'}</span>
+                            <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} GCoin` : 'Free'}</span>
                             <Link to={`/product/${game.id}`}>
                               <motion.div whileHover={{ scale: 1.05 }} className="px-4 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/50 text-pink-300 text-xs font-bold cursor-pointer">Xem</motion.div>
                             </Link>
@@ -334,7 +318,7 @@ export default function GamesPage() {
                           </div>
                         </div>
                         <div className="flex flex-col items-center sm:items-end gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-700/50 pt-3 sm:pt-0 sm:pl-4">
-                          <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} đ` : 'Free'}</span>
+                          <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price.toLocaleString()} GCoin` : 'Free'}</span>
                           <div className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20">Chi tiết</div>
                         </div>
                       </motion.div>

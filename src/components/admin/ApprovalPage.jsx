@@ -19,7 +19,6 @@ import { gameService } from "@/api/gameService";
 function normalizeGame(g) {
   const base = g?.gameBasicInfos || g?.gameBasicInfo || g || {};
 
-  // Lấy status từ nhiều nguồn, ưu tiên server
   const rawStatus =
     g?.status ??
     g?.currentStatus ??
@@ -35,7 +34,7 @@ function normalizeGame(g) {
     publisher: base?.publisherName || base?.publisher?.name || g?.publisherName || "—",
     price: base?.price ?? g?.price ?? 0,
     coverImage: base?.thumbnail || base?.coverUrl || g?.thumbnail || g?.coverUrl,
-    status: status, // nếu server không có, tạm pending (sẽ override ở fetchGames)
+    status,
   };
 }
 
@@ -52,10 +51,14 @@ export default function ApprovalPage() {
     setLoading(true);
     setError("");
     try {
-      // backend trả tất cả game + status đúng cho từng game
-      const list = await gameService.listAll(); 
+      const list = await gameService.listAll();
       const items = Array.isArray(list) ? list.map(normalizeGame) : [];
-      setGames(items);
+
+      const approvalGames = items.filter(g => 
+          g.status === 'pending' || g.status === 'rejected'
+      );
+
+      setGames(approvalGames);
     } catch (e) {
       console.error(e);
       setError("Không tải được danh sách game.");
@@ -65,7 +68,7 @@ export default function ApprovalPage() {
   }, []);
 
   useEffect(() => {
-    fetchGames(); // load lần đầu
+    fetchGames();
   }, [fetchGames]);
 
   const getStatusConfig = (status) => {
@@ -115,33 +118,31 @@ export default function ApprovalPage() {
   const handleCardClick = (id) => navigate(`/admin/approval/games/${id}`);
 
   const mutateStatus = async (id, next) => {
-  setWorkingId(id);
-  const snapshot = games.map((g) => ({ ...g })); // rollback nếu lỗi
+    setWorkingId(id);
+    const snapshot = games.map((g) => ({ ...g }));
 
-  // optimistic
-  setGames((prev) => prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g)));
-
-  try {
-    const res = await gameService.updateStatus(id, next);
-    const returnedStatus =
-      (res?.data?.status || res?.status || next)?.toString().toUpperCase();
-
-    // đồng bộ item vừa cập nhật theo response
     setGames((prev) =>
-      prev
-        .map((g) => (g.id === id ? { ...g, status: returnedStatus.toLowerCase() } : g))
+      prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g))
     );
 
-    // Nếu trang này hiển thị list theo filter PENDING, có thể refetch để đồng bộ toàn trang:
-    // await fetchGames();
-  } catch (e) {
-    console.error("Update status failed:", e);
-    alert(e?.response?.data?.message || "Cập nhật trạng thái thất bại.");
-    setGames(snapshot); // rollback
-  } finally {
-    setWorkingId(null);
-  }
-};
+    try {
+      const res = await gameService.updateStatus(id, next);
+      const returnedStatus =
+        (res?.data?.status || res?.status || next)?.toString().toUpperCase();
+
+      setGames((prev) =>
+        prev.map((g) =>
+          g.id === id ? { ...g, status: returnedStatus.toLowerCase() } : g
+        )
+      );
+    } catch (e) {
+      console.error("Update status failed:", e);
+      alert(e?.response?.data?.message || "Cập nhật trạng thái thất bại.");
+      setGames(snapshot);
+    } finally {
+      setWorkingId(null);
+    }
+  };
 
   const handleApprove = (id) => mutateStatus(id, "APPROVED");
   const handleReject = (id) => mutateStatus(id, "REJECTED");
@@ -149,7 +150,7 @@ export default function ApprovalPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 flex flex-col">
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-50 flex-shrink-0">
+        <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-0 flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-center items-center">
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white text-center tracking-wide drop-shadow-lg">
               Quản lý duyệt game
@@ -177,7 +178,6 @@ export default function ApprovalPage() {
               <SelectContent className="bg-gray-900 border-purple-700/30 text-white z-[9999]">
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="pending">Chờ duyệt</SelectItem>
-                <SelectItem value="approved">Đã duyệt</SelectItem>
                 <SelectItem value="rejected">Từ chối</SelectItem>
               </SelectContent>
             </Select>
@@ -195,10 +195,9 @@ export default function ApprovalPage() {
               {filteredGames.map((game) => {
                 const statusConfig = getStatusConfig(game.status);
                 const StatusIcon = statusConfig.icon;
-                const priceDisplay = new Intl.NumberFormat("vi-VN", {
-                  style: "currency",
-                  currency: "VND",
-                }).format(Number(game.price || 0));
+                
+                // --- CHỈNH SỬA TẠI ĐÂY: Format GCoin ---
+                const priceDisplay = new Intl.NumberFormat("vi-VN").format(Number(game.price || 0)) + " GCoin";
 
                 return (
                   <div
@@ -211,10 +210,11 @@ export default function ApprovalPage() {
                         src={game.coverImage || "/images/placeholder-16x9.png"}
                         alt={game.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) =>
-                          (e.currentTarget.src =
-                            "https://via.placeholder.com/300x200?text=Error")
-                        }
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "https://via.placeholder.com/300x200?text=Image+Not+Available";
+                        }}
                       />
                     </div>
 
@@ -242,9 +242,7 @@ export default function ApprovalPage() {
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${statusConfig.badgeColor} w-fit`}
                       >
                         <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
-                        <span
-                          className={`text-sm font-medium ${statusConfig.color}`}
-                        >
+                        <span className={`text-sm font-medium ${statusConfig.color}`}>
                           {statusConfig.label}
                         </span>
                       </div>

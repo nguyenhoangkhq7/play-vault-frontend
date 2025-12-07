@@ -62,10 +62,17 @@ export function GameDetailPage() {
     }
   };
 
+  const resolveStatus = (data) => {
+    if (!data) return "";
+    const status = data.submissionStatus || 
+                   data.submission?.status || 
+                   data.status; 
+    return String(status || "").toUpperCase();
+  };
+
   // Helper Styles
   const getStatusStyle = (status) => {
-    const s = String(status || "").toUpperCase();
-    switch (s) {
+    switch (status) {
       case "PENDING": return "bg-yellow-500/20 text-yellow-300 border-yellow-500/40";
       case "APPROVED": case "ACTIVE": return "bg-green-500/20 text-green-300 border-green-500/40";
       case "REJECTED": case "INACTIVE": return "bg-red-500/20 text-red-300 border-red-500/40";
@@ -74,8 +81,7 @@ export function GameDetailPage() {
   };
 
   const getStatusText = (status) => {
-    const s = String(status || "").toUpperCase();
-    switch (s) {
+    switch (status) {
       case "PENDING": return "Chờ duyệt";
       case "APPROVED": return "Đã duyệt";
       case "ACTIVE": return "Đang hoạt động";
@@ -85,21 +91,10 @@ export function GameDetailPage() {
     }
   };
 
-  // Helper format ngày
   const formatDate = (dateString) => {
-    // 1. Kiểm tra nếu không có dữ liệu
     if (!dateString) return "N/A";
-
-    // 2. Tạo đối tượng Date
     const date = new Date(dateString);
-
-    // 3. QUAN TRỌNG: Kiểm tra xem date có hợp lệ không (Check Invalid Date)
-    // Nếu dateString là "N/A" thì date.getTime() sẽ là NaN
-    if (isNaN(date.getTime())) {
-        return dateString; // Trả về nguyên văn chuỗi (ví dụ: "N/A" hoặc "Chưa cập nhật")
-    }
-
-    // 4. Nếu là ngày hợp lệ thì mới format
+    if (isNaN(date.getTime())) return dateString;
     try {
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -130,26 +125,74 @@ export function GameDetailPage() {
     );
   }
 
-  // --- MAPPING DATA BACKEND -> UI VARIABLES ---
+  // --- MAPPING VARIABLES ---
   const title = gameData.name || gameData.title || "No Title";
-  const image = gameData.image || gameData.coverImage || "https://via.placeholder.com/800x400";
+  //const image = gameData.image || gameData.coverImage || "https://via.placeholder.com/800x400";
   const developer = gameData.developer || "Unknown Dev";
   const publisher = gameData.publisher || "Unknown Publisher";
   // Xử lý genre/category (cho phép chuỗi hoặc mảng)
-  const genres = Array.isArray(gameData.category) ? gameData.category : [gameData.category || "General"];
-  const description = gameData.description || "Chưa có mô tả.";
-  const screenshots = gameData.screenshots || gameData.previewImages || [];
-  const videoUrl = gameData.trailerUrl || gameData.videoUrl;
-  const platform = Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
-  const reqs = gameData.systemRequirements || gameData.minimumRequirements || {};
-  const price = gameData.price || 0;
+  //const genres = Array.isArray(gameData.category) ? gameData.category : [gameData.category || "General"];
+  // description = gameData.description || "Chưa có mô tả.";
+  //const screenshots = gameData.screenshots || gameData.previewImages || [];
+  //const videoUrl = gameData.trailerUrl || gameData.videoUrl;
+  //const platform = Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
+  // reqs = gameData.systemRequirements || gameData.minimumRequirements || {};
+  //const price = gameData.price || 0;
   // THÔNG TIN MỚI
-  const requireAged = gameData.requireAged || gameData.ageRating || "12"; 
+  //const requireAged = gameData.requireAged || gameData.ageRating || "12"; 
+
+  // Lấy block basic info (nếu backend bọc trong gameBasicInfo)
+const gbi = gameData.gameBasicInfo || gameData.basicInfo || gameData;
+
+// Ảnh bìa
+const image =
+  gbi?.thumbnail ||
+  gameData.thumbnail ||
+  gameData.image ||
+  gameData.coverImage ||
+  "https://via.placeholder.com/800x400";
+
+// Thể loại
+const genres = Array.isArray(gbi?.category)
+  ? gbi.category
+  : [gbi?.category?.name || gbi?.category || "General"];
+
+// Mô tả
+const description = gbi?.description || gameData.description || "Chưa có mô tả.";
+
+// Trailer
+const videoUrl = gbi?.trailerUrl || gameData.trailerUrl || gameData.videoUrl;
+
+// Hệ máy
+const platform = Array.isArray(gbi?.platforms)
+  ? gbi.platforms.map(p => p.name || p) 
+  : Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
+
+// Yêu cầu hệ thống
+const reqs = gbi?.systemRequirement || gameData.systemRequirements || {};
+
+// Giá
+const price = gbi?.price ?? gameData.price ?? 0;
+
+// Độ tuổi
+const requireAged = gbi?.requiredAge ?? gameData.requiredAge ?? gameData.requireAged ?? "12";
+
+// ⭐ Screenshots: chấp nhận cả mảng string lẫn mảng object {url}
+const screenshotsRaw =
+  gbi?.previewImages ||
+  gameData.previewImages ||
+  gameData.screenshots ||
+  gameData.gallery ||
+  [];
+
+const screenshots = screenshotsRaw
+  .map(it => (typeof it === "string" ? it : it?.url))
+  .filter(Boolean);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-gray-200">
       {/* HEADER */}
-      <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-md border-b border-purple-500/20">
+      <header className="sticky top-0 z-0 bg-slate-950/70 backdrop-blur-md border-b border-purple-500/20">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -236,7 +279,7 @@ export function GameDetailPage() {
             </div>
           )}
 
-          {/* Video / Trailer - CÓ NHÃN TUỔI */}
+          {/* Video / Trailer */}
           {videoUrl && (
               <div className="relative">
                 <h3 className="text-lg font-semibold text-white mb-3">Trailer</h3>
@@ -247,15 +290,11 @@ export function GameDetailPage() {
                         allowFullScreen
                         className="w-full h-full"
                     />
-                    
-                    {/* --- NHÃN TUỔI Ở GÓC PHẢI TRÊN VIDEO --- */}
                     <div className="absolute top-3 right-3 z-10 pointer-events-none">
                         <div className="flex flex-col items-center justify-center w-12 h-12 bg-red-600/90 border-2 border-white rounded-lg shadow-lg flex items-center justify-center backdrop-blur-sm">
                            <span className="text-white font-extrabold text-lg leading-none drop-shadow-md">{requireAged}+</span>
                         </div>
                     </div>
-                    {/* ---------------------------------- */}
-
                 </div>
             </div>
           )}
@@ -269,12 +308,10 @@ export function GameDetailPage() {
               Trạng thái
             </h3>
             <span
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border ${getStatusStyle(
-                gameData.status
-              )}`}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border ${getStatusStyle(currentStatus)}`}
             >
               <div className="w-2 h-2 rounded-full bg-current"></div>
-              {getStatusText(gameData.status)}
+              {getStatusText(currentStatus)}
             </span>
           </div>
 
@@ -284,11 +321,11 @@ export function GameDetailPage() {
               Thông tin kỹ thuật
             </h3>
             
-            {/* Giá */}
+            {/* Giá GCoin */}
             <div>
               <p className="text-xs text-gray-400 uppercase">Giá bán</p>
               <p className="text-white font-medium text-xl text-green-400">
-                 {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)}
+                 {new Intl.NumberFormat('vi-VN').format(price)} GCoin
               </p>
             </div>
 
@@ -313,10 +350,13 @@ export function GameDetailPage() {
                 </div>
             )}
             
-            <div>
-              <p className="text-xs text-gray-400 uppercase">Phát hành</p>
-              <p className="text-white font-medium">{formatDate(gameData.releaseDate)}</p>
-            </div>
+            {/* --- ĐIỀU KIỆN ẨN/HIỆN NGÀY PHÁT HÀNH --- */}
+            {isApproved && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase">Phát hành</p>
+                  <p className="text-white font-medium">{formatDate(gameData.releaseDate)}</p>
+                </div>
+            )}
             
             {gameData.submittedDate && (
                 <div>
@@ -325,10 +365,13 @@ export function GameDetailPage() {
                 </div>
             )}
             
-            <div>
-              <p className="text-xs text-gray-400 uppercase">Đánh giá</p>
-              <p className="text-white font-medium">{gameData.rating || 0} / 5.0</p>
-            </div>
+            {/* --- ĐIỀU KIỆN ẨN/HIỆN ĐÁNH GIÁ --- */}
+            {isApproved && (
+                <div>
+                  <p className="text-xs text-gray-400 uppercase">Đánh giá</p>
+                  <p className="text-white font-medium">{gameData.rating || 0} / 5.0</p>
+                </div>
+            )}
           </div>
 
           {/* Minimum Requirements */}
@@ -362,8 +405,8 @@ export function GameDetailPage() {
             </div>
           )}
 
-          {/* Actions - Chỉ hiển thị khi trạng thái là PENDING */}
-          {String(gameData.status || "").toUpperCase() === 'PENDING' && (
+          {/* Actions */}
+          {currentStatus === 'PENDING' && (
               <div className="space-y-3">
                 <button
                   onClick={handleApprove}

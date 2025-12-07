@@ -42,18 +42,52 @@ function PublisherUploadInner() {
   const ssRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
   const [ssUrls, setSsUrls] = useState(["", "", "", ""]);
 
-  // Store config
-  const [slug, setSlug] = useState("");
-  const [tags, setTags] = useState("");
-  const [age18, setAge18] = useState(false);
-  const [controller, setController] = useState(false);
+  // --- FORM STATE BỔ SUNG (đồng bộ backend) ---
+  const [notes, setNotes] = useState("");        // description (ghi chú phát hành)
+  const [age18, setAge18] = useState(0);         // requiredAge
+  const [controller, setController] = useState(false); // isSupportController
+
+  const [cpu, setCpu] = useState("");
+  const [gpu, setGpu] = useState("");
+  const [storage, setStorage] = useState("");
+  const [ram, setRam] = useState("");
+
+
+  const togglePlatform = (p) =>
+  setPlatforms((prev) =>
+    prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+  );
+  // ===== Gallery (4 ô) =====
+  const galleryInputRefs = [
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+  ];
+  const [galleryUrls, setGalleryUrls] = useState(["", "", "", ""]);
+  // Upload lên Drive ngay khi chọn, lưu URL trả về
+const onGalleryFiles = async (index, files) => {
+  const f = files?.[0];
+  if (!f) return;
+  if (!f.type.startsWith("image/")) {
+    alert("Vui lòng chọn ảnh (JPG/PNG/WEBP/GIF)");
+    return;
+  }
+  try {
+    const up = await driveService.uploadFile(f, true);
+    const link = up.directLink || up.viewLink || up.downloadLink; // server sẽ convert sang lh3 khi lưu
+    setGalleryUrls((prev) => {
+      const next = [...prev];
+      next[index] = link;
+      return next;
+    });
+  } catch (e) {
+    console.error(e);
+    alert("Upload ảnh gallery thất bại!");
+  }
+};
 
   // ---------------------- Helpers ----------------------
-  const togglePlatform = (value) => {
-    setPlatforms((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
-  };
 
   const pickFile = (ref) => ref.current?.click();
 
@@ -75,14 +109,31 @@ function PublisherUploadInner() {
   setCoverUrl("");
   setBuildName("");
   setSsUrls(["", "", "", ""]);
-  setSlug("");
-  setTags("");
-  setAge18(false);
-  setController(false);
   setBuildUrl("");
+  setNotes("");
+  setAge18(0);
+  setController(false);
+  setCpu(""); setGpu(""); setStorage(""); setRam("");
 };
 
-  
+  const osMap = { Windows: "WINDOWS", macOS: "MAC", Linux: "LINUX" };
+  const primaryOs = platforms[0] ? (osMap[platforms[0]] || "WINDOWS") : "WINDOWS";
+
+  const platformIds = platforms.length ? [1] : [];
+
+  // Thể loại (VN) -> id (theo DB dump của bạn)
+  const categoryMap = {
+    "Hành động": 1,
+    "Phiêu lưu": 2,
+    "Nhập vai": 3,
+    "Mô phỏng": 4,
+    "Chiến thuật": 5,
+    "Giải đố": 6,
+    "Kinh dị": 7,
+    "Đua xe": 8,
+  };
+const categoryIdMapped = categoryMap[genre] || 1;
+
   // ====================== Cover handlers (UPLOAD THẬT) ======================
   const onCoverFiles = async (files) => {
     const f = files?.[0];
@@ -157,8 +208,6 @@ function PublisherUploadInner() {
     }
   };
 
-  const platformMap = { Windows: "WINDOWS", macOS: "MACOS", Linux: "LINUX" };
-  const platformsForApi = platforms.map(p => platformMap[p] || p);                    // đã có link ảnh bìa
 
 
   // ---------------------- Progress compute ----------------------
@@ -175,29 +224,35 @@ function PublisherUploadInner() {
     return pct;
   }, [title, summary, genre, isFree, price, buildName]);
 
-  // ---------------------- Actions ----------------------
-  const onSaveDraft = () => alert("Đã lưu bản nháp (demo).");
-
   // ✅ Gửi duyệt thật: POST /api/games
   const onSubmitReview = async () => {
     try {
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+
       const payload = {
-        title,
-        summary,
-        genre,
-        releaseDate: release || null,
-        trailerUrl: trailer || null,
-        coverUrl,
-        isFree,
+        name: title,
+        shortDescription: summary,
+        description: notes,
         price: isFree ? 0 : Number(price || 0),
-        filePath: buildUrl,
-        screenshots: ssUrls.filter(Boolean),
-        tags: String(tags || "").split(",").map(s => s.trim()).filter(Boolean),
-        platforms: platformsForApi, // <— dùng biến đã map
+        releaseDate: release || null,             // "yyyy-MM-dd"
+        trailerUrl: trailer || null,
+        categoryId: categoryIdMapped,
+        requiredAge: Number(age18 || 0),
+        isSupportController: Boolean(controller),
+        platformIds,                              // [1] = PC
+        systemRequirement: {
+          os: primaryOs,                          // WINDOWS | MAC | LINUX
+          cpu,
+          gpu,
+          storage,
+          ram,
+        },
+        filePath: buildUrl,                       // gbi.file_path
+        thumbnail: coverUrl,                      // gbi.thumbnail
+        gallery: (galleryUrls || []).filter(Boolean),
       };
 
-      const token = localStorage.getItem("accessToken") || localStorage.getItem("token"); // nếu có auth
-      await gameService.create(payload, token);
+      await gameService.createPendingJson(payload, token);
 
       alert("Đã gửi duyệt thành công!");
       // Điều hướng tuỳ ý: qua trang build/store hoặc về admin approval
@@ -212,15 +267,13 @@ function PublisherUploadInner() {
   // ---------------------- Step Navigation ----------------------
   const goNextStep = () => {
     if (location.pathname.endsWith("/build")) {
-      navigate("/publisher/upload/store");
-    } else if (location.pathname.endsWith("/store")) {
-      return;
+      return; // Last step
     } else {
       navigate("/publisher/upload/build");
     }
   };
 
-  const isLastStep = location.pathname.endsWith("/store");
+  const isLastStep = location.pathname.endsWith("/build");
 
   // ---------------------- Render ----------------------
   return (
@@ -257,19 +310,10 @@ function PublisherUploadInner() {
                     type="button"
                     onClick={() => navigate("/publisher/upload/build")}
                     className={`btn px-4 ${location.pathname.endsWith("/build") ? "btn-gradient" : "btn-outline-light"}`}
-                    style={{ minWidth: "140px", marginRight: "10px" }}
+                    style={{ minWidth: "140px" }}
                   >
                     <i className="bi bi-hdd-network me-2"></i>
                     Build
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/publisher/upload/store")}
-                    className={`btn px-4 ${location.pathname.endsWith("/store") ? "btn-gradient" : "btn-outline-light"}`}
-                    style={{ minWidth: "140px" }}
-                  >
-                    <i className="bi bi-shop me-2"></i>
-                    Store
                   </button>
                 </div>
               </div>
@@ -285,24 +329,34 @@ function PublisherUploadInner() {
             <form onSubmit={(e) => e.preventDefault()} className="tab-content">
               <Outlet
                 context={{
-                  // form state
+                  // --- state phần Thông tin ---
                   title, setTitle,
                   summary, setSummary,
                   genre, setGenre,
-                  platforms, togglePlatform,
+                  platforms, setPlatforms,    // hoặc togglePlatform nếu bạn đang dùng
                   release, setRelease,
                   trailer, setTrailer,
                   isFree, setIsFree,
                   price, setPrice,
-                  // cover
+                  togglePlatform,  
+
+                  // --- Cover & Build hiện có ---
                   coverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
-                  // build
-                  buildInputRef, onBuildFiles, buildName, buildProgress, isUploading,buildUrl,
-                  // screenshots
+                  buildInputRef, onBuildFiles, buildName, buildProgress, isUploading, buildUrl,
+
+                  // --- Screenshots (nếu có) ---
                   ssRefs, ssUrls, onPickSS,
-                  // store
-                  slug, setSlug,
-                  tags, setTags,
+
+                  galleryUrls,
+                  galleryInputRefs,
+                  onGalleryFiles,
+
+                  // --- state BỔ SUNG cho tab Build ---
+                  notes, setNotes,
+                  cpu, setCpu,
+                  gpu, setGpu,
+                  storage, setStorage,
+                  ram, setRam,
                   age18, setAge18,
                   controller, setController,
                 }}
@@ -315,13 +369,12 @@ function PublisherUploadInner() {
                     Tiếp tục <i className="bi bi-arrow-right-circle ms-1" />
                   </button>
                 )}
-                <button type="button" className="btn btn-outline-light mr-3" onClick={onSaveDraft}>
-                  <i className="bi bi-save me-3" />
-                  Lưu nháp
-                </button>
-                <button type="button" className="btn btn-gradient mr-3" onClick={onSubmitReview}>
-                  Gửi duyệt <i className="bi bi-arrow-right-circle ms-1" />
-                </button>
+                
+                {isLastStep && (
+                  <button type="button" className="btn btn-gradient mr-3" onClick={onSubmitReview}>
+                    Gửi duyệt <i className="bi bi-arrow-right-circle ms-1" />
+                  </button>
+                )}
               </div>
             </form>
           </div>

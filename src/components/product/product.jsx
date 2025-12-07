@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import searchApi from "../../api/searchApi"; 
 import { 
   ChevronLeft, ChevronRight, Star, Heart, Search, 
@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GamesPage() {
+  const [searchParams] = useSearchParams();
   const [games, setGames] = useState([]); 
   const [featuredGames, setFeaturedGames] = useState([]); 
   const [loading, setLoading] = useState(false);
@@ -102,9 +103,13 @@ const fetchGames = async () => {
 
   // Gọi API Categories khi mount
   useEffect(() => {
+    const keyword = searchParams.get('keyword');
+    if (keyword) {
+      setSearchQuery(keyword);
+    }
     fetchCategories();
     fetchFeaturedGames();
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchGames();

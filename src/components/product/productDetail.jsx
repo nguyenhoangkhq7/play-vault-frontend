@@ -17,6 +17,7 @@ import { useCart } from "../../store/CartContext";
 import { useUser } from "../../store/UserContext";
 import { api } from "../../api/authApi";
 import GameReviews from "../review/GameReview";
+import SystemCompatibilityChecker from "../SystemCompatibilityChecker";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -71,6 +72,19 @@ export default function ProductDetailPage() {
     };
 
     fetchDetail();
+
+    // 🔥 LISTEN EVENT: Khi thanh toán thành công, refetch dữ liệu
+    const handlePurchaseSuccess = () => {
+      console.log("🎉 Phát hiện mua hàng thành công, refetch dữ liệu...");
+      fetchDetail();
+    };
+
+    window.addEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+
+    // Cleanup listener
+    return () => {
+      window.removeEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+    };
   }, [id, accessToken]); // ✅ Thêm cart vào dependency
 
   // Effect riêng chỉ để theo dõi sự thay đổi của cart
@@ -92,6 +106,14 @@ export default function ProductDetailPage() {
       setIsInCart(inCart);
     }
   }, [cart, game]);
+
+  // 🔥 AUTO SWITCH TAB khi isOwned thay đổi
+  useEffect(() => {
+    if (isOwned) {
+      // Tự động chuyển sang tab "download" khi game đã được mua
+      setActiveTab("download");
+    }
+  }, [isOwned]);
 
   const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
   const slides = game
@@ -306,33 +328,44 @@ export default function ProductDetailPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
+                    className="space-y-6"
                   >
-                    <h3 className="text-2xl font-bold text-white mb-4">
-                      Cấu hình yêu cầu
-                    </h3>
-                    <div className="bg-purple-900/50 p-6 rounded-xl border border-purple-700">
-                      <ul className="space-y-3 text-sm text-purple-200">
-                        <li>
-                          <strong className="text-white">Hệ điều hành:</strong>{" "}
-                          {game.os || "Windows 10"}
-                        </li>
-                        <li>
-                          <strong className="text-white">CPU:</strong>{" "}
-                          {game.cpu || "Core i3"}
-                        </li>
-                        <li>
-                          <strong className="text-white">RAM:</strong>{" "}
-                          {game.ram || "8 GB"}
-                        </li>
-                        <li>
-                          <strong className="text-white">Card đồ họa:</strong>{" "}
-                          {game.gpu || "GTX 1050"}
-                        </li>
-                        <li>
-                          <strong className="text-white">Dung lượng:</strong>{" "}
-                          {game.storage || "50 GB"}
-                        </li>
-                      </ul>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white mb-4">
+                        Cấu hình yêu cầu
+                      </h3>
+                      <div className="bg-purple-900/50 p-6 rounded-xl border border-purple-700">
+                        <ul className="space-y-3 text-sm text-purple-200">
+                          <li>
+                            <strong className="text-white">Hệ điều hành:</strong>{" "}
+                            {game.os || "Windows 10"}
+                          </li>
+                          <li>
+                            <strong className="text-white">CPU:</strong>{" "}
+                            {game.cpu || "Core i3"}
+                          </li>
+                          <li>
+                            <strong className="text-white">RAM:</strong>{" "}
+                            {game.ram || "8 GB"}
+                          </li>
+                          <li>
+                            <strong className="text-white">Card đồ họa:</strong>{" "}
+                            {game.gpu || "GTX 1050"}
+                          </li>
+                          <li>
+                            <strong className="text-white">Dung lượng:</strong>{" "}
+                            {game.storage || "50 GB"}
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* 🔥 Tích hợp DXDiag Compatibility Checker */}
+                    <div className="pt-4 border-t border-purple-700">
+                      <SystemCompatibilityChecker 
+                        gameId={game.id} 
+                        gameName={game.name}
+                      />
                     </div>
                   </motion.div>
                 )}

@@ -86,6 +86,8 @@ export default function Users() {
   const fetchPublishers = async () => {
     try {
       const data = await getAllPublisher(setAccessToken);
+      console.log(data);
+      
 
       const publishersWithHistory = await Promise.all(
         (data && data.data ? data.data : (Array.isArray(data) ? data : []))
@@ -101,7 +103,6 @@ export default function Users() {
           const newStatus = request && (request.status === "PENDING" || request.status === "PENDING")
             ? "Pending review"
             : pub.status;
-
           return {
             ...pub,
             status: newStatus,

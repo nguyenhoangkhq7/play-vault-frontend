@@ -25,6 +25,7 @@ import {
   Check,
   Phone,
   MapPin,
+  Briefcase,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -389,14 +390,32 @@ export default function RegisterPage() {
     >
       <Card className="bg-purple-950/60 backdrop-blur-xl border border-purple-700 shadow-[0_0_30px_rgba(168,85,247,0.4)] w-full max-w-lg rounded-2xl text-white">
         <CardContent className="p-8">
-          <motion.h1
-            className="text-3xl font-bold text-center mb-6"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-          >
-            Đăng Ký Tài Khoản
-          </motion.h1>
+          <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-purple-200 bg-clip-text text-transparent">
+                        Đăng Ký Tài Khoản
+                    </h1>
+                </div>
+
+          {/* --- 2. THÊM TAB CHUYỂN ĐỔI NGƯỜI DÙNG / NHÀ PHÁT HÀNH TẠI ĐÂY --- */}
+          <div className="flex bg-purple-900/50 p-1 rounded-xl mb-6 border border-purple-700/50">
+            <button
+              type="button"
+              className="w-1/2 flex items-center justify-center gap-2 py-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 text-white font-medium shadow-md cursor-default"
+            >
+              <User size={18} />
+              Người dùng
+            </button>
+            
+           
+            <button
+              type="button"
+              onClick={() => navigate("/publisher-register")}
+              className="w-1/2 flex items-center justify-center gap-2 py-2 rounded-lg text-purple-300 hover:text-white hover:bg-purple-800/50 cursor-pointer transition-all duration-200"
+            >
+              <Briefcase size={18} />
+              Nhà phát hành
+            </button>
+          </div>
 
           {registrationError && (
             <motion.div

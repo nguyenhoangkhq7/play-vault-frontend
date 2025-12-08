@@ -47,29 +47,42 @@ import { CartProvider } from "./store/CartContext";
 import PublisherProfile from "./components/userprofile/PublisherProfile.jsx";
 import { useUser } from "./store/UserContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import ChatWidget from "./components/chatbot/ChatWidget.jsx";
+
+
 function MainLayout() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-500 to-indigo-800 flex">
-      <div className="fixed top-0 left-0 h-full w-24 z-10">
-        <Sidebar />
+return (
+  <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-500 to-indigo-800 flex">
+    {/* Sidebar giữ nguyên */}
+    <div className="fixed top-0 left-0 h-full w-24 z-10">
+      <Sidebar />
+    </div>
+
+    <div className="flex-1 ml-24 flex flex-col">
+      {/* Navbar giữ nguyên */}
+      <div className="fixed top-0 left-24 right-0 z-20">
+        <Navbar />
       </div>
 
-      <div className="flex-1 ml-24 flex flex-col">
-        <div className="fixed top-0 left-24 right-0 z-20">
-          <Navbar />
-        </div>
-
-        <div className="container mx-auto p-4 flex-grow mt-16">
-          <div className="bg-black/20 backdrop-blur-md rounded-3xl overflow-hidden shadow-2xl">
-            <div className="p-4 overflow-y-auto">
-              <Outlet />
-            </div>
+      {/* Main Content */}
+      <main className="container mx-auto p-4 flex-grow mt-16">
+        
+        {/* --- ĐÂY LÀ PHẦN ĐƯỢC THÊM LẠI ĐỂ TẠO VIỀN --- */}
+        <div className="bg-black/20 backdrop-blur-md rounded-3xl overflow-hidden shadow-2xl min-h-[calc(100vh-8rem)]">
+          {/* Thêm một lớp div p-4 hoặc p-6 ở đây để nội dung không dính sát mép viền */}
+          <div className="p-6"> 
+            <Outlet />
           </div>
         </div>
-        <Footer />
-      </div>
+        {/* --------------------------------------------- */}
+
+      </main>
+
+      <Footer />
     </div>
-  );
+          <ChatWidget />
+  </div>
+);
 }
 
 // Redirect admin khỏi trang "/" sang "/admin"

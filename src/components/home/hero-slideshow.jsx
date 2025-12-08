@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom"; // Thêm useNavigate
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import { ChevronLeft, ChevronRight, Star, Award } from "lucide-react";
-import { getGames, getTopNGame } from "../../api/games.js";
-import { getCommentsByGameId } from "../../api/comments.js";
+import { getTopNGame } from "../../api/games.js";
+
 
 export default function HeroSlideshow() {
   const [currentSlide, setCurrentSlide] = useState(0);

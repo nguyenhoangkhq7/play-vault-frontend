@@ -86,7 +86,7 @@ useEffect(() => {
 }, [])
 
 
-  // Check if game is in cart - sử dụng cart từ CartContext
+// Check if game is in cart - sử dụng cart từ CartContext
   useEffect(() => {
     if (cart && game?.id) {
       const inCart = cart.items?.some((item) => item.gameId === game.id) || false
@@ -96,12 +96,11 @@ useEffect(() => {
     }
   }, [cart, game])
 
-  // Refresh cart on mount
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && user?.customerId) {
       refreshCart(accessToken)
     }
-  }, [accessToken, refreshCart])
+  }, [])
 
   // Hàm xử lý khi nhấn "Mua Ngay"
  const handleBuyNow = async () => {

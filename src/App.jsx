@@ -7,6 +7,7 @@ import {
   NavLink,
   Navigate,
 } from "react-router-dom";
+import ScrollToTop from "./components/ScrollToTop";
 import HomePage from "./pages/Home.jsx";
 import Sidebar from "./components/home/sidebar";
 import Footer from "./components/home/footer";
@@ -87,6 +88,7 @@ function App() {
   return (
     <CartProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Toaster richColors position="top-right" />
         <Routes>
           {/* ============================================================ */}

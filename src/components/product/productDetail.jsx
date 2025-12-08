@@ -144,13 +144,8 @@ export default function ProductDetailPage() {
 
     // ✅ Kiểm tra nếu game đã có trong giỏ hàng
     if (isInCart) {
-      const confirmAdd = window.confirm(
-        "Game này đã có trong giỏ hàng. Bạn có muốn thêm một lần nữa không?"
-      );
-
-      if (!confirmAdd) {
-        return; // Người dùng chọn "Hủy"
-      }
+      toast.error("Game này đã có trong giỏ hàng rồi! Bạn không thể thêm thêm lần nữa.");
+      return;
     }
 
     try {
@@ -516,12 +511,12 @@ export default function ProductDetailPage() {
                         <ShoppingCart className="w-5 h-5" />
                         Xem giỏ hàng
                       </button>
-                      <button
+                      {/* <button
                         onClick={handleAddToCart}
                         className="px-6 py-3 bg-white/10 hover:bg-white/20 text-amber-200 border border-amber-400/50 rounded-full backdrop-blur-sm transition-all duration-300"
                       >
                         Thêm lần nữa
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 </motion.div>
@@ -552,13 +547,13 @@ export default function ProductDetailPage() {
                   )}
                 </button>
 
-                {!isOwned && (
+                {!isOwned && !isInCart && (
                   <button
                     onClick={handleAddToCart}
                     className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-purple-500/50 text-white font-semibold py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 group"
                   >
                     <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    {isInCart ? "Thêm vào giỏ hàng (lần nữa)" : "Thêm vào giỏ hàng"}
+                    Thêm vào giỏ hàng
                   </button>
                 )}
 

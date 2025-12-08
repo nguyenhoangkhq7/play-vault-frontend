@@ -24,8 +24,8 @@ export function GameDetailPage() {
       try {
         const response = await adminGamesApi.getGameDetail(id);
         setGameData(response.data || response);
-      } catch (err) {
-        console.error("Failed to fetch game:", err);
+      } catch {
+        console.error("Failed to fetch game");
         setError("Không thể tải thông tin game.");
       } finally {
         setLoading(false);
@@ -42,7 +42,7 @@ export function GameDetailPage() {
         await adminGamesApi.approveGame(id);
         alert(`✅ Duyệt thành công!`);
         navigate("/admin/games");
-      } catch (err) {
+      } catch {
         alert("❌ Có lỗi xảy ra khi duyệt game.");
       }
     }
@@ -57,12 +57,10 @@ export function GameDetailPage() {
       setIsRejectionModalOpen(false);
       setRejectionReason("");
       navigate("/admin/games");
-    } catch (err) {
-      alert("❌ Có lỗi xảy ra khi từ chối game.");
-    }
-  };
-
-  // Helper Styles
+      } catch {
+        alert("❌ Có lỗi xảy ra khi từ chối game.");
+      }
+  };  // Helper Styles
   const getStatusStyle = (status) => {
     const s = String(status || "").toUpperCase();
     switch (s) {
@@ -105,7 +103,7 @@ export function GameDetailPage() {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
         return `${day}/${month}/${year}`;
-    } catch (e) {
+    } catch {
         return dateString;
     }
   };
@@ -132,66 +130,77 @@ export function GameDetailPage() {
 
   // --- MAPPING DATA BACKEND -> UI VARIABLES ---
   const title = gameData.name || gameData.title || "No Title";
-  //const image = gameData.image || gameData.coverImage || "https://via.placeholder.com/800x400";
   const developer = gameData.developer || "Unknown Dev";
   const publisher = gameData.publisher || "Unknown Publisher";
-  // Xử lý genre/category (cho phép chuỗi hoặc mảng)
-  //const genres = Array.isArray(gameData.category) ? gameData.category : [gameData.category || "General"];
-  // description = gameData.description || "Chưa có mô tả.";
-  //const screenshots = gameData.screenshots || gameData.previewImages || [];
-  //const videoUrl = gameData.trailerUrl || gameData.videoUrl;
-  //const platform = Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
-  // reqs = gameData.systemRequirements || gameData.minimumRequirements || {};
-  //const price = gameData.price || 0;
-  // THÔNG TIN MỚI
-  //const requireAged = gameData.requireAged || gameData.ageRating || "12"; 
+  const gbi = gameData.gameBasicInfo || gameData.basicInfo || gameData;
 
-  // Lấy block basic info (nếu backend bọc trong gameBasicInfo)
-const gbi = gameData.gameBasicInfo || gameData.basicInfo || gameData;
+  // Ảnh bìa
+  const image =
+    gbi?.thumbnail ||
+    gameData.thumbnail ||
+    gameData.image ||
+    gameData.coverImage ||
+    "https://via.placeholder.com/800x400";
 
-// Ảnh bìa
-const image =
-  gbi?.thumbnail ||
-  gameData.thumbnail ||
-  gameData.image ||
-  gameData.coverImage ||
-  "https://via.placeholder.com/800x400";
+  // Thể loại
+  const genres = Array.isArray(gbi?.category)
+    ? gbi.category
+    : [gbi?.category?.name || gbi?.category || "General"];
 
-// Thể loại
-const genres = Array.isArray(gbi?.category)
-  ? gbi.category
-  : [gbi?.category?.name || gbi?.category || "General"];
+  // Mô tả
+  const description = gbi?.description || gameData.description || "Chưa có mô tả.";
 
-// Mô tả
-const description = gbi?.description || gameData.description || "Chưa có mô tả.";
+  // Trailer
+  const videoUrl = gbi?.trailerUrl || gameData.trailerUrl || gameData.videoUrl;
 
-// Trailer
-const videoUrl = gbi?.trailerUrl || gameData.trailerUrl || gameData.videoUrl;
+  // Hệ máy
+  const platform = Array.isArray(gbi?.platforms)
+    ? gbi.platforms.map(p => p.name || p) 
+    : Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
 
-// Hệ máy
-const platform = Array.isArray(gbi?.platforms)
-  ? gbi.platforms.map(p => p.name || p) 
-  : Array.isArray(gameData.platform) ? gameData.platform : [gameData.platform || "PC"];
+  // Yêu cầu hệ thống
+  const reqs = gbi?.systemRequirement || gameData.systemRequirements || {};
 
-// Yêu cầu hệ thống
-const reqs = gbi?.systemRequirement || gameData.systemRequirements || {};
+  // Giá
+  const price = gbi?.price ?? gameData.price ?? 0;
 
-// Giá
-const price = gbi?.price ?? gameData.price ?? 0;
+  // Độ tuổi
+  const requireAged = gbi?.requiredAge ?? gameData.requiredAge ?? gameData.requireAged ?? "12";
 
-// Độ tuổi
-const requireAged = gbi?.requiredAge ?? gameData.requiredAge ?? gameData.requireAged ?? "12";
+  // ⭐ Screenshots: chấp nhận cả mảng string lẫn mảng object {url}
+  // ---- LẤY ẢNH SCREENSHOTS ĂN CHẮC ----
+const raw =
+  gbi?.previewImages ??
+  gameData.previewImages ??
+  gameData.screenshots ??
+  gameData.gallery ?? [];
 
-// ⭐ Screenshots: chấp nhận cả mảng string lẫn mảng object {url}
-const screenshotsRaw =
-  gbi?.previewImages ||
-  gameData.previewImages ||
-  gameData.screenshots ||
-  gameData.gallery ||
-  [];
+// ép về mảng (nếu backend trả string, ví dụ "url1,url2 url3")
+const ensureArray = (v) => {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") return v.split(/[,\s]+/).filter(Boolean);
+  return [];
+};
 
-const screenshots = screenshotsRaw
-  .map(it => (typeof it === "string" ? it : it?.url))
+const normalize = (u) => {
+  if (!u) return null;
+  let s = String(u).trim();
+  if (s.startsWith("http://")) s = "https://" + s.slice(7); // tránh mixed-content
+  return s;
+};
+
+const screenshots = ensureArray(raw)
+  .map((it) => {
+    if (typeof it === "string") return normalize(it);
+    return (
+      normalize(it?.url) ||
+      normalize(it?.imageUrl) ||
+      normalize(it?.link) ||
+      normalize(it?.src) ||
+      normalize(it?.path) ||
+      null
+    );
+  })
   .filter(Boolean);
 
   return (

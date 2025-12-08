@@ -116,6 +116,35 @@ const onGalleryFiles = async (index, files) => {
   setCpu(""); setGpu(""); setStorage(""); setRam("");
 };
 
+  // ---------------------- Validation helpers ----------------------
+  const validateInfoStep = () => {
+    const errors = [];
+    if (!title.trim()) errors.push("Tên game");
+    if (!summary.trim()) errors.push("Mô tả ngắn");
+    if (!genre) errors.push("Thể loại");
+    if (!platforms || platforms.length === 0) errors.push("Nền tảng");
+    if (!isFree && !String(price).trim()) errors.push("Giá");
+    if (!release) errors.push("Ngày phát hành");
+    return errors;
+  };
+
+  const validateBeforeSubmit = () => {
+    const errors = validateInfoStep();
+    // Build must be uploaded
+    if (!buildName && !buildUrl) errors.push("Bản build (tải lên)");
+    // Thumbnail
+    if (!coverUrl) errors.push("Ảnh bìa");
+    // Build / Release notes related
+    if (!notes || !String(notes).trim()) errors.push("Ghi chú phát hành");
+    if (!cpu || !String(cpu).trim()) errors.push("Yêu cầu CPU");
+    if (!gpu || !String(gpu).trim()) errors.push("Yêu cầu GPU");
+    if (!storage || !String(storage).trim()) errors.push("Bộ nhớ (Storage)");
+    if (!ram || !String(ram).trim()) errors.push("RAM");
+    // Age should be a positive number (0 is treated as unspecified)
+    if (!Number(age18) || Number(age18) <= 0) errors.push("Tuổi yêu cầu");
+    return errors;
+  };
+
   const osMap = { Windows: "WINDOWS", macOS: "MAC", Linux: "LINUX" };
   const primaryOs = platforms[0] ? (osMap[platforms[0]] || "WINDOWS") : "WINDOWS";
 
@@ -227,6 +256,13 @@ const categoryIdMapped = categoryMap[genre] || 1;
   // ✅ Gửi duyệt thật: POST /api/games
   const onSubmitReview = async () => {
     try {
+      // validate before submit
+      const errs = validateBeforeSubmit();
+      if (errs.length) {
+        alert("Vui lòng hoàn thành các thông tin trước khi gửi: " + errs.join(", "));
+        return;
+      }
+
       const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
 
       const payload = {
@@ -255,9 +291,8 @@ const categoryIdMapped = categoryMap[genre] || 1;
       await gameService.createPendingJson(payload, token);
 
       alert("Đã gửi duyệt thành công!");
-      // Điều hướng tuỳ ý: qua trang build/store hoặc về admin approval
-      // navigate("/admin/approval");
       resetForm();
+      navigate("/publisher/games");
     } catch (e) {
       console.error(e);
       alert("Gửi duyệt thất bại!");
@@ -269,6 +304,11 @@ const categoryIdMapped = categoryMap[genre] || 1;
     if (location.pathname.endsWith("/build")) {
       return; // Last step
     } else {
+      const errs = validateInfoStep();
+      if (errs.length) {
+        alert("Vui lòng hoàn thành các thông tin: " + errs.join(", "));
+        return;
+      }
       navigate("/publisher/upload/build");
     }
   };

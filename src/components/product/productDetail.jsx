@@ -158,18 +158,11 @@ export default function ProductDetailPage() {
   // Lấy Tuổi Yêu Cầu
   const ageRating = game?.requiredAge || game?.ageRating || gbi?.requiredAge || gbi?.ageRating || "12";
 
-  const title = gbi?.name || game?.name || "No Title";
-  const publisher = gbi?.publisherName || gbi?.publisher?.studioName || "Unknown Publisher";
-  const description = gbi?.description || game?.description || "Chưa có mô tả.";
-  const price = gbi?.price ?? game?.price ?? 0;
-  
-  const slides = game
-    ? [{ id: 0, image: getImageUrl(gbi?.thumbnail || game?.thumbnail) }, ...(game?.previewImages || []).map((img, index) => ({ id: index + 1, image: getImageUrl(img) }))]
-    : [];
-  const displaySlides = slides.length > 0 ? slides : [{ id: 1, image: fallbackImage }];
-
-  const genres = Array.isArray(gbi?.category) ? gbi.category : [gbi?.categoryName || gbi?.category || "General"];
-  const reqs = gbi?.systemRequirement || game?.systemRequirements || {};
+    // ✅ Kiểm tra nếu game đã có trong giỏ hàng
+    if (isInCart) {
+      toast.error("Game này đã có trong giỏ hàng rồi! Bạn không thể thêm thêm lần nữa.");
+      return;
+    }
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % displaySlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + displaySlides.length) % displaySlides.length);
@@ -394,24 +387,74 @@ export default function ProductDetailPage() {
                     <p className="text-emerald-300 text-lg font-bold">Đã sở hữu</p>
                     <button onClick={() => setActiveTab("download")} className="mt-5 px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-full shadow-lg w-full flex items-center justify-center gap-2"><Download className="w-5 h-5" /> Tải xuống ngay</button>
                 </motion.div>
-              ) : (
-                canPurchase && (
+              ) : isInCart ? (
+                /* Đang trong giỏ hàng - Vàng cam nổi bật */
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-600/20 via-orange-500/20 to-yellow-600/20 border border-amber-500/50 backdrop-blur-sm p-6 text-center shadow-xl"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative z-10">
+                    <div className="text-4xl mb-3">🛒✨</div>
+                    <p className="text-amber-300 text-lg font-bold tracking-wide">
+                      Đã có trong giỏ hàng
+                    </p>
+                    <p className="text-amber-400 text-sm mt-1 opacity-90">
+                      Sẵn sàng thanh toán khi bạn muốn
+                    </p>
+                    <div className="flex gap-3 mt-5 justify-center">
+                      <button
+                        onClick={handleGoToCart}
+                        className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                      >
+                        <ShoppingCart className="w-5 h-5" />
+                        Xem giỏ hàng
+                      </button>
+                      {/* <button
+                        onClick={handleAddToCart}
+                        className="px-6 py-3 bg-white/10 hover:bg-white/20 text-amber-200 border border-amber-400/50 rounded-full backdrop-blur-sm transition-all duration-300"
+                      >
+                        Thêm lần nữa
+                      </button> */}
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+
+              {/* Nút hành động chính */}
+              <div className="space-y-3">
+                <button
+                  onClick={isOwned ? () => setActiveTab("download") : handleBuyNow}
+                  className="w-full bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:via-purple-500 hover:to-indigo-500 text-white font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isOwned}
+                >
+                  {isOwned ? (
+                    <>
+                      <CheckCircle className="w-6 h-6" />
+                      Đã sở hữu
+                    </>
+                  ) : game.price === 0 ? (
+                    <>
+                      <Gift className="w-6 h-6" />
+                      Nhận miễn phí ngay
+                    </>
+                  ) : (
                     <>
                         {isInCart && <div className="rounded-2xl bg-amber-600/20 border border-amber-500/50 p-4 text-center mb-3"><p className="text-amber-300 font-bold mb-2">🛒 Đã có trong giỏ hàng</p><button onClick={handleGoToCart} className="px-4 py-2 bg-amber-500 text-black font-bold rounded-full text-sm">Xem giỏ hàng</button></div>}
                         <button onClick={handleBuyNow} className="w-full bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white font-bold text-lg py-4 rounded-2xl shadow-2xl flex items-center justify-center gap-3">{price === 0 ? <><Gift /> Nhận miễn phí</> : <><ShoppingBag /> Mua ngay</>}</button>
                         <button onClick={handleAddToCart} className="w-full bg-white/10 hover:bg-white/20 border border-purple-500/50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-3"><ShoppingCart /> {isInCart ? "Thêm lần nữa" : "Thêm vào giỏ hàng"}</button>
                     </>
-                )
-              )}
-              
-              {/* NÚT YÊU THÍCH - ĐÃ GẮN HÀM XỬ LÝ */}
-              {canPurchase && (
-                  <button 
-                    onClick={handleToggleFavorite}
-                    className={`w-full bg-transparent hover:bg-white/10 font-semibold py-4 rounded-2xl border border-purple-500/50 flex items-center justify-center gap-3 group transition-all ${isFavorite ? "text-pink-500 border-pink-500" : "text-purple-300 hover:text-white"}`}
+                  )}
+                </button>
+
+                {!isOwned && !isInCart && (
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-purple-500/50 text-white font-semibold py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 group"
                   >
-                      <Heart className={`transition-all ${isFavorite ? "fill-pink-500 text-pink-500" : "group-hover:text-pink-500 group-hover:fill-pink-500"}`} /> 
-                      {isFavorite ? "Đã yêu thích" : "Yêu thích"}
+                    <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    Thêm vào giỏ hàng
                   </button>
               )}
             </div>

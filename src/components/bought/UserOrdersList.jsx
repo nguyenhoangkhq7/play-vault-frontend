@@ -140,7 +140,7 @@ export default function UserOrdersList({ orders = [], isLoading, isError, refetc
                             <div className="text-xl font-bold text-white">
                                 {price}
                             </div>
-                            {statusInfo.label === "Đang xử lí" || statusInfo.label === "Đang xử lý" ? (
+                            {statusInfo.label === "Đang xử lý" ? (
                                 <Button
                                     size="sm"
                                     className="text-sm h-10 px-4 rounded-lg text-white shadow-lg bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"

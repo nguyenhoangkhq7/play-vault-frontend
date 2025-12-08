@@ -1,15 +1,18 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { submitReport, checkOrderExists } from "../api/report.js";
 import { useUser } from "../store/UserContext";
+import { useSearchParams } from "react-router-dom";
 
 export default function ReportPage() {
   const { setAccessToken } = useUser();
+  const [searchParams] = useSearchParams();
+  
   const [formData, setFormData] = useState({
-    orderId: "",
+    orderId: searchParams.get('orderId') || "",
     title: "",
     description: "",
     transactionCode: "",

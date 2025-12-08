@@ -324,7 +324,7 @@ const handlePublisherReject = async (publisherRequestId) => {
           
           {/* TAB MỚI: DUYỆT PUBLISHER */}
           <button ref={reviewTabRef} onClick={() => setActiveTab('pending_review')}
-            className={`py-2 px-6 text-lg font-semibold ${activeTab === 'pending_review' ? 'text-pink-500' : 'text-yellow-400'}`}>
+            className={`py-2 px-6 text-lg font-semibold ${activeTab === 'pending_review' ? 'text-white' : 'text-gray-400'}`}>
             Duyệt Publisher ({pendingPublishers.length})
           </button>
 

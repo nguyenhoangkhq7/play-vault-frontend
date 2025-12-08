@@ -1,9 +1,10 @@
 import React from 'react';
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { LazyLoadImage } from "react-lazy-load-image-component";
+import { useNavigate } from "react-router-dom";
 
 /**
  * Component hiển thị danh sách đơn hàng (dạng List Card Tối giản)
@@ -15,6 +16,7 @@ import { LazyLoadImage } from "react-lazy-load-image-component";
  * @param {function} props.refetch - Hàm tải lại dữ liệu.
  */
 export default function UserOrdersList({ orders = [], isLoading, isError, refetch }) {
+    const navigate = useNavigate();
     // Helper: Định dạng tiền tệ VND
     const formatCurrency = (amount) => {
         const numAmount = Number(amount);
@@ -83,6 +85,10 @@ export default function UserOrdersList({ orders = [], isLoading, isError, refetc
 
     const buttonBg = "bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700";
 
+    const handleReportClick = (orderId) => {
+        navigate(`/report?orderId=${orderId}`);
+    };
+
     return (
         <div className="space-y-4">
             {orders.map((order, idx) => {
@@ -134,17 +140,30 @@ export default function UserOrdersList({ orders = [], isLoading, isError, refetc
                             <div className="text-xl font-bold text-white">
                                 {price}
                             </div>
-                            <Button
-                                size="sm"
-                                className={`text-sm h-10 px-4 rounded-lg text-white shadow-lg ${buttonBg}`}
-                                onClick={(e) => {
-                                    e.stopPropagation(); // Ngăn sự kiện click lan truyền lên card cha
-                                    // TODO: Thực hiện logic tải lại game tại đây
-                                    console.log('Tải lại game:', order.id);
-                                }}
-                            >
-                                Tải lại game
-                            </Button>
+                            {statusInfo.label === "Đang xử lí" || statusInfo.label === "Đang xử lý" ? (
+                                <Button
+                                    size="sm"
+                                    className="text-sm h-10 px-4 rounded-lg text-white shadow-lg bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleReportClick(order.id);
+                                    }}
+                                >
+                                    <AlertCircle className="w-4 h-4 mr-1" />
+                                    Report
+                                </Button>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    className={`text-sm h-10 px-4 rounded-lg text-white shadow-lg ${buttonBg}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('Tải lại game:', order.id);
+                                    }}
+                                >
+                                    Tải lại game
+                                </Button>
+                            )}
                         </div>
                     </div>
                 );

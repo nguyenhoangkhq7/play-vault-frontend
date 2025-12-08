@@ -147,7 +147,7 @@ export default function GameDetail() {
         // Tìm cartItemId để xóa
         const cartItem = cart?.items?.find((item) => item.gameId === game.id);
         if (cartItem) {
-          await removeFromCart(cartItem.id, accessToken);
+          await removeFromCart(cartItem.cartItemId, accessToken);
           console.log(`Removed from cart: ${game.title} (ID: ${game.id})`);
         }
       } else {

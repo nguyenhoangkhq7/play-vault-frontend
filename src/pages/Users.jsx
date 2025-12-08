@@ -415,13 +415,8 @@ export default function Users() {
           </button>
 
           {/* TAB MỚI: DUYỆT PUBLISHER */}
-          <button
-            ref={reviewTabRef}
-            onClick={() => setActiveTab("pending_review")}
-            className={`py-2 px-6 text-lg font-semibold ${
-              activeTab === "pending_review" ? "text-white" : "text-gray-400"
-            }`}
-          >
+          <button ref={reviewTabRef} onClick={() => setActiveTab('pending_review')}
+            className={`py-2 px-6 text-lg font-semibold ${activeTab === 'pending_review' ? 'text-white' : 'text-gray-400'}`}>
             Duyệt Publisher ({pendingPublishers.length})
           </button>
 

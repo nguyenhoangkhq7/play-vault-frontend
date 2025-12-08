@@ -12,6 +12,7 @@ import {
     LogIn,
     Search
 } from "lucide-react";
+import DownloadGameButton from "../download/DownloadGameButton";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -387,20 +388,15 @@ export default function PurchasedProducts() {
                                             <div className="text-sm text-purple-300 mt-1">
                                                 Ngày mua: {format(product.purchaseDate, "dd/MM/yyyy", { locale: vi })}
                                             </div>
-                                            <div className="mt-3 flex justify-between items-center">
+                                            <div className="mt-3 flex justify-between items-center gap-2">
                                                 <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
-                                                <Button
-                                                    // onClick={(e) => {
-                                                    //     e.stopPropagation();
-                                                    //     // TODO: Implement download functionality
-                                                    //     console.log('Download game:', product.id);
-                                                    // }}
-                                                    key={product.id} 
-                                                    onClick={() => navigate(`/product/${product.id}`)}
-                                                    className="text-xs h-8 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg hover:shadow-purple-500/30"
-                                                >
-                                                    Tải lại game
-                                                </Button>
+                                                <div onClick={(e) => e.stopPropagation()} className="flex-1 max-w-[140px]">
+                                                    <DownloadGameButton 
+                                                        gameId={product.id} 
+                                                        gameName={product.name}
+                                                        variant="compact"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -429,16 +425,15 @@ export default function PurchasedProducts() {
                                                         
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="text-right flex flex-col gap-2 items-end">
                                                     <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
-                                                    <Button
-
-                                                        key={product.id} 
-                                                        onClick={() => navigate(`/product/${product.id}`)}
-                                                        className="text-xs h-8 mt-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
-                                                    >
-                                                        Tải lại game
-                                                    </Button>
+                                                    <div onClick={(e) => e.stopPropagation()} className="min-w-[160px]">
+                                                        <DownloadGameButton 
+                                                            gameId={product.id} 
+                                                            gameName={product.name}
+                                                            variant="compact"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

@@ -10,6 +10,7 @@ export default function PublisherBuild() {
     buildProgress,
     isUploading,
     buildName,
+    r2FilePath, // ⭐ Nhận filePath từ R2
   } = useOutletContext();
 
   return (
@@ -89,6 +90,23 @@ export default function PublisherBuild() {
                   : "Chưa tải lên"}
               </span>
             </div>
+            
+            {/* Hiển thị R2 filePath nếu đã upload */}
+            {r2FilePath && (
+              <div className="mt-3 p-3 rounded-lg bg-green-900/30 border border-green-500/40">
+                <div className="flex items-start gap-2">
+                  <i className="bi bi-check-circle-fill text-green-400 text-lg" />
+                  <div className="flex-1">
+                    <div className="text-xs font-semibold text-green-300 mb-1">
+                      ✅ File đã upload lên Cloudflare R2
+                    </div>
+                    <code className="text-[10px] text-green-200/70 break-all">
+                      {r2FilePath}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

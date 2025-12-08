@@ -189,6 +189,66 @@ export async function getMyGames(setAccessToken) {
 
 
 
+/**
+ * 📝 BƯỚC 3: Tạo Game Submission (Submit thông tin game)
+ * @param {Object} gameData - Dữ liệu game theo GameCreateRequest
+ * @returns {Promise<Object>} Game đã tạo
+ */
+export async function createGameSubmission(gameData) {
+  try {
+    const accessToken = localStorage.getItem('accessToken')
+    
+    if (!accessToken) {
+      throw new Error('Vui lòng đăng nhập để tạo game')
+    }
+
+    console.log('📝 Creating game submission...', gameData)
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(gameData)
+    })
+
+    if (response.status === 401) {
+      throw new Error('Token hết hạn. Vui lòng đăng nhập lại.')
+    }
+
+    if (!response.ok) {
+      let errorMessage = `Không thể tạo game: ${response.statusText}`
+      
+      try {
+        const errorData = await response.json()
+        console.error('❌ Create game failed:', errorData)
+        
+        // Chi tiết lỗi từ backend
+        if (errorData.message) {
+          errorMessage = errorData.message
+        } else if (errorData.error) {
+          errorMessage = errorData.error
+        }
+      } catch (e) {
+        // Nếu không parse được JSON, lấy text
+        const errorText = await response.text()
+        console.error('❌ Create game error text:', errorText)
+      }
+      
+      throw new Error(errorMessage)
+    }
+
+    const result = await response.json()
+    console.log('✅ Game created successfully:', result)
+    return result
+
+  } catch (error) {
+    console.error('Error creating game:', error)
+    throw error
+  }
+}
+
 // export async function fetchGameRevenue(from, to) {
 //   try {
 //     const res = await fetch(

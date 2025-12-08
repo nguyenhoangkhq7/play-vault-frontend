@@ -20,6 +20,7 @@ export default function PublisherInfo() {
     price,
     setPrice,
     coverUrl,
+    setCoverUrl, // ⭐ Thêm setter
     coverInputRef,
     pickFile,
     prevent,
@@ -106,13 +107,13 @@ export default function PublisherInfo() {
                   required
                 >
                   <option value="">— Chọn —</option>
-                  <option>Hành động</option>
-                  <option>Phiêu lưu</option>
-                  <option>Nhập vai</option>
-                  <option>Chiến thuật</option>
-                  <option>Mô phỏng</option>
-                  <option>Thể thao</option>
-                  <option>Indie</option>
+                  <option value="1">Hành động</option>
+                  <option value="2">Phiêu lưu</option>
+                  <option value="3">Nhập vai</option>
+                  <option value="4">Chiến thuật</option>
+                  <option value="5">Mô phỏng</option>
+                  <option value="6">Thể thao</option>
+                  <option value="7">Indie</option>
                 </select>
               </div>
 
@@ -285,75 +286,64 @@ export default function PublisherInfo() {
             "
           >
             <label className="block text-sm font-medium text-purple-200/80 mb-3">
-              Ảnh bìa (JPG/PNG)
+              Ảnh bìa <span className="text-pink-400">*</span>
             </label>
 
-            {/* Dropzone upload cover */}
-            <div
+            {/* URL Input (thay vì file upload để tránh base64) */}
+            <input
+              type="url"
+              name="coverUrl"
+              value={coverUrl}
+              onChange={(e) => setCoverUrl(e.target.value)}
+              placeholder="https://i.imgur.com/abc123.jpg"
               className="
-                flex flex-col items-center justify-center text-center
-                cursor-pointer select-none
-                rounded-xl border-2 border-dashed border-purple-400/50
-                bg-purple-950/20 px-4 py-10 text-sm
-                text-purple-200/70
-                hover:bg-purple-900/30 hover:border-pink-500/60
-                transition
+                w-full rounded-lg border border-white/20 bg-black/20
+                text-sm text-white placeholder-purple-200/50
+                px-3 py-2 outline-none mb-3
+                focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30
+                focus:bg-purple-800/40 transition
               "
-              onClick={() => pickFile(coverInputRef)}
-              onDragOver={prevent}
-              onDragEnter={prevent}
-              onDrop={(e) => {
-                prevent(e);
-                onCoverFiles(e.dataTransfer.files);
-              }}
-            >
-              <i className="bi bi-cloud-upload text-2xl mb-2 text-pink-400" />
-              <span className="leading-relaxed">
-                Kéo thả hoặc{" "}
-                <span className="text-white font-semibold">chọn tệp</span>
-              </span>
+            />
 
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(e) => onCoverFiles(e.target.files)}
-              />
+            <div className="text-[11px] text-purple-200/70 mb-3">
+              💡 Upload ảnh lên <a href="https://imgur.com/upload" target="_blank" className="text-pink-400 hover:underline">Imgur</a> hoặc <a href="https://cloudinary.com" target="_blank" className="text-pink-400 hover:underline">Cloudinary</a>, rồi dán link vào đây
             </div>
 
-            {/* Preview + note */}
-            <div className="flex items-start gap-3 mt-4">
-              {coverUrl ? (
+            {/* Preview */}
+            <div className="flex items-start gap-3">
+              {coverUrl && !coverUrl.startsWith('data:') ? (
                 <img
                   src={coverUrl}
                   alt="cover preview"
                   className="
-                    w-[120px] h-[68px] rounded-lg object-cover
+                    w-full h-[160px] rounded-lg object-cover
                     border border-purple-400/40
                     shadow-[0_0_16px_rgba(236,72,153,0.4)]
                   "
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling?.classList.remove('hidden');
+                  }}
                 />
-              ) : (
+              ) : null}
+              
+              {(!coverUrl || coverUrl.startsWith('data:')) && (
                 <div
                   className="
-                    w-[120px] h-[68px] rounded-lg
+                    w-full h-[160px] rounded-lg
                     border border-dashed border-purple-500/30
                     bg-purple-950/20
                     flex items-center justify-center
-                    text-[10px] text-purple-300/50
+                    text-xs text-purple-300/50
                   "
                 >
-                  Chưa có ảnh
+                  {coverUrl?.startsWith('data:') ? '⚠️ Base64 không hỗ trợ. Dùng URL.' : 'Chưa có ảnh bìa'}
                 </div>
               )}
+            </div>
 
-              <div className="text-[11px] leading-relaxed text-purple-200/70">
-                Tối thiểu{" "}
-                <span className="text-white font-medium">1200×675px</span>.
-                <br />
-                Dung lượng ≤ <span className="text-white font-medium">2MB</span>.
-              </div>
+            <div className="text-[10px] leading-relaxed text-purple-200/60 mt-2">
+              Khuyến nghị: 1200×675px, ≤ 2MB
             </div>
           </div>
         </div>

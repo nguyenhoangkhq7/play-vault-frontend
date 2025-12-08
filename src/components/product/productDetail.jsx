@@ -8,6 +8,7 @@ import {
   Heart,
   ShoppingCart,
   Loader2,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import searchApi from "../../api/searchApi";
@@ -16,6 +17,7 @@ import { useCart } from "../../store/CartContext";
 import { useUser } from "../../store/UserContext";
 import { api } from "../../api/authApi";
 import GameReviews from "../review/GameReview";
+import DownloadGameButton from "../download/DownloadGameButton";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -367,20 +369,11 @@ export default function ProductDetailPage() {
                         </button>
                       </div>
                     ) : (
-                      <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/50 rounded-2xl p-8 text-center">
-                        <p className="text-green-400 text-lg mb-6">
-                          Chúc mừng! Bạn đã sở hữu game này
-                        </p>
-                        <a
-                          href={game.filePath}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-5 rounded-full transition-all transform hover:scale-105 shadow-2xl"
-                          download
-                        >
-                          Download Full Speed
-                        </a>
-                      </div>
+                      <DownloadGameButton 
+                        gameId={game.id}
+                        gameName={game.name}
+                        variant="full"
+                      />
                     )}
                   </motion.div>
                 )}

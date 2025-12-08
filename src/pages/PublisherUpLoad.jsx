@@ -5,6 +5,9 @@ import Footer from "../components/home/footer";
 import PublisherInfo from "../components/publisher/PublisherInfo.jsx";
 import PublisherBuild from "../components/publisher/PublisherBuild.jsx";
 import PublisherStore from "../components/publisher/PublisherStore.jsx";
+import { getPresignedUploadUrl, uploadFileToR2 } from "../api/r2Games.js";
+import { createGameSubmission } from "../api/games.js";
+import { toast } from "sonner";
 
 export default function PublisherUpload() {
   return <PublisherUploadInner />;
@@ -34,6 +37,10 @@ function PublisherUploadInner() {
   const [buildProgress, setBuildProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const uploadTimerRef = useRef(null);
+  
+  // R2 Upload state
+  const [r2FilePath, setR2FilePath] = useState(""); // Lưu filePath từ presigned URL
+  const [uploadedFile, setUploadedFile] = useState(null); // File đã chọn
 
   // Screenshots
   const ssRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
@@ -77,29 +84,52 @@ function PublisherUploadInner() {
     readAsDataURL(f, setCoverUrl);
   };
 
-  // Build handlers (fake progress demo)
-  const onBuildFiles = (files) => {
+  // Build handlers - UPLOAD TO R2
+  const onBuildFiles = async (files) => {
     const f = files?.[0];
     if (!f) return;
-    if (!/(zip|7z|rar)$/i.test(f.name)) {
-      alert("Chỉ nhận .zip, .7z, .rar");
+    
+    // Validate file extension
+    const fileExt = f.name.split('.').pop().toLowerCase();
+    if (!/(zip|7z|rar|exe)$/i.test(fileExt)) {
+      toast.error("Chỉ nhận .zip, .7z, .rar, .exe");
       return;
     }
+    
     setBuildName(f.name);
+    setUploadedFile(f);
     setIsUploading(true);
     setBuildProgress(0);
-    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-    uploadTimerRef.current = setInterval(() => {
-      setBuildProgress((p) => {
-        const next = Math.min(100, p + Math.random() * 12 + 5);
-        if (next >= 100) {
-          clearInterval(uploadTimerRef.current);
-          uploadTimerRef.current = null;
-          setIsUploading(false);
-        }
-        return next;
+    
+    try {
+      // BƯỚC 1: Lấy presigned URL
+      toast.info("Đang chuẩn bị upload...");
+      const { uploadUrl, filePath } = await getPresignedUploadUrl(fileExt);
+      
+      console.log("✅ Got presigned URL, filePath:", filePath);
+      setR2FilePath(filePath); // LƯU LẠI QUAN TRỌNG!
+      
+      // BƯỚC 2: Upload file lên R2
+      toast.info("Đang upload file lên cloud...");
+      await uploadFileToR2(uploadUrl, f, (progress) => {
+        setBuildProgress(progress);
       });
-    }, 250);
+      
+      setBuildProgress(100);
+      setIsUploading(false);
+      toast.success(`✅ Upload thành công: ${f.name}`);
+      
+      console.log("✅ File uploaded! R2 filePath:", filePath);
+      
+    } catch (error) {
+      console.error("❌ Upload failed:", error);
+      toast.error(error.message || "Upload thất bại");
+      setIsUploading(false);
+      setBuildProgress(0);
+      setBuildName("");
+      setUploadedFile(null);
+      setR2FilePath("");
+    }
   };
 
   useEffect(
@@ -133,8 +163,93 @@ function PublisherUploadInner() {
   }, [title, summary, genre, isFree, price, buildName]);
 
   // ---------------------- Actions ----------------------
-  const onSaveDraft = () => alert("Đã lưu bản nháp (demo).");
-  const onSubmitReview = () => alert("Đã gửi duyệt (demo).");
+  const onSaveDraft = () => {
+    toast.info("Đã lưu bản nháp (demo).");
+  };
+  
+  const onSubmitReview = async () => {
+    // Validate required fields
+    if (!title.trim()) {
+      toast.error("Vui lòng nhập tên game");
+      return;
+    }
+    if (!summary.trim()) {
+      toast.error("Vui lòng nhập mô tả ngắn");
+      return;
+    }
+    if (!genre.trim()) {
+      toast.error("Vui lòng chọn thể loại");
+      return;
+    }
+    if (!r2FilePath) {
+      toast.error("Vui lòng upload file build game");
+      return;
+    }
+    if (!isFree && !price) {
+      toast.error("Vui lòng nhập giá game");
+      return;
+    }
+    if (!coverUrl) {
+      toast.error("Vui lòng upload ảnh cover");
+      return;
+    }
+    
+    // ⚠️ QUAN TRỌNG: Không gửi base64 vào database!
+    if (coverUrl.startsWith('data:image')) {
+      toast.error("Vui lòng upload ảnh cover lên Cloudinary/external URL trước. Base64 quá dài cho database.");
+      console.error("⚠️ coverUrl is base64, must be external URL");
+      return;
+    }
+    
+    try {
+      toast.info("Đang gửi thông tin game...");
+      
+      // BƯỚC 3: Tạo game submission
+      const parsedPrice = isFree ? 0 : parseFloat(price);
+      const parsedCategoryId = parseInt(genre);
+      
+      // Validate parsed values
+      if (!isFree && (isNaN(parsedPrice) || parsedPrice <= 0)) {
+        toast.error("Giá game không hợp lệ");
+        return;
+      }
+      
+      if (isNaN(parsedCategoryId) || parsedCategoryId <= 0) {
+        toast.error("Vui lòng chọn thể loại game");
+        return;
+      }
+      
+      const gameData = {
+        title: title.trim(),
+        summary: summary.trim(),
+        description: summary.trim(), // Có thể thêm field riêng cho description
+        coverUrl: coverUrl, // PHẢI là URL external, không phải base64
+        trailerUrl: trailer || "",
+        isFree: isFree,
+        price: parsedPrice,
+        isAge18: age18,
+        isSupportController: controller,
+        filePath: r2FilePath, // ⭐ QUAN TRỌNG: filePath từ R2
+        categoryId: parsedCategoryId,
+        platforms: platforms.length > 0 ? platforms : ["PC"],
+        releaseDate: release || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log("📝 Submitting game with data:", JSON.stringify(gameData, null, 2));
+      
+      const result = await createGameSubmission(gameData);
+      
+      toast.success("✅ Đã gửi game thành công! Đang chờ admin duyệt.");
+      console.log("✅ Game created:", result);
+      
+      // Reset form (optional)
+      // navigate("/publisher/manage-games");
+      
+    } catch (error) {
+      console.error("❌ Submit failed:", error);
+      toast.error(error.message || "Gửi thất bại. Vui lòng thử lại.");
+    }
+  };
 
   // ---------------------- Step Navigation ----------------------
   // logic điều hướng theo thứ tự info -> build -> store
@@ -159,6 +274,9 @@ function PublisherUploadInner() {
       <div className="fixed top-0 left-20 right-0 z-50">
         <Navbar />
       </div>
+      
+      {/* Toast container */}
+      <div id="toast-container"></div>
 
       
 
@@ -223,9 +341,10 @@ function PublisherUploadInner() {
                   isFree, setIsFree,
                   price, setPrice,
                   // cover
-                  coverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
+                  coverUrl, setCoverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
                   // build
                   buildInputRef, onBuildFiles, buildName, buildProgress, isUploading,
+                  r2FilePath, // ⭐ THÊM: filePath từ R2
                   // screenshots
                   ssRefs, ssUrls, onPickSS,
                   // store

@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, Check, X, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,7 +42,6 @@ export default function ApprovalPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [workingId, setWorkingId] = useState(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -117,36 +115,6 @@ export default function ApprovalPage() {
 
   const handleCardClick = (id) => navigate(`/admin/approval/games/${id}`);
 
-  const mutateStatus = async (id, next) => {
-    setWorkingId(id);
-    const snapshot = games.map((g) => ({ ...g }));
-
-    setGames((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, status: next.toLowerCase() } : g))
-    );
-
-    try {
-      const res = await gameService.updateStatus(id, next);
-      const returnedStatus =
-        (res?.data?.status || res?.status || next)?.toString().toUpperCase();
-
-      setGames((prev) =>
-        prev.map((g) =>
-          g.id === id ? { ...g, status: returnedStatus.toLowerCase() } : g
-        )
-      );
-    } catch (e) {
-      console.error("Update status failed:", e);
-      alert(e?.response?.data?.message || "Cập nhật trạng thái thất bại.");
-      setGames(snapshot);
-    } finally {
-      setWorkingId(null);
-    }
-  };
-
-  const handleApprove = (id) => mutateStatus(id, "APPROVED");
-  const handleReject = (id) => mutateStatus(id, "REJECTED");
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 flex flex-col">
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -196,7 +164,6 @@ export default function ApprovalPage() {
                 const statusConfig = getStatusConfig(game.status);
                 const StatusIcon = statusConfig.icon;
                 
-                // --- CHỈNH SỬA TẠI ĐÂY: Format GCoin ---
                 const priceDisplay = new Intl.NumberFormat("vi-VN").format(Number(game.price || 0)) + " GCoin";
 
                 return (
@@ -239,39 +206,15 @@ export default function ApprovalPage() {
                       </p>
 
                       <div
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${statusConfig.badgeColor} w-fit`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-0 ${statusConfig.badgeColor} w-fit`}
                       >
                         <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
                         <span className={`text-sm font-medium ${statusConfig.color}`}>
                           {statusConfig.label}
                         </span>
                       </div>
-
-                      {game.status === "pending" && (
-                        <div
-                          className="mt-auto flex gap-3 pt-2 border-t border-purple-700/30"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Button
-                            size="sm"
-                            disabled={workingId === game.id}
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium transition-colors disabled:opacity-60"
-                            onClick={() => handleApprove(game.id)}
-                          >
-                            <Check className="w-4 h-4 mr-1.5" />
-                            Duyệt
-                          </Button>
-                          <Button
-                            size="sm"
-                            disabled={workingId === game.id}
-                            className="flex-1 bg-red-900/50 hover:bg-red-900/70 text-red-300 border border-red-700/50 font-medium transition-colors disabled:opacity-60"
-                            onClick={() => handleReject(game.id)}
-                          >
-                            <X className="w-4 h-4 mr-1.5" />
-                            Từ chối
-                          </Button>
-                        </div>
-                      )}
+                      
+                      {/* Đã xóa phần nút bấm ở đây */}
                     </div>
                   </div>
                 );

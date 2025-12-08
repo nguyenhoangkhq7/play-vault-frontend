@@ -117,7 +117,10 @@ export default function PublisherRegister() {
     if (!formData.accountNumber.trim()) errors.accountNumber = "Số tài khoản là bắt buộc";
     else if (!/^\d+$/.test(formData.accountNumber)) errors.accountNumber = "Số tài khoản chỉ được chứa ký tự số";
 
-    if (!formData.bankName.trim()) errors.bankName = "Tên ngân hàng là bắt buộc";
+    // Chỉ validate Bank Name nếu phương thức là BANK
+    if (formData.paymentMethod === 'BANK' && !formData.bankName.trim()) {
+        errors.bankName = "Tên ngân hàng là bắt buộc";
+    }
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -146,7 +149,23 @@ export default function PublisherRegister() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    setFormData((prev) => {
+        const newData = { ...prev, [name]: value };
+
+        // Logic đặc biệt cho Payment Method
+        if (name === "paymentMethod") {
+            if (value === "MOMO") {
+                newData.bankName = "MoMo"; // Tự động điền
+            } else if (value === "ZALOPAY") {
+                newData.bankName = "ZaloPay"; // Tự động điền
+            } else if (value === "BANK") {
+                newData.bankName = ""; // Reset để người dùng nhập
+            }
+        }
+        return newData;
+    });
+
     if (fieldErrors[name]) {
       setFieldErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -239,6 +258,12 @@ export default function PublisherRegister() {
             
             <div className="p-8">
 
+              {/* --- Header Title --- */}
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-purple-200 bg-clip-text text-transparent">
+                        Đăng Ký Tài Khoản
+                    </h1>
+                </div>
                 {/* --- 1. TAB SWITCHER (NGƯỜI DÙNG / NHÀ PHÁT HÀNH) --- */}
                 <div className="flex bg-purple-900/40 p-1 rounded-xl mb-8 border border-purple-700/50">
                     <button
@@ -258,12 +283,7 @@ export default function PublisherRegister() {
                     </button>
                 </div>
 
-                {/* --- Header Title --- */}
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-pink-400 to-purple-200 bg-clip-text text-transparent">
-                        Đăng Ký Tài Khoản
-                    </h1>
-                </div>
+                
 
                 {/* --- Progress Bar --- */}
                 <div className="flex gap-2 mb-8">
@@ -361,9 +381,41 @@ export default function PublisherRegister() {
                                 </select>
                                 {fieldErrors.paymentMethod && <p className="text-pink-400 text-xs mt-1">{fieldErrors.paymentMethod}</p>}
                             </div>
+                            
                             <InputField label="Tên Chủ Tài Khoản" name="accountName" placeholder="NGUYEN VAN A" value={formData.accountName} onChange={handleInputChange} error={fieldErrors.accountName} />
-                            <InputField label="Số Tài Khoản" name="accountNumber" type="number" placeholder="0123456789" value={formData.accountNumber} onChange={handleInputChange} error={fieldErrors.accountNumber} />
-                            <InputField label="Tên Ngân Hàng" name="bankName" placeholder="Vietcombank, Techcombank..." value={formData.bankName} onChange={handleInputChange} error={fieldErrors.bankName} />
+                            
+                            <InputField 
+                                label="Số Tài Khoản / Số Điện Thoại Ví" 
+                                name="accountNumber" 
+                                type="number" 
+                                placeholder={formData.paymentMethod === 'BANK' ? "0123456789" : "SĐT đăng ký ví"} 
+                                value={formData.accountNumber} 
+                                onChange={handleInputChange} 
+                                error={fieldErrors.accountNumber} 
+                            />
+                            
+                            {/* Input Tên Ngân Hàng: Disable nếu không phải BANK */}
+                            <div>
+                                <label className={`block text-sm font-medium mb-2 flex items-center gap-2 ${formData.paymentMethod !== 'BANK' ? 'text-purple-400' : 'text-purple-100'}`}>
+                                    Tên Ngân Hàng {formData.paymentMethod === 'BANK' && <span className="text-pink-500">*</span>}
+                                </label>
+                                <input
+                                    type="text"
+                                    name="bankName"
+                                    value={formData.bankName}
+                                    onChange={handleInputChange}
+                                    placeholder={formData.paymentMethod === 'BANK' ? "Vietcombank, Techcombank..." : (formData.paymentMethod || "Tên ngân hàng")}
+                                    disabled={formData.paymentMethod !== 'BANK'} // Khóa ô nhập
+                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-purple-500 bg-purple-900/40 text-white placeholder-purple-300 transition-colors ${
+                                        formData.paymentMethod !== 'BANK' ? "opacity-50 cursor-not-allowed bg-purple-900/20" : "hover:bg-purple-900/60"
+                                    } ${fieldErrors.bankName ? "border-pink-500" : "border-purple-700/50"}`}
+                                />
+                                {fieldErrors.bankName && (
+                                    <p className="text-pink-400 text-xs mt-1 flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3" /> {fieldErrors.bankName}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </div>
                     )}

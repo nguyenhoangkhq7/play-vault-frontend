@@ -6,11 +6,13 @@ import DetailedGameIntroduction from "../components/home/detailed-game-introduct
 
 export default function Home() {
     return (
-        <>
-            <HeroSlideshow />
-            <GameCategories />
-            <DetailedGameIntroduction />
-            <GameGrid />
-        </>
+<>
+      <HeroSlideshow />
+      <GameCategories />
+      <DetailedGameIntroduction />
+      <GameGrid />
+
+</>
+
     );
 }

@@ -1,20 +1,24 @@
-import {API_BASE_URL} from "../config/api.js"
-
+import { API_BASE_URL } from "../config/api.js";
 
 const API_URL = `${API_BASE_URL}/users`;
 
 export async function checkIfUserExists(username) {
   try {
     console.log(`Checking username: ${username}`);
-    const userResponse = await fetch(`${API_URL}?username=${encodeURIComponent(username)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+    const userResponse = await fetch(
+      `${API_URL}?username=${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
       }
-    });
+    );
     if (!userResponse.ok) {
-      throw new Error(`Lỗi kiểm tra tên người dùng: HTTP ${userResponse.status}`);
+      throw new Error(
+        `Lỗi kiểm tra tên người dùng: HTTP ${userResponse.status}`
+      );
     }
     const existingUsers = await userResponse.json();
     console.log("Existing users:", existingUsers);
@@ -22,47 +26,76 @@ export async function checkIfUserExists(username) {
       throw new Error("Phản hồi username không phải mảng");
     }
     if (existingUsers.length > 0) {
-      return { exists: true, message: "Tên người dùng đã tồn tại, vui lòng chọn tên khác" };
+      return {
+        exists: true,
+        message: "Tên người dùng đã tồn tại, vui lòng chọn tên khác",
+      };
     }
 
     return { exists: false };
   } catch (error) {
     console.error("Lỗi khi kiểm tra người dùng:", error);
-    return { exists: true, message: `Lỗi khi kiểm tra thông tin người dùng: ${error.message}` };
+    return {
+      exists: true,
+      message: `Lỗi khi kiểm tra thông tin người dùng: ${error.message}`,
+    };
   }
 }
 
 export async function registerUser(userData) {
   try {
     console.log("Registering user with data:", userData);
-    const registerResponse = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: userData.id,
-        username: userData.username,
-        email: userData.email,
-        phone: userData.phone,
-        gender: userData.gender,
-        address: userData.address,
-        password: userData.password,
-        f_name: userData.f_name,
-        l_name: userData.l_name,
-        dob: { $date: userData.dob.toISOString() },
-        avatar: userData.avatar || "https://res.cloudinary.com/dqnj8bsgu/image/upload/v1746630940/avatar_f6yerg.jpg",
-        role: userData.role || "user",
-        status: userData.status || "active",
-        created_at: new Date().toISOString()
-      })
-    });
-    if (!registerResponse.ok) {
-      console.log("Register response:", registerResponse.status, registerResponse.statusText);
-      const errorData = await registerResponse.text();
-      console.log("Error response body:", errorData);
-      throw new Error(`Lỗi đăng ký người dùng: HTTP ${registerResponse.status} - ${errorData}`);
+    const fullName =
+      userData.fullName ||
+      `${userData.f_name || ""} ${userData.l_name || ""}`.trim();
+    const dateOfBirth =
+      userData.dateOfBirth ||
+      (userData.dob ? userData.dob.toISOString().split("T")[0] : null);
+
+    if (!fullName) {
+      throw new Error("Họ tên không được để trống");
+    }
+    if (!dateOfBirth) {
+      throw new Error("Ngày sinh không được để trống");
     }
 
-    const responseData = await registerResponse.json();
+    // Backend expects /api/auth/register/customer with fullName + dateOfBirth (LocalDate)
+    const registerResponse = await fetch(
+      `${API_BASE_URL}/api/auth/register/customer`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: userData.username,
+          email: userData.email,
+          phone: userData.phone,
+          password: userData.password,
+          fullName,
+          dateOfBirth, // yyyy-MM-dd
+          role: userData.role || "CUSTOMER",
+        }),
+      }
+    );
+    if (!registerResponse.ok) {
+      console.log(
+        "Register response:",
+        registerResponse.status,
+        registerResponse.statusText
+      );
+      const errorData = await registerResponse.text();
+      console.log("Error response body:", errorData);
+      throw new Error(
+        `Lỗi đăng ký người dùng: HTTP ${registerResponse.status} - ${errorData}`
+      );
+    }
+
+    const responseText = await registerResponse.text();
+    let responseData;
+    try {
+      responseData = responseText ? JSON.parse(responseText) : {};
+    } catch (e) {
+      responseData = { message: responseText };
+    }
     console.log("Register success:", responseData);
     return responseData;
   } catch (error) {
@@ -116,7 +149,9 @@ export async function updateUser(userId, userData) {
       body: JSON.stringify(userData),
     });
     if (!response.ok) {
-      throw new Error(`Failed to update user ${userId}: ${response.statusText}`);
+      throw new Error(
+        `Failed to update user ${userId}: ${response.statusText}`
+      );
     }
     return await response.json();
   } catch (error) {

@@ -4,10 +4,11 @@ import Navbar from "../components/home/navbar";
 import Footer from "../components/home/footer";
 import PublisherInfo from "../components/publisher/PublisherInfo.jsx";
 import PublisherBuild from "../components/publisher/PublisherBuild.jsx";
-import PublisherStore from "../components/publisher/PublisherStore.jsx";
+// import PublisherStore from "../components/publisher/PublisherStore.jsx"; // File không tồn tại
 import { getPresignedUploadUrl, uploadFileToR2 } from "../api/r2Games.js";
 import { createGameSubmission } from "../api/games.js";
-import { toast } from "sonner";
+import { uploadImagesToCloudinary } from "../api/cloudinary.js";
+import { toast, Toaster } from "sonner";
 
 export default function PublisherUpload() {
   return <PublisherUploadInner />;
@@ -45,12 +46,23 @@ function PublisherUploadInner() {
   // Screenshots
   const ssRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
   const [ssUrls, setSsUrls] = useState(["", "", "", ""]);
+  
+  // Gallery (4 preview images) - upload to Cloudinary
+  const galleryInputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [galleryUrls, setGalleryUrls] = useState(["", "", "", ""]);
 
   // Store config
   const [slug, setSlug] = useState("");
   const [tags, setTags] = useState("");
   const [age18, setAge18] = useState(false);
   const [controller, setController] = useState(false);
+  
+  // System requirements (for Build step)
+  const [notes, setNotes] = useState("");
+  const [ram, setRam] = useState("");
+  const [storage, setStorage] = useState("");
+  const [cpu, setCpu] = useState("");
+  const [gpu, setGpu] = useState("");
 
   // ---------------------- Helpers ----------------------
   const togglePlatform = (value) => {
@@ -73,15 +85,30 @@ function PublisherUploadInner() {
     e.stopPropagation();
   };
 
-  // Cover handlers
-  const onCoverFiles = (files) => {
+  // Cover handlers - Upload to Cloudinary
+  const onCoverFiles = async (files) => {
     const f = files?.[0];
     if (!f) return;
     if (!f.type.startsWith("image/")) {
-      alert("Vui lòng chọn ảnh (JPG/PNG)");
+      toast.error("Vui lòng chọn ảnh (JPG/PNG)");
       return;
     }
-    readAsDataURL(f, setCoverUrl);
+    
+    try {
+      toast.info("Đang upload ảnh cover...");
+      const urls = await uploadImagesToCloudinary([f]);
+      
+      if (urls && urls.length > 0) {
+        setCoverUrl(urls[0]);
+        toast.success("✅ Upload ảnh cover thành công!");
+        console.log("✅ Cover URL:", urls[0]);
+      } else {
+        throw new Error("Không nhận được URL từ Cloudinary");
+      }
+    } catch (error) {
+      console.error("❌ Upload cover failed:", error);
+      toast.error("Upload ảnh thất bại. Vui lòng thử lại.");
+    }
   };
 
   // Build handlers - UPLOAD TO R2
@@ -137,6 +164,32 @@ function PublisherUploadInner() {
     []
   );
 
+  // Gallery handlers - Upload to Cloudinary
+  const onGalleryFiles = async (idx, files) => {
+    const f = files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn ảnh (JPG/PNG)");
+      return;
+    }
+    
+    try {
+      toast.info(`Đang upload ảnh ${idx + 1}...`);
+      const urls = await uploadImagesToCloudinary([f]);
+      
+      if (urls && urls.length > 0) {
+        setGalleryUrls(prev => prev.map((u, i) => i === idx ? urls[0] : u));
+        toast.success(`✅ Upload ảnh ${idx + 1} thành công!`);
+        console.log(`✅ Gallery ${idx} URL:`, urls[0]);
+      } else {
+        throw new Error("Không nhận được URL từ Cloudinary");
+      }
+    } catch (error) {
+      console.error(`❌ Upload gallery ${idx} failed:`, error);
+      toast.error(`Upload ảnh ${idx + 1} thất bại`);
+    }
+  };
+  
   // Screenshots handlers
   const onPickSS = (idx, files) => {
     const f = files?.[0];
@@ -191,13 +244,6 @@ function PublisherUploadInner() {
     }
     if (!coverUrl) {
       toast.error("Vui lòng upload ảnh cover");
-      return;
-    }
-    
-    // ⚠️ QUAN TRỌNG: Không gửi base64 vào database!
-    if (coverUrl.startsWith('data:image')) {
-      toast.error("Vui lòng upload ảnh cover lên Cloudinary/external URL trước. Base64 quá dài cho database.");
-      console.error("⚠️ coverUrl is base64, must be external URL");
       return;
     }
     
@@ -270,13 +316,13 @@ function PublisherUploadInner() {
   // ---------------------- Render ----------------------
   return (
     <div className="publisher-root" data-bs-theme="dark">
+      {/* Toast notifications */}
+      <Toaster position="top-right" richColors />
+      
       {/* Site navbar (restore global header) */}
       <div className="fixed top-0 left-20 right-0 z-50">
         <Navbar />
       </div>
-      
-      {/* Toast container */}
-      <div id="toast-container"></div>
 
       
 
@@ -341,10 +387,17 @@ function PublisherUploadInner() {
                   isFree, setIsFree,
                   price, setPrice,
                   // cover
-                  coverUrl, setCoverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
+                  coverUrl, coverInputRef, pickFile, prevent, onCoverFiles,
+                  // gallery
+                  galleryInputRefs, onGalleryFiles,
                   // build
                   buildInputRef, onBuildFiles, buildName, buildProgress, isUploading,
                   r2FilePath, // ⭐ THÊM: filePath từ R2
+                  notes, setNotes,
+                  ram, setRam,
+                  storage, setStorage,
+                  cpu, setCpu,
+                  gpu, setGpu,
                   // screenshots
                   ssRefs, ssUrls, onPickSS,
                   // store

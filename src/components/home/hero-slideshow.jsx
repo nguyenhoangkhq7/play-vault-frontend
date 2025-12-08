@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom"; // Thêm useNavigate
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import { ChevronLeft, ChevronRight, Star, Award } from "lucide-react";
-import { getGames, getTopNGame } from "../../api/games.js";
-import { getCommentsByGameId } from "../../api/comments.js";
+import { getTopNGame } from "../../api/games.js";
+
 
 export default function HeroSlideshow() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -35,14 +35,8 @@ export default function HeroSlideshow() {
           // image: "http://localhost:8080/images/game.jpg",
           rating: game.avgRating || 0,
           commentCount: game.reviewCount || 0,
-          price: new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(game.gameBasicInfos?.price || 0),
-          originalPrice: new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format((game.gameBasicInfos?.price || 0) - (game.discount || 0)),
+          price: `${new Intl.NumberFormat("vi-VN").format(game.gameBasicInfos?.price || 0)} GCoin`,
+          originalPrice: `${new Intl.NumberFormat("vi-VN").format((game.gameBasicInfos?.price || 0) - (game.discount || 0))} GCoin`,
           isNew: false,
           badge: game.gameBasicInfos?.publisherName || "Featured",
           genres: [game.categoryName || "Unknown"],
@@ -88,7 +82,7 @@ export default function HeroSlideshow() {
 
   // Hàm xử lý khi nhấn "Mua Ngay"
   const handleBuyNow = (gameId, gameTitle) => {
-    alert(`Bạn đã chọn mua ${gameTitle}!`);
+    // alert(`Bạn đã chọn mua ${gameTitle}!`);
     navigate(`/product/${gameId}`); // Điều hướng đến trang chi tiết (hoặc có thể đến trang thanh toán)
   };
 
@@ -110,9 +104,10 @@ export default function HeroSlideshow() {
 
   return (
     <div
-      className="relative h-[500px] rounded-2xl overflow-hidden mb-12 group"
+      className="relative h-[500px] rounded-2xl overflow-hidden mb-12 group mt-5"
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
+      
     >
       {/* Slides */}
       <div className="relative w-full h-full">
@@ -184,11 +179,11 @@ export default function HeroSlideshow() {
 
               <div className="flex items-center space-x-4">
                 <div className="flex flex-col">
-                  <span className="text-white text-2xl font-bold">
+                  <span className="text-2xl font-bold text-white">
                     {slide.originalPrice}
                   </span>
                   {slide.discount>0 && (
-                    <div className="flex items-center space-x shore-2">
+                    <div className="flex items-center space-x-2">
                       <span className="text-gray-400 text-sm line-through">
                         {slide.price}
                       </span>

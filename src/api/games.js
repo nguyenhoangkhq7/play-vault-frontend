@@ -187,8 +187,6 @@ export async function getMyGames(setAccessToken) {
   }
 }
 
-
-
 /**
  * 📝 BƯỚC 3: Tạo Game Submission (Submit thông tin game)
  * @param {Object} gameData - Dữ liệu game theo GameCreateRequest

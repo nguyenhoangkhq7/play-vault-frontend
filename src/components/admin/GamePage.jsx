@@ -112,7 +112,6 @@ export function GamePage() {
     totalRevenue: 0 
   });
 
-  // STATE MỚI: Danh sách category lấy từ API
   const [categoryList, setCategoryList] = useState([]);
 
   const PAGE_SIZE = 10; 
@@ -130,7 +129,6 @@ export function GamePage() {
     navigate(`/admin/games/${game.id}`);
   };
 
-  // Helper function: Format ngày tháng năm (dd-MM-yyyy)
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     try {
@@ -144,7 +142,6 @@ export function GamePage() {
     }
   };
 
-  // 1. Load danh sách Category từ API
   const loadCategories = async () => {
     try {
         const response = await adminGamesApi.getCategories();
@@ -173,7 +170,8 @@ export function GamePage() {
          size: PAGE_SIZE,
          searchQuery: searchQuery,
          categoryFilter: categoryFilter,
-         sortBy: sortOption 
+         sortBy: sortOption,
+         status: 'APPROVED',
       };
       
       const response = await adminGamesApi.getApprovedGames(params); 
@@ -254,9 +252,9 @@ export function GamePage() {
             <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="font-medium text-white text-sm truncate max-w-[150px]">{game.name}</p></td>
             <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="text-xs sm:text-sm text-purple-200 truncate max-w-[100px]">{game.publisher || "Unknown"}</p></td>
             
-            {/* Giá */}
+            {/* --- CẬP NHẬT: Giá (GCoin) --- */}
             <td className="py-3 sm:py-4 px-3 sm:px-6"><p className="font-medium text-white text-sm whitespace-nowrap">
-                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(game.price || 0)}
+                {new Intl.NumberFormat('vi-VN').format(game.price || 0)} GCoin
             </p></td>
 
             {/* Lượt tải */}
@@ -267,11 +265,11 @@ export function GamePage() {
                 </div>
             </td>
 
-            {/* Doanh thu */}
+            {/* --- CẬP NHẬT: Doanh thu (GCoin) --- */}
             <td className="py-3 sm:py-4 px-3 sm:px-6">
                 <div className="flex items-center gap-1 text-green-400">
                     <span className="text-sm font-medium whitespace-nowrap">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(displayRevenue)}
+                        {new Intl.NumberFormat('vi-VN').format(displayRevenue)} GCoin
                     </span>
                 </div>
             </td>
@@ -311,7 +309,7 @@ export function GamePage() {
         </div>
       )}
 
-      <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-50 flex-shrink-0">
+      <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm top-0 z-0 flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-center items-center">
           <h1 className="text-2xl sm:text-4xl font-extrabold text-white text-center tracking-wide drop-shadow-lg">
             Quản lý Game 
@@ -353,13 +351,13 @@ export function GamePage() {
                 </div>
               </div>
             </div>
-            {/* Card 3 */}
+            {/* Card 3: CẬP NHẬT Tổng Doanh Thu (GCoin) */}
             <div className="bg-purple-600/40 backdrop-blur-sm border border-purple-500/30 rounded-xl p-4 sm:p-6 hover:border-purple-400/50 transition-all duration-300 hover:bg-purple-600/50">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-purple-200 mb-2">Tổng Doanh Thu</p>
                   <p className="text-2xl sm:text-3xl font-bold text-white">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.totalRevenue)}
+                    {new Intl.NumberFormat('vi-VN').format(stats.totalRevenue)} GCoin
                   </p>
                 </div>
                 <div className="bg-purple-500/20 p-2 sm:p-3 rounded-lg border border-purple-500/30 flex-shrink-0">
@@ -386,12 +384,10 @@ export function GamePage() {
                     </Button>
                 </DropdownMenuTriggerBase>
                 <DropdownMenuContent show={categoryDropdownOpen} onClose={() => setCategoryDropdownOpen(false)}>
-                    {/* Luôn hiển thị option "Tất cả" */}
                     <DropdownMenuItem onClick={() => { setCategoryFilter("all"); setCategoryDropdownOpen(false); }} className="text-white hover:bg-purple-700/50 cursor-pointer font-bold">
                         Tất cả
                     </DropdownMenuItem>
                     
-                    {/* Render danh sách thể loại từ API */}
                     {categoryList.map(category => (
                         <DropdownMenuItem 
                             key={category.id} 

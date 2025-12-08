@@ -1,9 +1,6 @@
-//useUserOrders.js
 // src/api/useUserOrders.js
-import { useEffect, useState } from "react";
-// cùng thư mục => dùng ./order.js
+import { useCallback, useEffect, useState } from "react";
 import { fetchOrdersByUserId } from "./order.js";
-// orderMapper cũng cùng thư mục
 import { mapOrderDtoToUi } from "./orderMapper.js";
 
 export function useUserOrders({ userId, page = 0, size = 20, enabled = true }) {
@@ -12,35 +9,24 @@ export function useUserOrders({ userId, page = 0, size = 20, enabled = true }) {
   const [meta, setMeta] = useState({ page, size, totalElements: 0, totalPages: 0 });
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!enabled) return;
-    if (!userId) return;
+  const load = useCallback(async () => {
+    if (!enabled || !userId) return;
+    setLoading(true); setError(null);
+    try {
+      const resp = await fetchOrdersByUserId(userId, page, size);
+      const ui = (resp.content || []).map(mapOrderDtoToUi);
+      setOrders(ui);
+      setMeta({ page, size, totalElements: resp.totalElements, totalPages: resp.totalPages });
+    } catch (e) {
+      console.error("Lỗi lấy orders:", e);
+      setError(e);
+      setOrders([]); setMeta({ page, size, totalElements: 0, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled, userId, page, size]);
 
-    let mounted = true;
-    const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") || "";
+  useEffect(() => { load(); }, [load]);
 
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await fetchOrdersByUserId(userId, page, size, token);
-        if (!mounted) return;
-
-        const uiOrders = (resp.content || []).map(mapOrderDtoToUi);
-        setOrders(uiOrders);
-        setMeta({ page: page, size: size, totalElements: resp.totalElements || uiOrders.length, totalPages: resp.totalPages || 1 });
-      } catch (err) {
-        console.error("Lỗi lấy orders:", err);
-        if (!mounted) return;
-        setError(err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { mounted = false; };
-  }, [userId, page, size, enabled]);
-
-  return { orders, loading, meta, error };
+  return { orders, loading, meta, error, refetch: load };
 }

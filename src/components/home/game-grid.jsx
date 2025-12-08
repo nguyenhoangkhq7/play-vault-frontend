@@ -1,83 +1,158 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { ChevronDown, Star, Loader2 } from "lucide-react";
-import { LazyLoadImage } from "react-lazy-load-image-component";
+import { useNavigate, Link } from "react-router-dom";
+import { ChevronDown, Star, Loader2, Heart } from "lucide-react";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
 // THÊM getTopNGame và API_BASE_URL (Giả định bạn có import này)
 import { getTopNGame } from "../../api/games.js";
 import { API_BASE_URL } from "../../config/api.js";
-// import { getGames } from "../../api/games.js" // KHÔNG CẦN
-// import { getCommentsByGameId } from "../../api/comments.js" // KHÔNG CẦN
+import { getWishlist, createWishlist, updateWishlist } from "../../api/wishlist.js";
 
-// Component GameCard (Giữ nguyên)
-const GameCard = ({ game }) => {
-  const navigate = useNavigate();
+const fallbackImage = "https://via.placeholder.com/300x224.png?text=No+Image";
 
-  const handleBuyNow = (e) => {
-    e.stopPropagation(); // Ngăn chặn click lan truyền
-    if (!game?.id) return;
-    // alert(`Bạn đã chọn mua ${game.title}!`)
-    navigate(`/product/${game.id}`);
-  };
-
+// Component GameCard - Style giống product.jsx
+const GameCard = ({ game, idx, onFavoriteToggle, isInWishlist, isWishlistLoading }) => {
   return (
-    <div
-      className="relative group overflow-hidden rounded-xl bg-black/20 hover:bg-black/40 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 cursor-pointer"
-      onClick={() => navigate(`/product/${game.id}`)} // Bấm vào card điều hướng
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.3, delay: idx * 0.05 }} 
+      className="group/card h-full"
     >
-      <div className="relative aspect-[3/2] overflow-hidden rounded-t-xl">
-        <LazyLoadImage
-          src={game.image}
-          alt={game.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-        <div className="absolute right-3 top-3 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
-          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-          <span className="text-white text-xs font-medium">
-            {game.rating}/5
-          </span>
-          <span className="text-gray-400 text-xs">({game.commentCount})</span>
+      <div className="relative overflow-hidden rounded-xl border border-purple-800/50 bg-purple-900/50 hover:border-purple-700 transition backdrop-blur-xl h-full flex flex-col hover:shadow-2xl hover:shadow-pink-500/10">
+        <div className="relative overflow-hidden bg-slate-950 h-48 sm:h-56">
+          <Link to={`/product/${game.id}`}>
+            <img 
+              src={game.image} 
+              alt={game.title} 
+              className="w-full h-full object-cover group-hover/card:scale-110 transition duration-500" 
+              onError={(e) => (e.currentTarget.src = fallbackImage)} 
+            />
+          </Link>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition" />
+          <motion.button 
+            whileHover={{ scale: 1.1 }} 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onFavoriteToggle(game.id, game.title);
+            }}
+            disabled={isWishlistLoading}
+            className={`absolute top-3 right-3 p-2 rounded-full transition ${
+              isInWishlist 
+                ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50' 
+                : 'bg-slate-900/80 hover:bg-pink-500/20 text-slate-300 hover:text-pink-400 border border-transparent hover:border-pink-500/50'
+            }`}
+          >
+            <Heart size={18} className={isInWishlist ? 'fill-current' : ''} />
+          </motion.button>
         </div>
-      </div>
 
-      <div className="p-4">
-        <h3 className="text-white font-semibold line-clamp-2 mb-2 h-12">
-          {game.title}
-        </h3>
-
-        <div className="flex justify-between items-end">
-          <div className="flex flex-col">
-            <span className="text-white font-bold">{game.originalPrice}</span>
-            {game.price != game.originalPrice && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-400 text-xs line-through">
-                  {game.price}
-                </span>
-                <span className="text-green-500 text-xs">
-                  -{game.discount || ""}
-                </span>
-              </div>
-            )}
+        <div className="flex-1 p-4 flex flex-col space-y-3">
+          <h4 className="text-white font-semibold text-base line-clamp-2 group-hover/card:text-pink-400 transition min-h-[3rem]">
+            <Link to={`/product/${game.id}`}>{game.title}</Link>
+          </h4>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex text-yellow-400 gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <Star 
+                  key={i} 
+                  size={12} 
+                  fill={i < Math.floor(game.rating || 0) ? "currentColor" : "none"} 
+                  className={i < Math.floor(game.rating || 0) ? "" : "text-slate-700"} 
+                />
+              ))}
+            </div>
+            <span className="text-xs text-slate-500">
+              {game.rating ? `(${game.rating})` : '(Chưa có)'}
+            </span>
           </div>
 
-          <button
-            onClick={handleBuyNow}
-            className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-3 py-1.5 rounded-full text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:scale-105 duration-300"
-          >
-            Mua Ngay
-          </button>
+          <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
+            <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              {game.originalPrice === "0 GCoin" ? 'Free' : game.originalPrice}
+            </span>
+            <Link to={`/product/${game.id}`}>
+              <motion.div 
+                whileHover={{ scale: 1.05 }} 
+                className="px-4 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/50 text-pink-300 text-xs font-bold cursor-pointer"
+              >
+                Xem
+              </motion.div>
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
 export default function GameGrid() {
+  const navigate = useNavigate();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showMore, setShowMore] = useState(false);
+  const [user, setUser] = useState(null);
+  const [wishlistGameIds, setWishlistGameIds] = useState([]);
+  const [wishlistLoading, setWishlistLoading] = useState({});
+
+  // Kiểm tra trạng thái đăng nhập
+  useEffect(() => {
+    const checkLoggedIn = () => {
+      try {
+        const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user");
+        const accessToken = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+        if (storedUser && accessToken) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error("Error checking user login:", err);
+        setUser(null);
+      }
+    };
+
+    checkLoggedIn();
+  }, []);
+
+  // Hàm refresh wishlist
+  const refreshWishlist = async () => {
+    if (!user) return;
+    try {
+      const data = await getWishlist();
+      console.log("Wishlist data:", data);
+      if (Array.isArray(data)) {
+        const gameIds = data.map(item => item.id || item.gameId || item.game_id);
+        setWishlistGameIds(gameIds.filter(id => id !== undefined && id !== null));
+      } else {
+        setWishlistGameIds([]);
+      }
+    } catch (err) {
+      console.error("Error fetching wishlist:", err);
+    }
+  };
+
+  // Fetch wishlist data khi user thay đổi
+  useEffect(() => {
+    if (user) {
+      refreshWishlist();
+    } else {
+      setWishlistGameIds([]);
+    }
+  }, [user]);
+
+  // Listen for wishlist updates
+  useEffect(() => {
+    const handleWishlistUpdate = () => {
+      refreshWishlist();
+    };
+    window.addEventListener("wishlistUpdated", handleWishlistUpdate);
+    return () => window.removeEventListener("wishlistUpdated", handleWishlistUpdate);
+  }, [user]);
 
   // Lấy danh sách game có rating cao
   useEffect(() => {
@@ -101,8 +176,8 @@ export default function GameGrid() {
           const originalPriceValue = priceValue - (g.discount || 0);
 
           // Định dạng tiền tệ
-          const formattedPrice = `${new Intl.NumberFormat("vi-VN").format(priceValue)} đ`;
-          const formattedOriginalPrice = `${new Intl.NumberFormat("vi-VN").format(originalPriceValue)} đ`;
+          const formattedPrice = `${new Intl.NumberFormat("vi-VN").format(priceValue)} GCoin`;
+          const formattedOriginalPrice = `${new Intl.NumberFormat("vi-VN").format(originalPriceValue)} GCoin`;
 
           return {
             id: g.id,
@@ -137,6 +212,50 @@ export default function GameGrid() {
 
     fetchTopGamesForGrid();
   }, []); // Dependencies là mảng rỗng
+
+  // Hàm toggle yêu thích
+  const handleFavoriteToggle = async (gameId, gameName) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để thêm game vào danh sách yêu thích!");
+      navigate("/login");
+      return;
+    }
+
+    setWishlistLoading(prev => ({ ...prev, [gameId]: true }));
+    const isCurrentlyFavorite = wishlistGameIds.includes(gameId);
+
+    try {
+      console.log("Toggle favorite:", { gameId, gameName, isCurrentlyFavorite });
+
+      if (isCurrentlyFavorite) {
+        // Xóa game khỏi wishlist
+        await updateWishlist(gameId);
+      } else {
+        // Thêm game vào wishlist
+        await createWishlist(gameId);
+      }
+
+      // Refresh wishlist sau khi thay đổi
+      await refreshWishlist();
+      
+      if (isCurrentlyFavorite) {
+        toast.success(`${gameName} đã bị xóa khỏi yêu thích!`);
+      } else {
+        toast.success(`${gameName} đã được thêm vào yêu thích!`);
+      }
+    } catch (err) {
+      console.error("Wishlist error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Lỗi không xác định";
+      toast.error(errorMsg);
+    } finally {
+      setWishlistLoading(prev => ({ ...prev, [gameId]: false }));
+    }
+  };
+
+  // Kiểm tra game có trong wishlist không
+  const isGameInWishlist = (gameId) => {
+    return wishlistGameIds.includes(gameId);
+  };
 
   const visibleGames = showMore
     ? games
@@ -190,8 +309,15 @@ export default function GameGrid() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {visibleGames.map((game) => (
-          <GameCard key={game.id} game={game} />
+        {visibleGames.map((game, idx) => (
+          <GameCard 
+            key={game.id} 
+            game={game} 
+            idx={idx}
+            onFavoriteToggle={handleFavoriteToggle}
+            isInWishlist={isGameInWishlist(game.id)}
+            isWishlistLoading={wishlistLoading[game.id] || false}
+          />
         ))}
       </div>
 

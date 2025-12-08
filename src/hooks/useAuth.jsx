@@ -2,7 +2,7 @@
 import { useUser } from "../store/UserContext";
 
 export default function useAuth() {
-  const { user } = useUser();
+  const { user, accessToken } = useUser();
 
   const isGuest = !user; // chưa đăng nhập
   const isCustomer = user?.role === "CUSTOMER";
@@ -18,6 +18,8 @@ export default function useAuth() {
 
   return {
     user,
+    accessToken,
+    token: accessToken, // alias for compatibility
     isGuest,
     isCustomer,
     isPublisher,

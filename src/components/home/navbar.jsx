@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   User,
   LogOut,
@@ -22,7 +22,6 @@ export default function Navbar() {
 
   const { user, logout, setUser } = useUser();
   const navigate = useNavigate();
-  const location = useLocation();
   const role = user?.role;
 
   // Đóng dropdown khi click ngoài
@@ -51,7 +50,8 @@ export default function Navbar() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/products?search=${searchQuery}`);
+      navigate(`/products?keyword=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery("");
     }
   };
 
@@ -155,9 +155,20 @@ export default function Navbar() {
                   </div>
 
                   <div className="py-2 space-y-0.5">
-                    {(role === "CUSTOMER" || role === "PUBLISHER") && (
+                    {role === "CUSTOMER" && (
                       <Link
                         to="/profile"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center gap-3 px-5 py-2.5 text-sm text-purple-100 hover:bg-purple-800/80 hover:text-white transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        Hồ sơ cá nhân
+                      </Link>
+                    )}
+
+                    {role === "PUBLISHER" && (
+                      <Link
+                        to="/publisher/profile"
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex items-center gap-3 px-5 py-2.5 text-sm text-purple-100 hover:bg-purple-800/80 hover:text-white transition-colors"
                       >

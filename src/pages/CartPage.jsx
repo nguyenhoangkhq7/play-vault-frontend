@@ -249,11 +249,6 @@ const handleConfirmPayment = async () => {
     // 5. CHUYỂN HƯỚNG THÔNG MINH
     // Trong handleConfirmPayment, thay đoạn chuyển hướng cuối cùng thành:
     if (purchasedGameIds.length === 1) {
-      toast.success({
-        title: "Thanh toán thành công!",
-        description: `Đã thêm ${purchasedGameIds.length} game vào thư viện của bạn`,
-        duration: 5000,
-      });
       toast.success("Mua thành công! Đang chuyển đến trang tải game...");
       setTimeout(() => {
         navigate(`/product/${purchasedGameIds[0]}`);

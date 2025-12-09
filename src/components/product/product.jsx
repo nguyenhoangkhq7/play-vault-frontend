@@ -142,25 +142,32 @@ export default function GamesPage() {
     } catch (error) { console.error("Lỗi khi tải thể loại:", error); }
   };
 
+  // 2. Fetch Games - Chỉ dùng API search AI
   const fetchGames = async () => {
     try {
       setLoading(true);
-      const normalResponse = await searchApi.searchGames(filterParams);
-      let normalGames = normalResponse?.content || [];
-      let totalPagesFromApi = normalResponse?.totalPages || 0;
-      
-      if (filterParams.keyword && filterParams.keyword.trim() !== '') {
-        try {
-          const aiResponse = await searchApi.searchGamesAI(filterParams.keyword);
-          const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
-          const existingIds = new Set(normalGames.map(g => g.id));
-          const uniqueAiGames = aiGames.filter(g => !existingIds.has(g.id));
-          normalGames = [...normalGames, ...uniqueAiGames];
-        } catch (aiError) { console.warn("Lỗi search AI:", aiError); }
-      }
-      setGames(normalGames);
+
+      const aiParams = {
+        keyword: filterParams.keyword || '',
+        categoryId: filterParams.categoryId,
+        minPrice: filterParams.minPrice,
+        maxPrice: filterParams.maxPrice,
+        page: filterParams.page,
+        size: filterParams.size,
+      };
+
+      const aiResponse = await searchApi.searchGamesAI(aiParams);
+      const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
+      const totalPagesFromApi = aiResponse?.totalPages || 0;
+
+      setGames(aiGames);
       setTotalPages(totalPagesFromApi);
-    } catch (error) { console.error("Lỗi:", error); setGames([]); } finally { setLoading(false); }
+    } catch (error) {
+      console.error("Lỗi:", error);
+      setGames([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchFeaturedGames = async () => {

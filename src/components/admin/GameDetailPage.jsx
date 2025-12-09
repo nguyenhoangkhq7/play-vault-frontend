@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Play, X, Loader2, AlertCircle } from "lucide-react";
+import { ChevronLeft, Play, X, Loader2, AlertCircle, Download } from "lucide-react"; // Đã thêm Download
+
 import adminGamesApi from "../../api/adminGames"; // Import API
 
 export function GameDetailPage() {
@@ -12,12 +13,15 @@ export function GameDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // 🔥 STATE MỚI: Trạng thái đang tải giả lập
+  const [isDownloading, setIsDownloading] = useState(false);
+
   // Modal State
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
 
-  // 1. Fetch Data từ API
+  // 1. Fetch Data từ API (Giữ nguyên logic cũ)
   useEffect(() => {
     const fetchGameDetail = async () => {
       setLoading(true);
@@ -35,6 +39,46 @@ export function GameDetailPage() {
 
     if (id) fetchGameDetail();
   }, [id]);
+
+  // 🔥 HÀM MỚI: XỬ LÝ DOWNLOAD GIẢ LẬP (TẠO FILE CLIENT-SIDE)
+  const handleDownload = () => {
+    if (!gameData) return;
+    setIsDownloading(true);
+
+    // Giả lập độ trễ mạng 1 chút cho mượt (800ms)
+    setTimeout(() => {
+        try {
+            // 1. Lấy tên game để đặt tên file
+            const gameName = gameData.name || "Game_Download";
+            const fileName = `${gameName}.zip`;
+
+            // 2. Tạo nội dung giả (Blob)
+            const dummyContent = `File giả lập cho game: ${gameName}.\nĐây là tính năng Admin View download test.`;
+            const blob = new Blob([dummyContent], { type: 'application/zip' });
+
+            // 3. Tạo URL ảo
+            const url = window.URL.createObjectURL(blob);
+
+            // 4. Tạo thẻ a ẩn và kích hoạt click
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName; // Ép tên file tại đây
+            document.body.appendChild(a);
+            
+            a.click();
+
+            // 5. Dọn dẹp
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Download error:", error);
+            alert("Lỗi khi tạo file tải xuống");
+        } finally {
+            setIsDownloading(false);
+        }
+    }, 800);
+  };
 
   // 2. Xử lý Duyệt Game
   const handleApprove = async () => {
@@ -194,16 +238,14 @@ export function GameDetailPage() {
   // === 2. Hàm Helper xử lý YouTube (Fix lỗi X-Frame-Options) ===
   const getEmbedUrl = (url) => {
     if (!url) return null;
-    // Regex lấy ID video youtube từ mọi dạng link
     const regExp =
       /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
 
-    // Nếu tìm thấy ID hợp lệ (11 ký tự) -> trả về link embed
     if (match && match[2].length === 11) {
       return `https://www.youtube.com/embed/${match[2]}`;
     }
-    return url; // Trả về gốc nếu không phải youtube
+    return url;
   };
 
   // --- Áp dụng Helper ---
@@ -217,7 +259,6 @@ export function GameDetailPage() {
   const description =
     gbi.description || gameData.description || "Chưa có mô tả.";
 
-  // Xử lý Video URL bằng hàm mới
   const rawVideoUrl =
     gbi.trailerUrl || gameData.trailerUrl || gameData.videoUrl;
   const videoUrl = getEmbedUrl(rawVideoUrl);
@@ -241,9 +282,6 @@ export function GameDetailPage() {
   const requireAged =
     gbi.requiredAge ?? gameData.requiredAge ?? gameData.requireAged ?? "12";
 
-  // Xử lý Screenshots bằng hàm mới
-  // ⭐ Screenshots: chấp nhận cả mảng string lẫn mảng object {url}
-  // ---- LẤY ẢNH SCREENSHOTS ĂN CHẮC ----
   const raw =
     gbi?.previewImages ??
     gameData.previewImages ??
@@ -251,7 +289,6 @@ export function GameDetailPage() {
     gameData.gallery ??
     [];
 
-  // ép về mảng (nếu backend trả string, ví dụ "url1,url2 url3")
   const ensureArray = (v) => {
     if (Array.isArray(v)) return v;
     if (typeof v === "string") return v.split(/[,\s]+/).filter(Boolean);
@@ -261,17 +298,16 @@ export function GameDetailPage() {
   const normalize = (u) => {
     if (!u) return null;
     let s = String(u).trim();
-    if (s.startsWith("http://")) s = "https://" + s.slice(7); // tránh mixed-content
+    if (s.startsWith("http://")) s = "https://" + s.slice(7); 
     return s;
   };
 
   const screenshots = ensureArray(raw)
     .map((it) => {
       if (typeof it === "string") return normalize(it);
-      // lấy đúng field đang lưu trong DB
       return (
         normalize(it?.url) ||
-        normalize(it?.imageUrl) || // <— thường gặp với link lh3.googleusercontent
+        normalize(it?.imageUrl) || 
         normalize(it?.link) ||
         normalize(it?.src) ||
         normalize(it?.path) ||
@@ -335,6 +371,34 @@ export function GameDetailPage() {
             </div>
           </div>
 
+          {/* 🔥 KHU VỰC NÚT DOWNLOAD: Đã thêm vào */}
+          <div className="bg-gradient-to-r from-purple-600/20 to-emerald-600/20 border border-purple-500/50 rounded-2xl p-8 text-center">
+            <p className="text-white-400 text-lg mb-6">
+              Tải xuống để kiểm duyệt & Test
+            </p>
+
+            {/* Sử dụng button để gọi hàm tạo file giả lập */}
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className={`inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-5 rounded-full transition-all transform hover:scale-105 shadow-2xl ${isDownloading ? 'opacity-75 cursor-wait' : ''}`}
+            >
+              {isDownloading ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" /> Đang tạo file...
+                  </>
+              ) : (
+                  <>
+                    <Download className="w-6 h-6" /> Download Full Speed
+                  </>
+              )}
+            </button>
+
+            <p className="mt-4 text-purple-300 text-sm">
+                File: <span className="font-mono text-yellow-300">{title}.zip</span>
+            </p>
+          </div>
+
           {/* Description */}
           <div className="p-6 rounded-xl bg-purple-500/5 border border-purple-500/30">
             <h3 className="text-lg font-semibold text-white mb-3">Mô tả</h3>
@@ -371,7 +435,7 @@ export function GameDetailPage() {
             </div>
           )}
 
-          {/* Trailer (ĐÃ SỬA: Dùng iframe với link embed) */}
+          {/* Trailer */}
           {videoUrl && (
             <div className="relative">
               <h3 className="text-lg font-semibold text-white mb-3">Trailer</h3>
@@ -414,7 +478,7 @@ export function GameDetailPage() {
           {/* Technical Info Box */}
           <div className="p-6 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-3">
             <h3 className="text-sm uppercase text-gray-400 font-semibold">
-              Thông tin kỹ thuật
+              Thông tin & Kỹ thuật
             </h3>
 
             <div>

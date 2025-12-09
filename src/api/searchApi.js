@@ -1,3 +1,4 @@
+import { ur } from 'zod/v4/locales';
 import axiosClient from './axiosClient';
 
 const searchApi = {
@@ -8,7 +9,17 @@ const searchApi = {
   searchGames: (params) => {
     // params bao gồm: { keyword, categoryId, minPrice, maxPrice, page, size }
     const url = '/games/search'; 
+
+    
     return axiosClient.get(url, { params });
+  },
+
+
+    searchGamesKey: (keyword) => {
+    const url = '/games/search-for'; 
+    return axiosClient.get(url, {
+    params: { keyword }   // <---- đúng
+  });
   },
 
   

@@ -57,7 +57,11 @@ const fetchGames = async () => {
     setLoading(true);
     
     // Gọi API search thường
-    const normalResponse = await searchApi.searchGames(filterParams);
+    
+    const normalResponse = await searchApi.searchGamesKey(filterParams.keyword);
+    console.log(filterParams.keyword);
+    
+    
     let normalGames = normalResponse?.content || [];
     let totalPagesFromApi = normalResponse?.totalPages || 0;
     

@@ -132,7 +132,7 @@ function CartPage() {
 
     const total = (mode === "all") ? totalForAll : totalPrice;
 
-    if (total === 0) {
+    if (mode === "selected" && selectedItems.length === 0) {
       toast.error("Vui lòng chọn sản phẩm để thanh toán.");
       return;
     }
@@ -159,7 +159,7 @@ function CartPage() {
     // Cập nhật localBalance
     setLocalBalance(newBalance);
     setShowPaymentModal(false);
-    toast.success(`Nạp tiền thành công! Số dư mới: ${newBalance.toLocaleString("vi-VN")} G-Coin`);
+    toast.success(`Nạp tiền thành công! Số dư mới: ${newBalance} G-Coin`);
     
     // Tính lại tổng tiền dựa trên checkout mode
     const totalForAll = (cart?.items || []).reduce(
@@ -191,7 +191,7 @@ const handleConfirmPayment = async () => {
 
     // ✅ KIỂM TRA BALANCE TRƯỚC KHI THANH TOÁN
     if (pendingAmount > localBalance) {
-      toast.error(`Số dư không đủ! Vui lòng nạp thêm ${(pendingAmount - localBalance).toLocaleString("vi-VN")} G-Coin`);
+      toast.error(`Số dư không đủ! Vui lòng nạp thêm ${(pendingAmount - localBalance)} G-Coin`);
       return;
     }
 
@@ -244,7 +244,7 @@ const handleConfirmPayment = async () => {
     
     setSelectedItems([]);
 
-    toast.success(data.message || `Thanh toán thành công ${pendingAmount.toLocaleString("vi-VN")} G-Coin!`);
+    toast.success(data.message || `Thanh toán thành công ${pendingAmount} G-Coin!`);
 
     // 🔥 TRIGGER REFETCH trong PurchasedProducts
     window.dispatchEvent(new Event('purchasedGamesUpdated'));
@@ -254,11 +254,11 @@ const handleConfirmPayment = async () => {
     if (purchasedGameIds.length === 1) {
       toast.success("Mua thành công! Đang chuyển đến trang tải game...");
       setTimeout(() => {
-        navigate(`/product/${purchasedGameIds[0]}`);
+        navigate(`/product/${purchasedGameIds[0]}`, { state: { purchaseSuccess: true } }); // ✅ THÊM state
       }, 1000);
     } else {
       toast.success(`Đã mua thành công ${purchasedGameIds.length} game! Đang chuyển đến thư viện...`);
-      navigate("/bought");
+      navigate("/bought", { state: { purchaseSuccess: true } }); // ✅ THÊM state
       
       // Đảm bảo refetch ngay cả khi đã ở /library
       setTimeout(() => {
@@ -443,15 +443,16 @@ const handleConfirmPayment = async () => {
                       key={item.cartItemId} 
                       className="group relative overflow-hidden bg-gradient-to-r from-purple-800/40 to-purple-900/40 hover:from-purple-700/60 hover:to-purple-800/60 border-2 border-purple-500/30 hover:border-purple-400/60 p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
                     >
-                      {/* Hover effect background */}
+{/* Hover effect background (Từ nhánh main) */}
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-500/5 to-purple-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                       
                       <div className="relative flex items-center gap-4">
-                        {/* Modern Checkbox */}
+                        {/* Modern Checkbox (Giao diện main + Logic ID của hoangthanh) */}
                         <div className="flex-shrink-0">
                           <label className="flex items-center cursor-pointer group/checkbox">
                             <input
                               type="checkbox"
+                              // Logic: dùng cartItemId từ nhánh hoangthanh
                               checked={selectedItems.includes(String(item.cartItemId))}
                               onChange={() => handleToggleSelect(item.cartItemId)}
                               className="sr-only"
@@ -466,7 +467,7 @@ const handleConfirmPayment = async () => {
                           </label>
                         </div>
 
-                        {/* Game Image */}
+                        {/* Game Image (Giao diện main + Dữ liệu thumbnail) */}
                         <div className="relative flex-shrink-0">
                           <img
                             src={item.thumbnail || "/placeholder.jpg"} 
@@ -476,17 +477,36 @@ const handleConfirmPayment = async () => {
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 rounded-xl transition-all" />
                         </div>
 
-                        {/* Game Info */}
+                        {/* Game Info & Price (Kết hợp logic hiển thị giảm giá của hoangthanh vào layout của main) */}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-bold text-white truncate group-hover:text-pink-300 transition-colors">
                             {item.gameName}
                           </h3>
-                          <p className="text-purple-300 text-sm mt-1">
-                            Giá: <span className="font-semibold text-pink-400">{item.finalPrice.toLocaleString("vi-VN")} GCoin</span>
-                          </p>
+                          
+                          {/* Logic hiển thị giá từ nhánh hoangthanh được format lại cho đẹp */}
+                          {item.discount > 0 ? (
+                            <div className="flex items-center gap-2 mt-1">
+                              {/* Giá sau giảm */}
+                              <p className="text-pink-400 font-bold text-base">
+                                {item.finalPrice.toLocaleString("vi-VN")} GCoin
+                              </p>
+                              {/* Badge % giảm */}
+                              <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                                -{Math.round((item.discount / item.originalPrice) * 100)}%
+                              </span>
+                              {/* Giá gốc gạch ngang */}
+                              <p className="text-gray-400 text-sm line-through">
+                                {item.originalPrice.toLocaleString("vi-VN")} GCoin
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-purple-300 text-sm mt-1">
+                              Giá: <span className="font-semibold text-pink-400">{item.finalPrice.toLocaleString("vi-VN")} GCoin</span>
+                            </p>
+                          )}
                         </div>
 
-                        {/* Delete Button */}
+                        {/* Delete Button (Giữ nguyên từ nhánh main vì đẹp hơn) */}
                         <button
                           onClick={() => {
                             setDeleteItemData({ cartItemId: item.cartItemId, gameName: item.gameName });
@@ -497,6 +517,7 @@ const handleConfirmPayment = async () => {
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
+                      </div>
                       </div>
                     </div>
                   ))}
@@ -511,15 +532,25 @@ const handleConfirmPayment = async () => {
                  Tóm Tắt Thanh Toán
                 </h2>
 
-                {/* Thông tin chi tiết */}
+{/* Thông tin chi tiết - Hợp nhất UI của Main và Data của Hoangthanh */}
                 <div className="bg-purple-900/50 rounded-2xl p-6 mb-8 space-y-4 border border-purple-500/30">
                   <div className="flex justify-between items-center">
+                    
+                    {/* Icon và Label */}
                     <div className="flex items-center gap-2">
                       <Coins className="h-5 w-5 text-yellow-400" />
-                      <span className="text-purple-300 font-medium">Số dư:</span>
+                      <span className="text-purple-300 font-medium">
+                        Số dư hiện tại: {/* Lấy text chi tiết từ nhánh hoangthanh */}
+                      </span>
                     </div>
-                    <span className="text-green-400 font-bold text-lg">
-                      {localBalance.toLocaleString("vi-VN")} 💰
+
+                    {/* Hiển thị số dư */}
+                    <span className="text-green-400 font-bold text-lg ml-auto">
+                      {/* Logic: Dùng localBalance (hoangthanh) + Format số (main) + Đơn vị GCoin (hoangthanh) */}
+                      {localBalance ? localBalance.toLocaleString("vi-VN") : 0} GCoin
+                    </span>
+                  </div>
+                </div>
                     </span>
                   </div>
 
@@ -530,14 +561,21 @@ const handleConfirmPayment = async () => {
                     <span className="bg-pink-500/30 text-pink-300 px-3 py-1 rounded-lg font-semibold border border-pink-500/50">
                       {selectedItems.length} game
                     </span>
-                  </div>
+{/* Divider từ nhánh Main - tạo sự ngăn cách rõ ràng */}
+                  <div className="border-t border-purple-700/50 my-4" />
 
-                  <div className="border-t border-purple-700/50" />
-
+                  {/* Layout Flex từ nhánh Main để căn chỉnh 2 bên đẹp hơn */}
                   <div className="flex justify-between items-center">
-                    <span className="text-purple-300 font-medium">Tổng tiền:</span>
+                    <span className="text-purple-300 font-medium">
+                      Tổng tiền:
+                    </span>
+                    
+                    {/* Styling text to (2xl) và màu hồng nổi bật từ Main */}
                     <span className="text-2xl font-bold text-pink-400">
-                      {totalPrice.toLocaleString("vi-VN")} 🎮
+                      {/* Logic: Format số (Main) + Đơn vị GCoin (Hoangthanh) */}
+                      {totalPrice.toLocaleString("vi-VN")} GCoin
+                    </span>
+                  </div>
                     </span>
                   </div>
 
@@ -575,32 +613,47 @@ const handleConfirmPayment = async () => {
 
                 {/* Nút thanh toán */}
                 <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => handleCheckout("selected")}
-                    disabled={selectedItems.length === 0 || totalPrice > localBalance}
-                    className="w-full bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 disabled:from-gray-600 disabled:via-gray-600 disabled:to-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
-                  >
-                    <ShoppingCart className="h-6 w-6" />
-                    Thanh Toán Đã Chọn
-                  </button>
+<div className="space-y-4">
+                    {/* Nút 1: Thanh toán các game ĐÃ CHỌN (checkbox) */}
+                    <button
+                      onClick={() => handleCheckout("selected")}
+                      // Logic Disabled: Không có gì chọn HOẶC Tổng tiền chọn > Số dư (kết hợp cả 2 nhánh)
+                      disabled={selectedItems.length === 0 || (totalPrice > 0 && totalPrice > localBalance)}
+                      // Class CSS: Dùng style đẹp của MAIN (gradient, shadow, hover scale)
+                      className="w-full bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 disabled:from-gray-600 disabled:via-gray-600 disabled:to-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                    >
+                      <ShoppingCart className="h-6 w-6" />
+                      Thanh Toán Đã Chọn
+                    </button>
 
-                  <button
-                    onClick={handleCheckoutAll}
-                    disabled={(cart?.items?.length === 0) || ((cart?.items || []).reduce((sum, item) => sum + (item.finalPrice || 0), 0) > localBalance)}
-                    className="w-full bg-gradient-to-r from-purple-700 via-pink-600 to-purple-700 hover:from-purple-600 hover:via-pink-500 hover:to-purple-600 disabled:from-gray-600 disabled:via-gray-600 disabled:to-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
-                  >
-                    <CheckCircle className="h-6 w-6" />
-                    Thanh Toán Toàn Bộ
-                  </button>
+                    {/* Nút 2: Thanh toán TOÀN BỘ giỏ hàng */}
+                    <button
+                      onClick={handleCheckoutAll}
+                      // Logic Disabled: Giỏ hàng rỗng HOẶC Tổng tiền giỏ > Số dư
+                      disabled={
+                        (cart?.items?.length === 0) ||
+                        (() => {
+                          const totalAll = (cart?.items || []).reduce((sum, item) => sum + (item.finalPrice || 0), 0);
+                          return totalAll > 0 && totalAll > localBalance;
+                        })()
+                      }
+                      // Class CSS: Style tím hồng đẹp của MAIN
+                      className="w-full bg-gradient-to-r from-purple-700 via-pink-600 to-purple-700 hover:from-purple-600 hover:via-pink-500 hover:to-purple-600 disabled:from-gray-600 disabled:via-gray-600 disabled:to-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                    >
+                      <CheckCircle className="h-6 w-6" />
+                      Thanh Toán Toàn Bộ
+                    </button>
 
-                  <button
-                    onClick={() => navigate("/products")}
-                    className="w-full bg-transparent hover:bg-white/10 border-2 border-purple-500/60 hover:border-purple-400/80 text-purple-200 hover:text-white font-bold text-lg py-3 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="h-6 w-6" />
-                    Tiếp Tục Mua Sắm
-                  </button>
-                </div>
+                    {/* Nút 3: Tiếp tục mua sắm */}
+                    <button
+                      onClick={() => navigate("/products")}
+                      // Class CSS: Style trong suốt (outline) đẹp của MAIN
+                      className="w-full bg-transparent hover:bg-white/10 border-2 border-purple-500/60 hover:border-purple-400/80 text-purple-200 hover:text-white font-bold text-lg py-3 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="h-6 w-6" />
+                      Tiếp Tục Mua Sắm
+                    </button>
+                  </div>
               </div>
             </div>
           </div>

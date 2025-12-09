@@ -229,6 +229,8 @@ export default function ProductDetailPage() {
 
   const gbi =
     game?.gameBasicInfo || game?.gameBasicInfos || game?.basicInfo || game;
+  const price = gbi?.price ?? game?.price ?? 0;
+  const discount = game?.discount ?? 0; // Lấy discount từ API response
   const controllerSupport =
     game?.controllerSupport || gbi?.controllerSupport || "Có";
 
@@ -657,11 +659,30 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span>Giá:</span>{" "}
-                <span className="font-bold text-lg text-pink-400">
-                  {game.price > 0
-                    ? `${game.price.toLocaleString()} GCoin`
-                    : "Miễn Phí"}
-                </span>
+                <div className="text-right">
+                  {discount > 0 ? (
+                    <div className="space-y-1">
+                      {/* Giá sau giảm */}
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className="font-bold text-2xl text-pink-400">
+                          {(price - discount).toLocaleString()} GCoin
+                        </span>
+                        {/* Badge giảm giá */}
+                        <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                          -{discount.toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Giá gốc gạch ngang */}
+                      <div className="text-gray-400 text-sm line-through">
+                        {price.toLocaleString()} GCoin
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="font-bold text-2xl text-pink-400">
+                      {price > 0 ? `${price.toLocaleString()} GCoin` : "Miễn Phí"}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="pt-4 mt-2 border-t border-purple-700/50">

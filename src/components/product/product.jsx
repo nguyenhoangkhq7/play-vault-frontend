@@ -175,6 +175,8 @@ export default function GamesPage() {
   const fetchCategories = async () => {
     try {
       const response = await searchApi.getAllCategories();
+      console.log("📂 Categories API response:", response); // ✅ DEBUG
+      
       const data = response.data || response;
       setGenres([{ id: null, name: "All" }, ...data]);
     } catch (error) {
@@ -220,16 +222,25 @@ export default function GamesPage() {
           console.warn('Không thể gọi search AI, sử dụng dữ liệu search thường:', aiError);
         }
       }
-
-      setGames(combinedGames);
-      setTotalPages(totalPagesFromApi || (combinedGames.length ? 1 : 0));
-    } catch (error) {
-      console.error('Lỗi:', error);
-      setGames([]);
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
-    }
+      
+      // Normalize data: Chuyển gameBasicInfos.price thành price
+      normalGames = normalGames.map(game => {
+        const normalized = {
+          ...game,
+          price: game.gameBasicInfos?.price || game.price || 0,
+          name: game.gameBasicInfos?.name || game.name,
+          thumbnail: game.gameBasicInfos?.thumbnail || game.thumbnail,
+          discount: game.discount || 0
+        };
+        console.log(`🔍 Normalizing ${game.gameBasicInfos?.name}: original discount=${game.discount}, normalized discount=${normalized.discount}`);
+        return normalized;
+      });
+      
+      console.log("✅ Normalized games with discount:", normalGames);
+      
+      setGames(normalGames);
+      setTotalPages(totalPagesFromApi);
+    } catch (error) { console.error("Lỗi:", error); setGames([]); } finally { setLoading(false); }
   };
 
   const fetchFeaturedGames = async () => {
@@ -536,14 +547,21 @@ export default function GamesPage() {
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
-                            <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-                              {game.price
-                                ? `${game.price.toLocaleString()} GCoin`
-                                : "Free"}
-                            </span>
-                            <div className="px-4 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/50 text-pink-300 text-xs font-bold cursor-pointer">
-                              Xem
-                            </div>
+                            {(() => {
+                              console.log(`Game ${game.name}: price=${game.price}, discount=${game.discount}, has discount: ${game.discount > 0}`);
+                              return game.discount > 0;
+                            })() ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-bold text-pink-400">{(game.price - game.discount).toFixed(2)} GCoin</span>
+                                  <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">-{Math.round((game.discount / game.price) * 100)}%</span>
+                                </div>
+                                <span className="text-sm text-gray-400 line-through">{game.price} GCoin</span>
+                              </div>
+                            ) : (
+                              <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price} GCoin` : 'Free'}</span>
+                            )}
+                            <div className="px-4 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/50 text-pink-300 text-xs font-bold cursor-pointer">Xem</div>
                           </div>
                         </div>
                       </Link>
@@ -591,14 +609,18 @@ export default function GamesPage() {
                           </div>
                         </div>
                         <div className="flex flex-col items-center sm:items-end gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-700/50 pt-3 sm:pt-0 sm:pl-4">
-                          <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-                            {game.price
-                              ? `${game.price.toLocaleString()} GCoin`
-                              : "Free"}
-                          </span>
-                          <div className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20">
-                            Chi tiết
-                          </div>
+                          {game.discount > 0 ? (
+                            <div className="flex flex-col items-center sm:items-end gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xl font-bold text-pink-400">{(game.price - game.discount).toFixed(2)} GCoin</span>
+                                <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">-{Math.round((game.discount / game.price) * 100)}%</span>
+                              </div>
+                              <span className="text-sm text-gray-400 line-through">{game.price} GCoin</span>
+                            </div>
+                          ) : (
+                            <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price} GCoin` : 'Free'}</span>
+                          )}
+                          <div className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20">Chi tiết</div>
                         </div>
 
                         {/* Nút Yêu thích ở List View */}

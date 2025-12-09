@@ -20,7 +20,7 @@ const adminGames = {
 
   // 4. Lấy chi tiết game (cho cả Pending/Approved)
   getGameDetail: (gameId) => {
-    return axiosClient.get(`/admin/games/${gameId}`);
+    return axiosClient.get(`/games/${gameId}`); // Đổi từ /admin/games sang /games
   },
 
   // 5. Duyệt game (Approve)

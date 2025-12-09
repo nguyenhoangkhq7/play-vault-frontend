@@ -170,7 +170,8 @@ export function GamePage() {
          size: PAGE_SIZE,
          searchQuery: searchQuery,
          categoryFilter: categoryFilter,
-         sortBy: sortOption 
+         sortBy: sortOption,
+         status: 'APPROVED',
       };
       
       const response = await adminGamesApi.getApprovedGames(params); 
@@ -308,7 +309,7 @@ export function GamePage() {
         </div>
       )}
 
-      <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm sticky top-0 z-50 flex-shrink-0">
+      <header className="border-b border-purple-700/50 bg-purple-800/40 backdrop-blur-sm top-0 z-0 flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-center items-center">
           <h1 className="text-2xl sm:text-4xl font-extrabold text-white text-center tracking-wide drop-shadow-lg">
             Quản lý Game 

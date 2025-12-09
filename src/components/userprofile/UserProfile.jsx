@@ -120,8 +120,22 @@ export default function UserProfile() {
     userId,
     page: 0,
     size: 50,
-    enabled: activeTab === "orders" && !!userId,
+    enabled: !!userId, // ✅ Thay vì: activeTab === "orders" && !!userId
   });
+
+  // 🔥 LISTEN EVENT: Refetch orders khi thanh toán thành công
+  useEffect(() => {
+    const handlePurchaseSuccess = () => {
+      console.log("🎉 Phát hiện mua hàng thành công, refetch đơn hàng...");
+      refetch();
+    };
+
+    window.addEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+
+    return () => {
+      window.removeEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+    };
+  }, [refetch]);
 
   
   // Load profile khi mount

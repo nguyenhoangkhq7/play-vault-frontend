@@ -19,4 +19,16 @@ export const gameService = {
 
   // Lọc theo status
   listByStatus: (status) => axiosClient.get("/games", { params: { status } }),
+
+  //Dùng axiosClient => baseURL đã là http://localhost:8080/api
+  createPendingJson: (payload, token) => {
+    return axiosClient.post(
+      "/publishers/games/pending",
+      payload,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    ).then(res => res.data);
+  },
 };
+

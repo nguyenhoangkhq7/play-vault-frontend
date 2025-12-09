@@ -37,7 +37,6 @@ import searchApi from "../../api/searchApi.js"; // ✅ THÊM: Để fetch game d
 
 export default function PurchasedProducts() {
     const [view, setView] = useState("list");
-    const [priceFilter, setPriceFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all"); // ✅ Filter theo thể loại
     const [sortOrder, setSortOrder] = useState("default"); // ✅ Sort theo bảng chữ cái
     
@@ -190,17 +189,7 @@ export default function PurchasedProducts() {
         const matchesCategory = categoryFilter === "all" || 
             (product.categoryName && product.categoryName.toLowerCase() === categoryFilter.toLowerCase());
         
-        // Filter theo price
-        let matchesPrice = true;
-        if (priceFilter === "under100k") {
-            matchesPrice = product.price < 100000;
-        } else if (priceFilter === "100k-300k") {
-            matchesPrice = product.price >= 100000 && product.price <= 300000;
-        } else if (priceFilter === "over300k") {
-            matchesPrice = product.price > 300000;
-        }
-        
-        return matchesSearch && matchesCategory && matchesPrice;
+        return matchesSearch && matchesCategory;
     });
 
     // ✅ Sort theo sortOrder
@@ -212,10 +201,6 @@ export default function PurchasedProducts() {
         filteredProducts = [...filteredProducts].sort((a, b) => 
             b.name.localeCompare(a.name, 'vi')
         );
-    } else if (sortOrder === "price-asc") {
-        filteredProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
-    } else if (sortOrder === "price-desc") {
-        filteredProducts = [...filteredProducts].sort((a, b) => b.price - a.price);
     }
     // "default" giữ nguyên thứ tự từ API
 
@@ -353,36 +338,16 @@ export default function PurchasedProducts() {
                             <SelectItem value="default">Mặc định</SelectItem>
                             <SelectItem value="name-asc">Tên A → Z</SelectItem>
                             <SelectItem value="name-desc">Tên Z → A</SelectItem>
-                            <SelectItem value="price-asc">Giá thấp → cao</SelectItem>
-                            <SelectItem value="price-desc">Giá cao → thấp</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={priceFilter} onValueChange={setPriceFilter}>
-                        <SelectTrigger className="w-[180px] bg-purple-900/80 border-purple-700/50 hover:border-purple-600 shadow-lg rounded-lg text-white">
-                            <SelectValue placeholder="Mức giá" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-purple-900 border-purple-700 text-white rounded-lg">
-                            <SelectItem value="all">Tất cả mức giá</SelectItem>
-                            <SelectItem value="under100k">
-                                Dưới 100,000 GCoin
-                            </SelectItem>
-                            <SelectItem value="100k-300k">
-                                100,000 - 300,000 GCoin
-                            </SelectItem>
-                            <SelectItem value="over300k">
-                                Trên 300,000 GCoin
-                            </SelectItem>
                         </SelectContent>
                     </Select>
 
                     <Button
                         className="bg-purple-700 hover:bg-purple-600 text-white"
                         onClick={() => {
-                            setPriceFilter("all");
                             setCategoryFilter("all");
                             setSearchQuery("");
                             setSearchInput("");
+                            setSortOrder("default");
                         }}
                     >
                         Đặt lại bộ lọc
@@ -437,9 +402,6 @@ export default function PurchasedProducts() {
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 to-transparent"></div>
                                             <div className="absolute bottom-4 left-4 flex items-center space-x-2">
-                                                <span className="bg-purple-600/90 text-white text-xs px-2 py-1 rounded-full">
-                                                    {product.details?.publisher || "Publisher"}
-                                                </span>
                                                 {product.tags?.slice(0, 1).map((tag) => (
                                                     <span key={tag} className="bg-pink-600/90 text-white text-xs px-2 py-1 rounded-full">
                                                         {tag}
@@ -453,8 +415,7 @@ export default function PurchasedProducts() {
                                             <div className="text-sm text-purple-300 mt-1">
                                                 Ngày mua: {format(product.purchaseDate, "dd/MM/yyyy", { locale: vi })}
                                             </div>
-                                            <div className="mt-3 flex justify-between items-center">
-                                                <div className="text-purple-200 font-medium">{formatCurrency(product.purchasePrice || 0)}</div>
+                                            <div className="mt-3 flex justify-end items-center">
                                                 <Button
                                                     onClick={(e) => handleDownloadGame(e, product.id, product.name)}
                                                     disabled={downloadingGameId === product.id}
@@ -498,7 +459,6 @@ export default function PurchasedProducts() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-purple-200 font-medium">{formatCurrency(product.purchasePrice || 0)}</div>
                                                     <Button
                                                         onClick={(e) => handleDownloadGame(e, product.id, product.name)}
                                                         disabled={downloadingGameId === product.id}

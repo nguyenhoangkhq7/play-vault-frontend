@@ -1,4 +1,3 @@
-// src/api/orders.js
 import { API_BASE_URL } from "../config/api";
 
 const BASE = `${API_BASE_URL}/api`;
@@ -26,46 +25,23 @@ function normalize(data, page, size) {
   };
 }
 
-export async function fetchOrdersByUserId(userId, page = 0, size = 20) {
-  const url = `${BASE}/users/${encodeURIComponent(userId)}/orders?page=${page}&size=${size}`;
-
-  const resp = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...getAuthHeader(),                // ✅ luôn có Bearer nếu đăng nhập
-    },
-  });
-
-  if (resp.status === 204) {
-    return { content: [], totalElements: 0, totalPages: 0, page, size };
-  }
-
-  const text = await resp.text().catch(() => "");
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-
-  if (!resp.ok) {
-    const msg = (data && (data.message || data.error)) || text || `${resp.status} ${resp.statusText}`;
-    const err = new Error(`Fetch orders failed: ${msg}`);
-    err.status = resp.status;
-    err.body = data ?? text;
-    throw err;
-  }
-
-  return normalize(data, page, size);
-}
-
-// --- ADMIN ORDERS API ---
-export async function fetchAdminOrders(page = 0, size = 10, orderCode = "", status = "ALL") {
+export async function fetchAdminInvoices(page = 0, size = 10, keyword = "", status = "ALL") {
   // Tạo query string an toàn
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("size", String(size));
-  if (orderCode && orderCode.trim() !== "") params.set("orderCode", orderCode.trim());
-  if (status && status !== "ALL") params.set("status", status);
+  
+  if (keyword && keyword.trim() !== "") {
+    params.set("keyword", keyword.trim());
+  }
 
-  const url = `${BASE}/admin/orders?${params.toString()}`;
+  // 2. FIX: Thêm logic xử lý status
+  // Chỉ gửi lên server nếu status khác "ALL" và có giá trị
+  if (status && status !== "ALL") {
+    params.set("status", status);
+  }
+
+  const url = `${BASE}/admin/invoices?${params.toString()}`;
 
   const resp = await fetch(url, {
     method: "GET",
@@ -87,7 +63,7 @@ export async function fetchAdminOrders(page = 0, size = 10, orderCode = "", stat
   // Xử lý lỗi
   if (!resp.ok) {
     const msg = (data && (data.message || data.error)) || text || `${resp.status} ${resp.statusText}`;
-    const err = new Error(`Fetch admin orders failed: ${msg}`);
+    const err = new Error(`Fetch admin invoices failed: ${msg}`);
     err.status = resp.status;
     err.body = data ?? text;
     throw err;

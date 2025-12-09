@@ -1,6 +1,7 @@
 // src/components/UserProfile.jsx
 import { useState, useEffect, useRef } from "react";
-import { Save, Camera, User, ShoppingCart } from "lucide-react";
+import { Save, Camera, User, ShoppingCart, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -90,6 +91,7 @@ export default function UserProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -118,8 +120,22 @@ export default function UserProfile() {
     userId,
     page: 0,
     size: 50,
-    enabled: activeTab === "orders" && !!userId,
+    enabled: !!userId, // ✅ Thay vì: activeTab === "orders" && !!userId
   });
+
+  // 🔥 LISTEN EVENT: Refetch orders khi thanh toán thành công
+  useEffect(() => {
+    const handlePurchaseSuccess = () => {
+      console.log("🎉 Phát hiện mua hàng thành công, refetch đơn hàng...");
+      refetch();
+    };
+
+    window.addEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+
+    return () => {
+      window.removeEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+    };
+  }, [refetch]);
 
   
   // Load profile khi mount
@@ -486,6 +502,7 @@ export default function UserProfile() {
                           <th className="py-3 px-4 text-purple-300 font-medium">Ngày mua</th>
                           <th className="py-3 px-4 text-purple-300 font-medium">Trạng thái</th>
                           <th className="py-3 px-4 text-purple-300 font-medium text-right">Giá</th>
+                          <th className="py-3 px-4 text-purple-300 font-medium text-center">Hành động</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -515,6 +532,21 @@ export default function UserProfile() {
                             </td>
                             <td className="py-4 px-4 text-right text-white font-medium">
                               {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND"}).format(order.price || 0)}
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex justify-center">
+                                {order.status !== "COMPLETED" && order.status !== "Hoàn thành" ? (
+                                  <button
+                                    className="w-9 h-9 rounded-full flex items-center justify-center bg-red-600/20 border-2 border-red-500/60 hover:bg-red-600/40 hover:border-red-500 text-red-400 hover:text-red-300 transition-all duration-200 hover:shadow-lg hover:shadow-red-500/30"
+                                    onClick={() => navigate(`/report?orderId=${order.id}`)}
+                                    title="Report vấn đề với đơn hàng này"
+                                  >
+                                    <AlertCircle className="w-5 h-5" />
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-500 text-sm font-medium">-</span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}

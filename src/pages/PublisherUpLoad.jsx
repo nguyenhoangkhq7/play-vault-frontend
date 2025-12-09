@@ -123,8 +123,21 @@ const onGalleryFiles = async (index, files) => {
     if (!summary.trim()) errors.push("Mô tả ngắn");
     if (!genre) errors.push("Thể loại");
     if (!platforms || platforms.length === 0) errors.push("Nền tảng");
-    if (!isFree && !String(price).trim()) errors.push("Giá");
+    if (!isFree) {
+      if (!String(price).trim()) {
+        errors.push("Giá");
+      } else {
+        const priceNum = Number(price);
+        if (priceNum <= 0) {
+          errors.push("Giá phải lớn hơn 0 nếu bằng 0 vui lòng chọn 'Miễn phí'");
+        } else if (priceNum > 10000000) {
+          errors.push("Giá không được vượt quá 10.000.000 VND");
+        }
+      }
+    }
     if (!release) errors.push("Ngày phát hành");
+    if (!coverUrl) errors.push("Ảnh bìa");
+    if (!galleryUrls.some((url) => url)) errors.push("Ít nhất một ảnh gallery");
     return errors;
   };
 
@@ -139,9 +152,22 @@ const onGalleryFiles = async (index, files) => {
     if (!cpu || !String(cpu).trim()) errors.push("Yêu cầu CPU");
     if (!gpu || !String(gpu).trim()) errors.push("Yêu cầu GPU");
     if (!storage || !String(storage).trim()) errors.push("Bộ nhớ (Storage)");
+    else if (!/^\d+\s*GB$/i.test(String(storage).trim())) {
+      errors.push("Bộ nhớ phải có dạng số + GB (ví dụ: 50 GB)");
+    }
     if (!ram || !String(ram).trim()) errors.push("RAM");
+    else if (!/^\d+\s*GB$/i.test(String(ram).trim())) {
+      errors.push("RAM phải có dạng số + GB (ví dụ: 8 GB)");
+    }
     // Age should be a positive number (0 is treated as unspecified)
-    if (!Number(age18) || Number(age18) <= 0) errors.push("Tuổi yêu cầu");
+    const ageNum = Number(age18);
+    if (!ageNum || ageNum === 0) {
+      errors.push("Tuổi yêu cầu");
+    } else if (ageNum < 10) {
+      errors.push("Tuổi yêu cầu phải lớn hơn 10");
+    } else if (ageNum > 80) {
+      errors.push("Tuổi yêu cầu quá lớn (tối đa 80)");
+    }
     return errors;
   };
 

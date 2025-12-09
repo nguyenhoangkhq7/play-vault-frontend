@@ -49,19 +49,25 @@ export default function DetailModal({ isOpen, account, onClose }) {
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 gap-6">
             {/* ID */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">ID</label>
               <p className="text-white bg-purple-900/30 rounded-lg p-3">{account?.id || "N/A"}</p>
-            </div>
+            </div> */}
+
+            {/* Studio Name */}
+            {account?.name && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">Tên Studio</label>
+                <p className="text-white bg-purple-900/30 rounded-lg p-3">{account.name}</p>
+              </div>
+            )}
 
             {/* Email */}
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">Email</label>
               <p className="text-white bg-purple-900/30 rounded-lg p-3">{account?.email || "N/A"}</p>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-6">
             {/* Ngày tạo */}
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">Ngày tạo</label>
@@ -75,23 +81,31 @@ export default function DetailModal({ isOpen, account, onClose }) {
                 {account?.status === 'Active' ? 'Hoạt động' : account?.status === 'Blocked' ? 'Bị chặn' : account?.status || 'N/A'}
               </div>
             </div>
-          </div>
 
-          {/* Số game (nếu có) */}
-          {account?.games !== undefined && (
+            {/* Số game */}
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">Số game</label>
-              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account.games}</p>
+              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account?.games || 0}</p>
             </div>
-          )}
 
-          {/* Username (nếu có) */}
-          {account?.username && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2">Username</label>
-              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account.username}</p>
-            </div>
-          )}
+            {/* Website */}
+            {account?.website && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">Website</label>
+                <p className="text-white bg-purple-900/30 rounded-lg p-3">
+                  <a href={account.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                    {account.website}
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            {/* Mô tả */}
+            <label className="block text-sm font-semibold text-gray-400 mb-2">Mô tả</label>
+            <p className="text-white bg-purple-900/30 rounded-lg p-3 whitespace-pre-wrap">{account?.description || "N/A"}</p>
+          </div>
 
           {/* Lịch sử bị chặn */}
           {blockHistory.length > 0 && (

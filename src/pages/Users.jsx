@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import UsersTable from "../components/admin/users/UsersTable";
 import PublishersTable from "../components/admin/users/PublishersTable";
@@ -23,6 +24,18 @@ import {
 } from "../api/publisher-request";
 import { useUser } from "../store/UserContext";
 
+const USER_STATUS_OPTIONS = [
+  { value: "all", label: "Tất cả trạng thái" },
+  { value: "active", label: "Hoạt động" },
+  { value: "blocked", label: "Bị chặn" },
+];
+
+const PUBLISHER_STATUS_OPTIONS = [
+  { value: "all", label: "Tất cả trạng thái" },
+  { value: "active", label: "Hoạt động" },
+  { value: "blocked", label: "Bị chặn" },
+];
+
 export default function Users() {
   // Cập nhật trạng thái tab để bao gồm 'pending_review'
   const [activeTab, setActiveTab] = useState("user");
@@ -38,6 +51,9 @@ export default function Users() {
 
   const [publishers, setPublishers] = useState([]);
   const [publisherActionLoading, setPublisherActionLoading] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+  const [publisherStatusFilter, setPublisherStatusFilter] = useState("all");
 
   const userTabRef = useRef(null);
   const publisherTabRef = useRef(null);
@@ -48,6 +64,51 @@ export default function Users() {
   const pendingPublishers = publishers.filter(
     (p) => p.status === "Pending review"
   );
+
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return users.filter((user) => {
+      const status = (user.status || "").toLowerCase();
+      const matchesKeyword =
+        !query ||
+        [user.id, user.name, user.email, user.username]
+          .filter(Boolean)
+          .some((field) => field.toString().toLowerCase().includes(query));
+      const matchesStatus =
+        userStatusFilter === "all"
+          ? true
+          : userStatusFilter === "active"
+          ? status === "active"
+          : status === "blocked";
+      return matchesKeyword && matchesStatus;
+    });
+  }, [users, searchQuery, userStatusFilter]);
+
+  const filteredPublishers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return publishers
+      .filter((p) => p.status !== "Pending review")
+      .filter((pub) => {
+        const status = (pub.status || "").toLowerCase();
+        const matchesKeyword =
+          !query ||
+          [pub.id, pub.name, pub.email, pub.username]
+            .filter(Boolean)
+            .some((field) => field.toString().toLowerCase().includes(query));
+        let matchesStatus = true;
+        switch (publisherStatusFilter) {
+          case "active":
+            matchesStatus = status === "active";
+            break;
+          case "blocked":
+            matchesStatus = status === "blocked";
+            break;
+          default:
+            matchesStatus = true;
+        }
+        return matchesKeyword && matchesStatus;
+      });
+  }, [publishers, searchQuery, publisherStatusFilter]);
 
   useEffect(() => {
     // fetch users (customers) from backend
@@ -352,20 +413,16 @@ export default function Users() {
       case "user":
         return (
           <UsersTable
-            users={users}
+            users={filteredUsers}
             onStatusToggle={handleUserStatusToggle}
             onViewDetails={handleViewDetails}
             actionLoading={userActionLoading}
           />
         );
       case "publisher":
-        // Hiển thị tất cả Publisher (trừ Pending review, vì đã có tab riêng)
-        const activeAndBlockedPublishers = publishers.filter(
-          (p) => p.status !== "Pending review"
-        );
         return (
           <PublishersTable
-            publishers={activeAndBlockedPublishers}
+            publishers={filteredPublishers}
             onStatusToggle={handlePublisherStatusToggle}
             onViewDetails={handleViewDetails}
             actionLoading={publisherActionLoading}
@@ -427,12 +484,61 @@ export default function Users() {
         </div>
         {/* --- END TAB NAVIGATION --- */}
 
-        <div className="relative mb-6">
-          <input
-            type="text"
-            placeholder="Tìm theo ID, Tên, Email..."
-            className="w-full bg-[#3D1778]/80 border border-purple-500/50 rounded-lg py-3 pl-4 pr-12 text-white"
-          />
+        <div className="bg-[#3D1778]/50 p-4 rounded-xl shadow-lg space-y-4 md:space-y-0 md:flex items-center gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                activeTab === "publisher"
+                  ? "Tìm publisher theo ID, tên, email..."
+                  : activeTab === "user"
+                  ? "Tìm user theo ID, tên, email..."
+                  : "Tìm kiếm theo tên, email..."
+              }
+              className="w-full bg-transparent border border-purple-500/40 rounded-lg py-3 pl-12 pr-4 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+            />
+          </div>
+
+          {activeTab !== "pending_review" && (
+            <div className="relative w-full md:w-64">
+              <select
+                value={
+                  activeTab === "user" ? userStatusFilter : publisherStatusFilter
+                }
+                onChange={(e) =>
+                  activeTab === "user"
+                    ? setUserStatusFilter(e.target.value)
+                    : setPublisherStatusFilter(e.target.value)
+                }
+                className="w-full appearance-none bg-purple-600/60 hover:bg-purple-600/80 border border-purple-500/50 text-white font-semibold py-3 pl-4 pr-10 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-pink-500/60"
+              >
+                {(activeTab === "user"
+                  ? USER_STATUS_OPTIONS
+                  : PUBLISHER_STATUS_OPTIONS
+                ).map((option) => (
+                  <option key={option.value} value={option.value} className="bg-[#3D1778] text-white">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/70">
+                <svg
+                  className="h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path d="M9.293 12.95l.707.707 5.657-5.657-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* HIỂN THỊ BẢNG DỰA TRÊN TRẠNG THÁI */}

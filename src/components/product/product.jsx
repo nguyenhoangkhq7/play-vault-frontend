@@ -142,29 +142,51 @@ export default function GamesPage() {
     } catch (error) { console.error("Lỗi khi tải thể loại:", error); }
   };
 
-  // 2. Fetch Games - Chỉ dùng API search AI
+  // 2. Fetch Games - Kết hợp search thường (search-for) và search AI
   const fetchGames = async () => {
     try {
       setLoading(true);
+      const keyword = (filterParams.keyword || '').trim();
 
-      const aiParams = {
-        keyword: filterParams.keyword || '',
-        categoryId: filterParams.categoryId,
-        minPrice: filterParams.minPrice,
-        maxPrice: filterParams.maxPrice,
-        page: filterParams.page,
-        size: filterParams.size,
+      const normalResponse = await searchApi.searchGamesKey(keyword);
+      const normalGames = Array.isArray(normalResponse)
+        ? normalResponse
+        : normalResponse?.content || normalResponse?.data?.content || [];
+      const totalPagesFromApi =
+        normalResponse?.totalPages || normalResponse?.data?.totalPages || 0;
+
+      const seenIds = new Set();
+      const combinedGames = [];
+      const pushUnique = (list) => {
+        (list || []).forEach((game) => {
+          const id = game?.id ?? game?.gameId;
+          if (id == null || seenIds.has(id)) return;
+          seenIds.add(id);
+          combinedGames.push(game);
+        });
       };
 
-      const aiResponse = await searchApi.searchGamesAI(aiParams);
-      const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
-      const totalPagesFromApi = aiResponse?.totalPages || 0;
+      pushUnique(normalGames);
 
-      setGames(aiGames);
-      setTotalPages(totalPagesFromApi);
+      if (keyword) {
+        try {
+          const aiResponse = await searchApi.searchGamesAI(keyword);
+          const aiGames = Array.isArray(aiResponse)
+            ? aiResponse
+            : aiResponse?.content || aiResponse?.data?.content || [];
+
+          pushUnique(aiGames);
+        } catch (aiError) {
+          console.warn('Không thể gọi search AI, sử dụng dữ liệu search thường:', aiError);
+        }
+      }
+
+      setGames(combinedGames);
+      setTotalPages(totalPagesFromApi || (combinedGames.length ? 1 : 0));
     } catch (error) {
-      console.error("Lỗi:", error);
+      console.error('Lỗi:', error);
       setGames([]);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }

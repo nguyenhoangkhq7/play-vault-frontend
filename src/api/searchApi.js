@@ -28,15 +28,15 @@ const searchApi = {
    * @param {string} query - Từ khóa tìm kiếm
    */
   searchGamesAI: (queryOrParams) => {
-    const url = '/games/search-combined';
+    const url = '/games/search-ai';
 
     if (typeof queryOrParams === 'string' || queryOrParams === undefined) {
       return axiosClient.get(url, { params: { keyword: queryOrParams || '' } });
     }
 
-    const { keyword, query, ...rest } = queryOrParams || {};
+    const { keyword, query } = queryOrParams || {};
     const finalKeyword = keyword ?? query ?? '';
-    return axiosClient.get(url, { params: { keyword: finalKeyword, ...rest } });
+    return axiosClient.get(url, { params: { keyword: finalKeyword } });
   },
 
   // API phụ: Lấy danh sách Category để đổ vào thẻ Select (nếu bạn đã có API này)

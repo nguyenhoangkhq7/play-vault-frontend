@@ -5,7 +5,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { useUser } from "../../store/UserContext";
 
-export default function PaymentModal({ isOpen, onClose, onSuccess }) {
+export default function PaymentModal({ isOpen = true, onClose, onSuccess }) {
   const { user, setUser } = useUser();
 
   const packages = [

@@ -99,6 +99,7 @@ export default function PurchasedProducts() {
                     id: game.id,
                     name: game.name || "Unknown Game",
                     price: game.price || 0,
+                    purchasePrice: game.purchasePrice || game.price || 0, // Giá thực tế đã mua
                     thumbnail_image: game.thumbnail || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image',
                     purchaseDate: game.purchaseDate ? new Date(game.purchaseDate) : new Date(),
                     status: "delivered",
@@ -453,7 +454,7 @@ export default function PurchasedProducts() {
                                                 Ngày mua: {format(product.purchaseDate, "dd/MM/yyyy", { locale: vi })}
                                             </div>
                                             <div className="mt-3 flex justify-between items-center">
-                                                <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
+                                                <div className="text-purple-200 font-medium">{formatCurrency(product.purchasePrice || 0)}</div>
                                                 <Button
                                                     onClick={(e) => handleDownloadGame(e, product.id, product.name)}
                                                     disabled={downloadingGameId === product.id}
@@ -497,7 +498,7 @@ export default function PurchasedProducts() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
+                                                    <div className="text-purple-200 font-medium">{formatCurrency(product.purchasePrice || 0)}</div>
                                                     <Button
                                                         onClick={(e) => handleDownloadGame(e, product.id, product.name)}
                                                         disabled={downloadingGameId === product.id}

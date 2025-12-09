@@ -47,14 +47,36 @@ function GameCard({ game }) {
           </div>
         )}
 
+        {/* Discount badge - always visible if discount exists */}
+        {game.discount > 0 && (
+          <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white text-sm font-bold px-3 py-1 rounded-md z-10 shadow-lg">
+            -{game.discount.toLocaleString("vi-VN")} VND
+          </div>
+        )}
+
         {/* Overlay that appears on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 via-purple-800/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
           <h3 className="text-xl font-bold text-white truncate mb-1">{game.name}</h3>
 
           <div className="flex items-center justify-between">
-            <p className="font-semibold text-white">
-              {game.price === 0 ? "Free" : `${game.price.toLocaleString("vi-VN")} VND`}
-            </p>
+            <div>
+              {game.discount > 0 ? (
+                <div className="space-y-1">
+                  {/* Giá sau giảm */}
+                  <p className="font-bold text-pink-400 text-lg">
+                    {(game.price - game.discount).toLocaleString("vi-VN")} VND
+                  </p>
+                  {/* Giá gốc gạch ngang */}
+                  <p className="text-gray-400 text-xs line-through">
+                    {game.price.toLocaleString("vi-VN")} VND
+                  </p>
+                </div>
+              ) : (
+                <p className="font-semibold text-white">
+                  {game.price === 0 ? "Free" : `${game.price.toLocaleString("vi-VN")} VND`}
+                </p>
+              )}
+            </div>
             <div className="flex items-center">
               {[...Array(5)].map((_, i) => (
                 <Star

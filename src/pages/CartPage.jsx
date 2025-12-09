@@ -129,7 +129,7 @@ function CartPage() {
 
     const total = (mode === "all") ? totalForAll : totalPrice;
 
-    if (total === 0) {
+    if (mode === "selected" && selectedItems.length === 0) {
       toast.error("Vui lòng chọn sản phẩm để thanh toán.");
       return;
     }
@@ -137,7 +137,7 @@ function CartPage() {
     // Kiểm tra balance
     if (total > localBalance) {
       // Balance không đủ → yêu cầu nạp tiền
-      toast.warning(`Số dư không đủ! Cần thêm ${(total - localBalance).toLocaleString("vi-VN")} G-Coin`);
+      toast.warning(`Số dư không đủ! Cần thêm ${(total - localBalance)} G-Coin`);
       setCheckoutMode(mode);
       setPendingAmount(total);
       setShowPaymentModal(false);
@@ -154,7 +154,7 @@ function CartPage() {
     // Cập nhật localBalance
     setLocalBalance(newBalance);
     setShowPaymentModal(false);
-    toast.success(`Nạp tiền thành công! Số dư mới: ${newBalance.toLocaleString("vi-VN")} G-Coin`);
+    toast.success(`Nạp tiền thành công! Số dư mới: ${newBalance} G-Coin`);
     
     // Tính lại tổng tiền dựa trên checkout mode
     const totalForAll = (cart?.items || []).reduce(
@@ -186,7 +186,7 @@ const handleConfirmPayment = async () => {
 
     // ✅ KIỂM TRA BALANCE TRƯỚC KHI THANH TOÁN
     if (pendingAmount > localBalance) {
-      toast.error(`Số dư không đủ! Vui lòng nạp thêm ${(pendingAmount - localBalance).toLocaleString("vi-VN")} G-Coin`);
+      toast.error(`Số dư không đủ! Vui lòng nạp thêm ${(pendingAmount - localBalance)} G-Coin`);
       return;
     }
 
@@ -239,7 +239,7 @@ const handleConfirmPayment = async () => {
     
     setSelectedItems([]);
 
-    toast.success(data.message || `Thanh toán thành công ${pendingAmount.toLocaleString("vi-VN")} G-Coin!`);
+    toast.success(data.message || `Thanh toán thành công ${pendingAmount} G-Coin!`);
 
     // 🔥 TRIGGER REFETCH trong PurchasedProducts
     window.dispatchEvent(new CustomEvent('purchasedGamesUpdated', {
@@ -375,12 +375,28 @@ const handleConfirmPayment = async () => {
                       />
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-white">
-                          {item.gameName} {/* Thay đổi: Dùng gameName từ DTO */}
+                          {item.gameName}
                         </h3>
-                        <p className="text-purple-300 text-sm">
-                          {/* Thay đổi: Dùng finalPrice từ DTO */}
-                          {item.finalPrice.toLocaleString("vi-VN")} GCoin
-                        </p>
+                        {item.discount > 0 ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            {/* Giá sau giảm */}
+                            <p className="text-pink-400 font-bold text-base">
+                              {item.finalPrice} GCoin
+                            </p>
+                            {/* Badge % giảm (tính từ originalPrice và discount) */}
+                            <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                              -{Math.round((item.discount / item.originalPrice) * 100)}%
+                            </span>
+                            {/* Giá gốc gạch ngang */}
+                            <p className="text-gray-400 text-sm line-through">
+                              {item.originalPrice} GCoin
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-purple-300 text-sm mt-1">
+                            {item.finalPrice} GCoin
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="outline"
@@ -409,7 +425,7 @@ const handleConfirmPayment = async () => {
                     Số dư hiện tại:{" "}
                     <span className="text-green-400 font-bold ml-auto">
                       {/* Thay đổi: dùng localBalance */}
-                      {localBalance.toLocaleString("vi-VN")} GCoin
+                      {localBalance} GCoin
                     </span>
                   </p>
                   <p className="text-purple-300">
@@ -422,7 +438,7 @@ const handleConfirmPayment = async () => {
                     Tổng tiền:{" "}
                     <span className="text-white font-bold text-xl">
                       {/* Thay đổi: Dùng biến totalPrice đã tính */}
-                      {totalPrice.toLocaleString("vi-VN")} GCoin
+                      {totalPrice} GCoin
                     </span>
                   </p>
                 </div>
@@ -432,7 +448,7 @@ const handleConfirmPayment = async () => {
                   onClick={() => handleCheckout("selected")}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(34,197,94,0.5)] hover:shadow-[0_0_20px_rgba(34,197,94,0.8)] transition-all"
                   disabled={
-                    selectedItems.length === 0 || totalPrice > localBalance
+                    selectedItems.length === 0 || (totalPrice > 0 && totalPrice > localBalance)
                   }
                 >
                   <ShoppingCart className="h-5 w-5 mr-2" />
@@ -444,7 +460,10 @@ const handleConfirmPayment = async () => {
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-[0_0_10px_rgba(168,85,247,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] transition-all"
                   disabled={
                     (cart?.items?.length === 0) ||
-                    ((cart?.items || []).reduce((sum, item) => sum + (item.finalPrice || 0), 0) > localBalance)
+                    (() => {
+                      const total = (cart?.items || []).reduce((sum, item) => sum + (item.finalPrice || 0), 0);
+                      return total > 0 && total > localBalance;
+                    })()
                   }
                 >
                   <CheckCircle className="h-5 w-5 mr-2" />

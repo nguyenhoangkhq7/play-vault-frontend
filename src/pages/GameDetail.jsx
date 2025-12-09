@@ -507,19 +507,32 @@ function GameDetail() {
             {/* Price and Buttons */}
             <div className="border-t border-purple-700/30 pt-6">
               <div className="mb-4">
-                {/* <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
-                  {game.price === 0 ? "Free" : `${formatPrice(game.price)} VND`}
-                </p> */}
-                
-                <div>
-                  <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">${game.gameBasicInfos.price}</span>
-                  {game.discount>0 && (
-                  <div className="flex items-center space-x-2">
-                  <span className="text-gray-400 text-sm line-through">${game.gameBasicInfos.price - game.discount}</span>
+                {game.discount > 0 ? (
+                  <div className="space-y-2">
+                    {/* Giá sau giảm (lớn, nổi bật) */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
+                        {formatPrice(game.price - game.discount)} GCoin
+                      </span>
+                      {/* Badge giảm giá */}
+                      <span className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        -{formatPrice(game.discount)} GCoin
+                      </span>
                     </div>
-                  )}
-                </div>
-
+                    {/* Giá gốc gạch ngang */}
+                    <div>
+                      <span className="text-gray-400 text-lg line-through">
+                        {formatPrice(game.price)} GCoin
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
+                      {game.price === 0 ? "Free" : `${formatPrice(game.price)} GCoin`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-3">

@@ -84,6 +84,11 @@ export default function ProductDetailPage() {
         setLoading(true);
         const response = await adminGamesApi.getGameDetail(id);
         const data = response.data || response;
+        console.log("🎮 Game data from API:", data);
+        console.log("💰 Price:", data.price);
+        console.log("🏷️ Discount:", data.discount);
+        console.log("🔍 All keys:", Object.keys(data));
+        console.log("🔍 Has promotion?", data.promotion);
         setGame(data);
         setIsOwnedState(data.isOwned === true);
       } catch (error) {
@@ -145,6 +150,10 @@ export default function ProductDetailPage() {
   const gbi =
     game?.gameBasicInfo || game?.gameBasicInfos || game?.basicInfo || game;
   const price = gbi?.price ?? game?.price ?? 0;
+  const discount = game?.discount ?? 0; // Lấy discount từ API response
+  
+  // Debug log
+  console.log("📊 Render values:", { price, discount, hasDiscount: discount > 0 });
 
   // --- HANDLE WISHLIST ---
   const handleToggleFavorite = async () => {
@@ -590,9 +599,30 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span>Giá:</span>{" "}
-                <span className="font-bold text-2xl text-pink-400">
-                  {price > 0 ? `${price.toLocaleString()} GCoin` : "Miễn Phí"}
-                </span>
+                <div className="text-right">
+                  {discount > 0 ? (
+                    <div className="space-y-1">
+                      {/* Giá sau giảm */}
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className="font-bold text-2xl text-pink-400">
+                          {(price - discount).toLocaleString()} GCoin
+                        </span>
+                        {/* Badge giảm giá */}
+                        <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                          -{discount.toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Giá gốc gạch ngang */}
+                      <div className="text-gray-400 text-sm line-through">
+                        {price.toLocaleString()} GCoin
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="font-bold text-2xl text-pink-400">
+                      {price > 0 ? `${price.toLocaleString()} GCoin` : "Miễn Phí"}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="pt-4 mt-2 border-t border-purple-700/50">
                 <p className="text-purple-300 text-sm leading-relaxed italic line-clamp-4">

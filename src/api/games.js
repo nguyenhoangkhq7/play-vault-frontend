@@ -1,4 +1,5 @@
 import {API_BASE_URL} from "../config/api.js"
+import axiosClient from "./axiosClient.js" // ✅ THÊM: Import axiosClient để gửi JWT token
 
 const API_URL = `${API_BASE_URL}/api/games`
 
@@ -65,11 +66,10 @@ export async function deleteGame(id) {
 
 export async function getGameById(id) {
   try {
-    const response = await fetch(`${API_URL}/card/${id}`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch game ${id}: ${response.statusText}`)
-    }
-    return await response.json()
+    // ✅ SỬA: Dùng axiosClient thay vì fetch để tự động gửi JWT token
+    // Backend sẽ biết user nào đang request và trả về isOwned = true nếu user đã mua game
+    const response = await axiosClient.get(`/games/card/${id}`)
+    return response.data
   } catch (error) {
     console.error(`Error fetching game ${id}:`, error)
     throw error

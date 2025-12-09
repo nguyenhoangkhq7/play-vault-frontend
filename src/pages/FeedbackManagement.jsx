@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "../components/ui/Button";
 import { MessageSquare, Trash2, Send } from "lucide-react";
-import io from "socket.io-client";
+// import io from "socket.io-client"; // ❌ TẮT socket.io nếu không dùng
 
-const socket = io("http://localhost:3001");
+// ❌ TẮT socket.io để tránh lỗi ERR_CONNECTION_REFUSED
+// const socket = io("http://localhost:3001");
+const socket = null; // ✅ Set null để tránh lỗi
 
 function FeedbackManagement() {
   const [users, setUsers] = useState([]);
@@ -38,33 +40,38 @@ useEffect(() => {
     })
     .catch((err) => setError(err.message));
 
+  // ✅ Chỉ dùng socket nếu nó được enabled
+  if (socket) {
     socket.on("connect", () => console.log("Connected to Socket.IO server"));
-  socket.on("connect_error", (err) => {
-    console.error("Socket.IO connection error:", err.message);
-    setError(`Không thể kết nối tới server: ${err.message}`);
-  });
-  socket.on("userList", (userList) => {
-    console.log("Received userList:", userList);
-    setUsers(userList);
-  });
-  socket.on("message", (msg) => {
-    console.log("Received message:", msg);
-    setMessages((prev) => [...prev, msg].sort((a, b) => new Date(a.date) - new Date(b.date)));
-  });
-  socket.on("messages", (msgs) => {
-    console.log("Received messages:", msgs);
-    setMessages(msgs.sort((a, b) => new Date(a.date) - new Date(b.date)));
-  });
+    socket.on("connect_error", (err) => {
+      console.error("Socket.IO connection error:", err.message);
+      setError(`Không thể kết nối tới server: ${err.message}`);
+    });
+    socket.on("userList", (userList) => {
+      console.log("Received userList:", userList);
+      setUsers(userList);
+    });
+    socket.on("message", (msg) => {
+      console.log("Received message:", msg);
+      setMessages((prev) => [...prev, msg].sort((a, b) => new Date(a.date) - new Date(b.date)));
+    });
+    socket.on("messages", (msgs) => {
+      console.log("Received messages:", msgs);
+      setMessages(msgs.sort((a, b) => new Date(a.date) - new Date(b.date)));
+    });
 
-  socket.emit("join", "admin");
+    socket.emit("join", "admin");
+  }
 
   return () => {
-    socket.off("connect");
-    socket.off("connect_error");
-    socket.off("userList");
-    socket.off("message");
-    socket.off("messages");
-    socket.disconnect();
+    if (socket) {
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("userList");
+      socket.off("message");
+      socket.off("messages");
+      socket.disconnect();
+    }
   };
 }, []);
 
@@ -89,7 +96,9 @@ const handleSendMessage = () => {
     type: "admin_reply",
     to: userId,
   };
-  socket.emit("sendMessage", message);
+  if (socket) {
+    socket.emit("sendMessage", message);
+  }
   setMessages((prev) => [...prev, message].sort((a, b) => new Date(a.date) - new Date(b.date)));
   setNewMessage("");
   setError(null);
@@ -102,7 +111,9 @@ const handleDeleteMessage = (msgId) => {
   }
   const updatedMessages = messages.filter((msg) => msg.id !== msgId);
   setMessages(updatedMessages);
-  socket.emit("deleteMessage", { id: msgId, to: parseInt(selectedUser) });
+  if (socket) {
+    socket.emit("deleteMessage", { id: msgId, to: parseInt(selectedUser) });
+  }
 };
 
   return (
@@ -116,7 +127,9 @@ const handleDeleteMessage = (msgId) => {
               key={user}
               onClick={() => {
                 setSelectedUser(user);
-                socket.emit("getMessages", user);
+                if (socket) {
+                  socket.emit("getMessages", user);
+                }
               }}
               className={`cursor-pointer p-2 rounded-md ${
                 selectedUser === user ? "bg-purple-700" : "hover:bg-purple-600"

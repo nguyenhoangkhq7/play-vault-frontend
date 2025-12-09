@@ -251,11 +251,11 @@ const handleConfirmPayment = async () => {
     if (purchasedGameIds.length === 1) {
       toast.success("Mua thành công! Đang chuyển đến trang tải game...");
       setTimeout(() => {
-        navigate(`/product/${purchasedGameIds[0]}`);
+        navigate(`/product/${purchasedGameIds[0]}`, { state: { purchaseSuccess: true } }); // ✅ THÊM state
       }, 1000);
     } else {
       toast.success(`Đã mua thành công ${purchasedGameIds.length} game! Đang chuyển đến thư viện...`);
-      navigate("/bought");
+      navigate("/bought", { state: { purchaseSuccess: true } }); // ✅ THÊM state
       
       // Đảm bảo refetch ngay cả khi đã ở /library
       setTimeout(() => {

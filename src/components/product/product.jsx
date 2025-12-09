@@ -137,7 +137,11 @@ export default function GamesPage() {
   const fetchCategories = async () => {
     try {
       const response = await searchApi.getAllCategories();
+      console.log("📂 Categories API response:", response); // ✅ DEBUG
+      
       const data = response.data || response;
+      console.log("📂 Parsed categories data:", data); // ✅ DEBUG
+      
       setGenres([{ id: null, name: 'All' }, ...data]);
     } catch (error) { console.error("Lỗi khi tải thể loại:", error); }
   };
@@ -145,7 +149,15 @@ export default function GamesPage() {
   const fetchGames = async () => {
     try {
       setLoading(true);
+      
+      // ✅ DEBUG: Log params để kiểm tra
+      console.log("🔍 Fetching games with params:", filterParams);
+      
       const normalResponse = await searchApi.searchGames(filterParams);
+      
+      // ✅ DEBUG: Log response từ backend
+      console.log("📦 Backend response:", normalResponse);
+      
       let normalGames = normalResponse?.content || [];
       let totalPagesFromApi = normalResponse?.totalPages || 0;
       
@@ -186,7 +198,10 @@ export default function GamesPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  const handleGenreSelect = (id) => setFilterParams(prev => ({ ...prev, categoryId: id, page: 0 }));
+  const handleGenreSelect = (id) => {
+    console.log("🎯 Selected category ID:", id); // ✅ DEBUG
+    setFilterParams(prev => ({ ...prev, categoryId: id, page: 0 }));
+  };
   const handlePageChange = (newPage) => { if (newPage >= 0 && newPage < totalPages) { setFilterParams(prev => ({ ...prev, page: newPage })); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
   const handleApplyPriceFilter = () => { setFilterParams(prev => ({ ...prev, minPrice: priceInputs.min || null, maxPrice: priceInputs.max || null, page: 0 })); setShowFilter(false); };
   const handleResetPriceFilter = () => { setPriceInputs({ min: '', max: '' }); setFilterParams(prev => ({ ...prev, minPrice: null, maxPrice: null, page: 0 })); };

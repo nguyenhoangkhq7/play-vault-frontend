@@ -20,6 +20,7 @@ export default function PublisherInfo() {
     prevent,
     onCoverFiles,
 
+    galleryUrls,          // ✅ Cloudinary URLs từ localStorage
     galleryInputRefs,     // React.RefObject<HTMLInputElement>[4]
     onGalleryFiles,       // (index:number, files:FileList) => void
   } = useOutletContext();
@@ -117,8 +118,10 @@ export default function PublisherInfo() {
 
   // UI Ô gallery dùng lại
   const GallerySlot = ({ index }) => {
-    const hasPreview = Boolean(galleryLocalPreviews[index]);
-    const src = galleryLocalPreviews[index] || "";
+    // ✅ Ưu tiên hiển thị galleryUrls (Cloudinary), fallback về local preview
+    const cloudinaryUrl = galleryUrls?.[index] || "";
+    const hasPreview = Boolean(cloudinaryUrl || galleryLocalPreviews[index]);
+    const src = cloudinaryUrl || galleryLocalPreviews[index] || "";
     return (
       <div className="space-y-2">
         <div
@@ -241,7 +244,7 @@ export default function PublisherInfo() {
                   Nền tảng hỗ trợ
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {["Windows", "macOS", "Linux"].map((p) => (
+                  {["PC", "Mobile", "PlayStation", "Xbox", "Nintendo Switch"].map((p) => (
                     <label
                       key={p}
                       className={`flex items-center gap-2 text-xs font-medium rounded-lg border border-purple-400/40 bg-purple-900/40 px-3 py-2 cursor-pointer shadow-[0_0_10px_rgba(236,72,153,0.15)] hover:border-pink-400/60 hover:bg-purple-800/40 transition ${

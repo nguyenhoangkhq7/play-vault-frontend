@@ -8,44 +8,49 @@ const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
-  const { accessToken } = useUser();
+  const { accessToken, user } = useUser();
 
   const refreshCart = async (token) => {
-    if (!token) return;
+    // Only customers have carts
+    if (!token || user?.role !== "CUSTOMER") return;
     try {
       const res = await api.get("/api/cart", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCart(res.data);
     } catch (err) {
-      console.error("Không thể cập nhật giỏ hàng", err);
-      toast.error("Không thể cập nhật giỏ hàng.");
+      console.error("Khong the cap nhat gio hang", err);
+      toast.error("Khong the cap nhat gio hang.");
     }
   };
 
-  // 🔥 Tự động fetch cart khi user login
+  // Auto fetch cart when a customer logs in
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && user?.role === "CUSTOMER") {
       refreshCart(accessToken);
     }
-  }, [accessToken]);
+  }, [accessToken, user?.role]);
 
-  const addToCart = async (gameId, user, token) => {
-    if (!user) {
-      toast.warning("Vui lòng đăng nhập để mua game.");
+  const addToCart = async (gameId, userInfo, token) => {
+    if (!userInfo) {
+      toast.warning("Vui long dang nhap de mua game.");
       return null;
     }
     try {
-      const res = await api.post(`/api/cart/items/${gameId}`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.post(
+        `/api/cart/items/${gameId}`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setCart(res.data);
-      toast.success("Đã thêm vào giỏ hàng!");
+      toast.success("Da them vao gio hang!");
       return res.data;
     } catch (err) {
-      console.error("Lỗi thêm vào giỏ hàng", err);
+      console.error("Loi them vao gio hang", err);
       if (err.response?.status === 409) {
-        toast.info("Game đã có trong giỏ hàng");
+        toast.info("Game da co trong gio hang");
       } else {
         toast.error(err.response?.data?.message || err.message);
       }
@@ -60,15 +65,17 @@ export const CartProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCart(res.data);
-      toast.success("Đã xóa game khỏi giỏ hàng.");
+      toast.success("Da xoa game khoi gio hang.");
     } catch (err) {
-      console.error("Lỗi xóa giỏ hàng", err);
-      toast.error("Không thể xóa game khỏi giỏ hàng.");
+      console.error("Loi xoa gio hang", err);
+      toast.error("Khong the xoa game khoi gio hang.");
     }
   };
 
   return (
-    <CartContext.Provider value={{ cart, setCart, addToCart, removeFromCart, refreshCart }}>
+    <CartContext.Provider
+      value={{ cart, setCart, addToCart, removeFromCart, refreshCart }}
+    >
       {children}
     </CartContext.Provider>
   );

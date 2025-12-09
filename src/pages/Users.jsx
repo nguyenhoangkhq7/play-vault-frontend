@@ -172,7 +172,7 @@ export default function Users() {
     const fetchPublishers = async () => {
       try {
         const data = await getAllPublisher(setAccessToken);
-        console.log(data);
+        console.log("Raw publisher data:", data);
 
         const publishersWithHistory = await Promise.all(
           (data && data.data ? data.data : Array.isArray(data) ? data : []).map(
@@ -192,8 +192,10 @@ export default function Users() {
                 (request.status === "PENDING" || request.status === "PENDING")
                   ? "Pending review"
                   : pub.status;
+              
+              // Giữ nguyên tất cả thông tin từ API
               return {
-                ...pub,
+                ...pub, // Spread toàn bộ thông tin từ API
                 status: newStatus,
                 blockHistory: Array.isArray(records) ? records : [],
                 publisherRequestId: request?.id || null,
@@ -202,7 +204,7 @@ export default function Users() {
           )
         );
 
-        console.log(publishersWithHistory);
+        console.log("Processed publishers with all info:", publishersWithHistory);
 
         setPublishers(publishersWithHistory);
       } catch (error) {

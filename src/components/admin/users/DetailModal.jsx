@@ -1,72 +1,131 @@
-import { Link } from "lucide-react";
+import { X } from "lucide-react";
 import React from "react";
-import { NavLink } from "react-router-dom";
 
 export default function DetailModal({ isOpen, account, onClose }) {
   if (!isOpen) return null;
 
-  // Ví dụ dữ liệu lịch sử chặn, bạn có thể truyền từ parent nếu muốn
-  const blockHistory = account?.blockHistory || [
-    // { date: '20-10-2024', reason: 'Vi phạm nội dung' },
-  ];
+  const blockHistory = account?.blockHistory || [];
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  const getStatusClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case "active":
+        return "border-green-400 text-green-400 bg-green-500/10";
+      case "blocked":
+        return "border-orange-500 text-orange-500 bg-orange-500/10";
+      case "pending review":
+        return "border-sky-400 text-sky-400 bg-sky-500/10";
+      default:
+        return "border-gray-500 text-gray-500 bg-gray-500/10";
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 transition-opacity duration-300 animate-fade-in backdrop-blur-sm">
-      <div className="bg-gradient-to-br from-[#4a0e74] to-[#2a0242] rounded-2xl shadow-2xl p-8 w-full max-w-2xl mx-4 transform transition-all duration-300 scale-95 animate-scale-in border border-purple-500/50">
-        {/* Tiêu đề */}
-        <h2 className="text-2xl font-bold text-white mb-4 flex justify-between">
-          <span>Chi tiết tài khoản: <span className="text-pink-400">{account?.name}</span></span>
-          <span>
-  <NavLink to={`/users/${account.id}`} className="text-sm  hover:text-blue-600 hover:underline transition-colors duration-200">
-    Xem chi tiết
-  </NavLink>
-</span>
-
-        </h2>
-        
-
-        {/* Thông tin cơ bản */}
-        <div className="text-white space-y-2 mb-6">
-          <p><strong>ID:</strong> {account?.id}</p>
-          <p><strong>Email:</strong> {account?.email}</p>
-          {account?.games !== undefined && <p><strong>Số game:</strong> {account.games}</p>}
-          <p><strong>Ngày tạo:</strong> {account?.date}</p>
-          <p><strong>Trạng thái:</strong> {account?.status}</p>
-        </div>
-
-        {/* Bảng lịch sử chặn */}
-        {blockHistory.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white mb-2">Lịch sử bị chặn</h3>
-            <div className="overflow-x-auto rounded-lg">
-              <table className="w-full text-left border border-purple-500/50">
-                <thead className="bg-purple-800/50 text-gray-300">
-                  <tr>
-                    <th className="p-2 border-b border-purple-500/50">Ngày chặn</th>
-                    <th className="p-2 border-b border-purple-500/50">Lý do</th>
-                  </tr>
-                </thead>
-                <tbody className="text-white">
-                  {blockHistory.map((item, index) => (
-                    <tr key={index} className="border-b border-purple-500/20">
-                      <td className="p-2">{item.date}</td>
-                      <td className="p-2">{item.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-
-
-
-        {/* Nút đóng */}
-        <div className="flex justify-end mt-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-[#1a0b2e] border border-purple-500/50 rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 flex items-center justify-between p-6 border-b border-purple-500/30 bg-[#2d1654]">
+          <h2 className="text-2xl font-bold text-white">
+            Chi tiết tài khoản: <span className="text-pink-400">{account?.name}</span>
+          </h2>
           <button
             onClick={onClose}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            {/* ID */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">ID</label>
+              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account?.id || "N/A"}</p>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Email</label>
+              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account?.email || "N/A"}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            {/* Ngày tạo */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Ngày tạo</label>
+              <p className="text-white bg-purple-900/30 rounded-lg p-3">{formatDate(account?.date)}</p>
+            </div>
+
+            {/* Trạng thái */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Trạng thái</label>
+              <div className={`inline-block px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusClass(account?.status)}`}>
+                {account?.status === 'Active' ? 'Hoạt động' : account?.status === 'Blocked' ? 'Bị chặn' : account?.status || 'N/A'}
+              </div>
+            </div>
+          </div>
+
+          {/* Số game (nếu có) */}
+          {account?.games !== undefined && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Số game</label>
+              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account.games}</p>
+            </div>
+          )}
+
+          {/* Username (nếu có) */}
+          {account?.username && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Username</label>
+              <p className="text-white bg-purple-900/30 rounded-lg p-3">{account.username}</p>
+            </div>
+          )}
+
+          {/* Lịch sử bị chặn */}
+          {blockHistory.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Lịch sử bị chặn</label>
+              <div className="bg-purple-900/30 rounded-lg p-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-purple-500/30 text-sm text-gray-400">
+                        <th className="p-2">Ngày chặn</th>
+                        <th className="p-2">Lý do</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-white">
+                      {blockHistory.map((item, index) => (
+                        <tr key={index} className="border-b border-purple-500/20">
+                          <td className="p-2">{item.date}</td>
+                          <td className="p-2">{item.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 flex justify-end gap-4 p-6 border-t border-purple-500/30 bg-[#2d1654]">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-semibold transition-colors"
           >
             Đóng
           </button>

@@ -27,9 +27,16 @@ const searchApi = {
    * Tìm kiếm game bằng AI
    * @param {string} query - Từ khóa tìm kiếm
    */
-  searchGamesAI: (query) => {
-    const url = '/games/search-ai';
-    return axiosClient.get(url, { params: { query } });
+  searchGamesAI: (queryOrParams) => {
+    const url = '/games/search-combined';
+
+    if (typeof queryOrParams === 'string' || queryOrParams === undefined) {
+      return axiosClient.get(url, { params: { keyword: queryOrParams || '' } });
+    }
+
+    const { keyword, query, ...rest } = queryOrParams || {};
+    const finalKeyword = keyword ?? query ?? '';
+    return axiosClient.get(url, { params: { keyword: finalKeyword, ...rest } });
   },
 
   // API phụ: Lấy danh sách Category để đổ vào thẻ Select (nếu bạn đã có API này)

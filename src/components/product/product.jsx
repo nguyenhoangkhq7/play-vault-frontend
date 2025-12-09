@@ -142,44 +142,31 @@ export default function GamesPage() {
     } catch (error) { console.error("Lỗi khi tải thể loại:", error); }
   };
 
-  // 2. Fetch Games - Kết hợp API search thường và AI
+  // 2. Fetch Games - Chỉ dùng API search AI
   const fetchGames = async () => {
     try {
       setLoading(true);
-      
-      // Gọi API search thường
-      const normalResponse = await searchApi.searchGamesKey(filterParams.keyword);
-      console.log(filterParams.keyword);
-      
-      let normalGames = normalResponse?.content || [];
-      let totalPagesFromApi = normalResponse?.totalPages || 0;
-      
-      // Nếu có keyword, gọi thêm API search-ai và kết hợp kết quả
-      if (filterParams.keyword && filterParams.keyword.trim() !== '') {
-        try {
-          const aiResponse = await searchApi.searchGamesAI(filterParams.keyword);
-          const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
-          
-          // Kết hợp và loại bỏ trùng lặp dựa trên id
-          const existingIds = new Set(normalGames.map(g => g.id));
-          const uniqueAiGames = aiGames.filter(g => !existingIds.has(g.id));
-          
-          // Gộp kết quả: games từ search thường + games mới từ AI
-          normalGames = [...normalGames, ...uniqueAiGames];
-          
-          console.log(`Search kết hợp: ${normalResponse?.content?.length || 0} từ search thường + ${uniqueAiGames.length} từ AI = ${normalGames.length} kết quả`);
-        } catch (aiError) {
-          console.warn("Lỗi khi gọi search-ai, sử dụng kết quả search thường:", aiError);
-        }
-      }
-      
-      setGames(normalGames);
+
+      const aiParams = {
+        keyword: filterParams.keyword || '',
+        categoryId: filterParams.categoryId,
+        minPrice: filterParams.minPrice,
+        maxPrice: filterParams.maxPrice,
+        page: filterParams.page,
+        size: filterParams.size,
+      };
+
+      const aiResponse = await searchApi.searchGamesAI(aiParams);
+      const aiGames = Array.isArray(aiResponse) ? aiResponse : (aiResponse?.content || []);
+      const totalPagesFromApi = aiResponse?.totalPages || 0;
+
+      setGames(aiGames);
       setTotalPages(totalPagesFromApi);
-    } catch (error) { 
-      console.error("Lỗi:", error); 
-      setGames([]); 
-    } finally { 
-      setLoading(false); 
+    } catch (error) {
+      console.error("Lỗi:", error);
+      setGames([]);
+    } finally {
+      setLoading(false);
     }
   };
 

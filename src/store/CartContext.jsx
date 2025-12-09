@@ -1,12 +1,14 @@
 // store/CartContext.js
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { api } from "../api/authApi";
 import { toast } from "sonner";
+import { useUser } from "./UserContext";
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
+  const { accessToken } = useUser();
 
   const refreshCart = async (token) => {
     if (!token) return;
@@ -20,6 +22,13 @@ export const CartProvider = ({ children }) => {
       toast.error("Không thể cập nhật giỏ hàng.");
     }
   };
+
+  // 🔥 Tự động fetch cart khi user login
+  useEffect(() => {
+    if (accessToken) {
+      refreshCart(accessToken);
+    }
+  }, [accessToken]);
 
   const addToCart = async (gameId, user, token) => {
     if (!user) {

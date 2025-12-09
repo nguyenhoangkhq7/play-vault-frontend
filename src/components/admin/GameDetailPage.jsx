@@ -29,8 +29,8 @@ export function GameDetailPage() {
         const response = await adminGamesApi.getGameDetail(id);
         console.log(response.data);
         setGameData(response.data || response);
-      } catch (err) {
-        console.error("Failed to fetch game:", err);
+      } catch {
+        console.error("Failed to fetch game");
         setError("Không thể tải thông tin game.");
       } finally {
         setLoading(false);

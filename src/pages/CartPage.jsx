@@ -242,9 +242,7 @@ const handleConfirmPayment = async () => {
     toast.success(data.message || `Thanh toán thành công ${pendingAmount.toLocaleString("vi-VN")} G-Coin!`);
 
     // 🔥 TRIGGER REFETCH trong PurchasedProducts
-    window.dispatchEvent(new CustomEvent('purchasedGamesUpdated', {
-      detail: { gameIds: purchasedGameIds }
-    }));
+    window.dispatchEvent(new Event('purchasedGamesUpdated'));
 
     // 5. CHUYỂN HƯỚNG THÔNG MINH
     // Trong handleConfirmPayment, thay đoạn chuyển hướng cuối cùng thành:

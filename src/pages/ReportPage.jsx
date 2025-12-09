@@ -23,16 +23,6 @@ export default function ReportPage() {
   const [orderError, setOrderError] = useState("");
   const [isValidatingOrder, setIsValidatingOrder] = useState(false);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Clear order error when user starts typing
-    if (name === "orderId" && orderError) {
-      setOrderError("");
-    }
-  };
-
   const validateOrderId = async (orderId) => {
     if (!orderId.trim()) return;
 
@@ -48,10 +38,29 @@ export default function ReportPage() {
       }
     } catch (err) {
       console.error("Error validating order:", err);
-      // Nếu có lỗi khi kiểm tra, cho phép submit (để tránh block user)
+      // Nếu có lỗi khi kiểm tra, không set error - cho phép user submit
+      // Backend sẽ validate lại khi submit
       setOrderError("");
     } finally {
       setIsValidatingOrder(false);
+    }
+  };
+
+  // Auto-validate orderId when it's loaded from URL params
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (orderId && orderId.trim()) {
+      validateOrderId(orderId);
+    }
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Clear order error when user starts typing
+    if (name === "orderId" && orderError) {
+      setOrderError("");
     }
   };
 
@@ -65,14 +74,19 @@ export default function ReportPage() {
     e.preventDefault();
     setError("");
 
-    // Validate order exists before submitting
-    if (formData.orderId && !isValidatingOrder) {
-      const exists = await checkOrderExists(formData.orderId, setAccessToken);
-      if (!exists) {
-        setOrderError(
-          "Đơn hàng không tồn tại. Vui lòng kiểm tra lại mã đơn hàng."
-        );
-        return;
+    // Only validate if we have an orderId
+    if (formData.orderId && formData.orderId.trim()) {
+      try {
+        const exists = await checkOrderExists(formData.orderId, setAccessToken);
+        if (!exists) {
+          setOrderError(
+            "Đơn hàng không tồn tại. Vui lòng kiểm tra lại mã đơn hàng."
+          );
+          return;
+        }
+      } catch (err) {
+        // If validation fails, still allow submission - backend will validate
+        console.warn("Validation failed, but allowing submission:", err);
       }
     }
 
@@ -207,7 +221,7 @@ export default function ReportPage() {
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="submit"
-              disabled={isSubmitting || !!orderError || isValidatingOrder}
+              disabled={isSubmitting || isValidatingOrder}
               className="px-6 py-3 rounded-lg font-semibold bg-gradient-to-r from-[#6B1BA8] to-[#8130CD] hover:opacity-90 transition-all shadow-md disabled:opacity-50"
             >
               {isSubmitting ? (

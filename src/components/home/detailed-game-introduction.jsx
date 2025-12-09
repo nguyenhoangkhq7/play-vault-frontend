@@ -93,7 +93,7 @@ export default function GameDetail() {
     console.log(user);
   }, []);
 
-  // Check if game is in cart - sử dụng cart từ CartContext
+// Check if game is in cart - sử dụng cart từ CartContext
   useEffect(() => {
     if (cart && game?.id) {
       const inCart =
@@ -106,9 +106,9 @@ export default function GameDetail() {
 
   useEffect(() => {
     if (accessToken && user?.customerId) {
-      refreshCart(accessToken);
+      refreshCart(accessToken)
     }
-  }, []);
+  }, [])
 
   // Hàm xử lý khi nhấn "Mua Ngay"
   const handleBuyNow = async () => {
@@ -147,7 +147,7 @@ export default function GameDetail() {
         // Tìm cartItemId để xóa
         const cartItem = cart?.items?.find((item) => item.gameId === game.id);
         if (cartItem) {
-          await removeFromCart(cartItem.id, accessToken);
+          await removeFromCart(cartItem.cartItemId, accessToken);
           console.log(`Removed from cart: ${game.title} (ID: ${game.id})`);
         }
       } else {

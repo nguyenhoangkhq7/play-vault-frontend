@@ -1,223 +1,280 @@
-"use client"
+import React, { useState, useEffect } from 'react';
+import { 
+  Search, Filter, ChevronLeft, ChevronRight, 
+  MoreVertical, Eye, CheckCircle, XCircle 
+} from 'lucide-react';
+import AdminLayout from '../layouts/AdminLayout';
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { Badge } from "../components/ui/badge";
+import { toast } from 'sonner';
 
-import { useState } from "react"
-import { Search, CheckCircle, XCircle, Loader2, ShoppingCart } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { toast } from "sonner"
+import { fetchAdminOrders } from '../api/order'; 
 
-export default function AdminOrders() {
-  // 📦 Dữ liệu tĩnh mẫu
-  const staticOrders = [
-    {
-      id: "HD001",
-      user: "Nguyễn Văn A",
-      email: "vana@example.com",
-      gameCount: 2,
-      price: 210000,
-      date: "21/10/2025 10:35",
-      status: "Đang xử lý",
-    },
-    {
-      id: "HD002",
-      user: "Phạm Thị B",
-      email: "phamb@example.com",
-      gameCount: 1,
-      price: 150000,
-      date: "20/10/2025 19:00",
-      status: "Đã thanh toán",
-    },
-    {
-      id: "HD003",
-      user: "Trần Minh C",
-      email: "minhc@example.com",
-      gameCount: 3,
-      price: 350000,
-      date: "19/10/2025 09:45",
-      status: "Đã hủy",
-    },
-    {
-      id: "HD004",
-      user: "Lê Hoàng D",
-      email: "hoangd@example.com",
-      gameCount: 1,
-      price: 99000,
-      date: "19/10/2025 21:20",
-      status: "Đang xử lý",
-    },
-  ]
+const AdminOrders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [orders, setOrders] = useState(staticOrders)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [updatingId, setUpdatingId] = useState(null)
+  // Filter và phân trang
+  const [filters, setFilters] = useState({
+    page: 0,
+    size: 10,
+    keyword: '',
+    status: 'ALL'
+  });
 
-  // 🔍 Lọc danh sách theo từ khóa tìm kiếm
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.user.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const [pagination, setPagination] = useState({
+    totalPages: 1,
+    totalElements: 0,
+    first: true,
+    last: true
+  });
 
-  // 🔄 Cập nhật trạng thái hóa đơn (chỉ khi đang xử lý)
-  const handleUpdateStatus = (orderId, newStatus) => {
-    const order = orders.find((o) => o.id === orderId)
-    if (!order) return
+  useEffect(() => {
+    console.log('⚡ [useEffect] filters changed:', filters);
+    
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        console.log('🔄 [fetchOrders] Starting fetch with filters:', filters);
+        
+        const data = await fetchAdminOrders(
+          filters.page,
+          filters.size,
+          filters.keyword,
+          filters.status
+        );
 
-    // Cho phép chuyển từ "Đang xử lý" sang "Đã hủy" hoặc "Đã thanh toán"
-    if (order.status !== "Đang xử lý") {
-      toast.warning(`Chỉ có thể cập nhật trạng thái từ "Đang xử lý".`)
-      return
-    }
+        console.log('✅ [fetchOrders] API response received:', data);
 
-    if (order.status === newStatus) {
-      toast.info(`Đơn hàng ${orderId} đã ở trạng thái "${newStatus}".`)
-      return
-    }
+        // Chuẩn hóa dữ liệu
+        const contentArray = data.content || [];
+        console.log('📦 [fetchOrders] Content array:', contentArray);
+        console.log('📦 [fetchOrders] Content length:', contentArray.length);
 
-    // Đã bỏ `confirm` để dùng `toast` hoặc dialog riêng, nhưng giữ lại `confirm`
-    // nếu không có dialog/modal chuyên dụng.
-    if (!confirm(`Bạn có chắc chắn muốn chuyển trạng thái đơn hàng ${orderId} sang "${newStatus}"?`)) {
-      return
-    }
+        const normalized = contentArray.map((o, i) => {
+          const item = {
+            id: o.id || i,
+            orderCode: o.orderCode || `ORD-${i}`,
+            customerName: o.customerName || o.name || 'N/A',
+            email: o.email || 'N/A',
+            gameCount: o.gameCount || o.itemCount || 0,
+            total: o.total || 0,
+            createdAt: o.createdAt || new Date().toISOString(),
+            status: o.status || 'PENDING'
+          };
+          console.log(`📝 [fetchOrders] Normalized item ${i}:`, item);
+          return item;
+        });
 
-    setUpdatingId(orderId)
-    // Giả lập API call
-    setTimeout(() => {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId ? { ...o, status: newStatus } : o
-        )
-      )
-      toast.success(`Cập nhật ${orderId} → ${newStatus} thành công!`)
-      setUpdatingId(null)
-    }, 600)
-  }
+        console.log('✨ [fetchOrders] Final normalized array:', normalized);
 
-  // 💎 Lấy class cho badge trạng thái
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case "Đang xử lý":
-        return "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-      case "Đã thanh toán":
-        return "bg-green-500/20 text-green-300 border border-green-500/30"
-      case "Đã hủy":
-        return "bg-red-500/20 text-red-300 border border-red-500/30"
-      default:
-        return "bg-gray-500/20 text-gray-300 border border-gray-500/30"
-    }
-  }
+        setOrders(normalized);
+        console.log('🎯 [fetchOrders] setOrders called with:', normalized);
+        
+        setPagination({
+          totalPages: data.totalPages || 1,
+          totalElements: data.totalElements || normalized.length,
+          first: data.page === 0,
+          last: data.page >= (data.totalPages || 1) - 1
+        });
+      } catch (error) {
+        console.error("❌ [fetchOrders] Error:", error);
+        console.error("❌ [fetchOrders] Error message:", error.message);
+        console.error("❌ [fetchOrders] Error stack:", error.stack);
+        toast.error(error.message || "Không thể tải danh sách đơn hàng");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  return (
-    <div className="container mx-auto max-w-full px-2 py-4 sm:px-4 sm:py-6 lg:py-10">
-      <Card className="bg-purple-950/60 border border-purple-800/40 shadow-[0_0_30px_rgba(168,85,247,0.3)] backdrop-blur-xl">
-        <CardContent className="p-4 sm:p-6 lg:p-8">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400" />
-              Quản lý đơn hàng
-            </h2>
+    const timer = setTimeout(() => {
+      console.log('⏱️ [useEffect] Calling fetchOrders after 300ms');
+      fetchOrders();
+    }, 300);
+    
+    return () => {
+      console.log('🗑️ [useEffect] Cleanup - clearing timeout');
+      clearTimeout(timer);
+    };
+  }, [filters]);
 
-            <div className="relative w-full sm:w-72 lg:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400 w-4 h-4" />
-              <Input
-                placeholder="Tìm kiếm (Mã ĐH/Người mua)..."
-                className="pl-9 bg-purple-900/40 border-purple-700 text-white placeholder-purple-400 text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+  useEffect(() => {
+    console.log('📊 [useEffect orders] Orders state updated:', orders);
+    console.log('📊 [useEffect orders] Orders count:', orders.length);
+  }, [orders]);
 
-          {/* Table */}
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-12 sm:py-20 text-purple-300">
-              <p className="text-sm sm:text-base">Không có đơn hàng nào phù hợp.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-purple-800/40">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-purple-900/70 border-b border-purple-700/40">
-                    {/* Cột Ẩn/Hiện: Thêm hidden trên mobile (md:table-cell) */}
-                    <th className="text-left py-2 px-2 sm:py-3 sm:px-4 text-purple-300 text-xs sm:text-sm font-medium w-16 sm:w-20">Mã ĐH</th>
-                    <th className="text-left py-2 px-2 sm:py-3 sm:px-4 text-purple-300 text-xs sm:text-sm font-medium w-32">Người mua</th>
-                    <th className="hidden md:table-cell text-left py-2 sm:py-3 px-4 text-purple-300 text-sm font-medium w-48 max-w-[120px]">Email</th>
-                    <th className="hidden lg:table-cell text-left py-2 sm:py-3 px-4 text-purple-300 text-sm font-medium w-24">SL Game</th>
-                    <th className="text-left py-2 px-2 sm:py-3 sm:px-4 text-purple-300 text-xs sm:text-sm font-medium w-28">Tổng tiền</th>
-                    <th className="hidden md:table-cell text-left py-2 sm:py-3 px-4 text-purple-300 text-sm font-medium w-32">Ngày tạo</th>
-                    <th className="text-left py-2 px-2 sm:py-3 sm:px-4 text-purple-300 text-xs sm:text-sm font-medium w-28 sm:w-40">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="border-b border-purple-800/20 hover:bg-purple-800/20 transition-colors"
-                    >
-                      <td className="py-2 px-2 sm:py-3 sm:px-4 text-white text-xs font-medium">{order.id}</td>
-                      <td className="py-2 px-2 sm:py-3 sm:px-4 text-purple-200 text-xs truncate max-w-[80px] sm:max-w-none">{order.user}</td>
-                      <td className="hidden md:table-cell py-2 sm:py-3 px-4 text-purple-300 text-xs truncate max-w-[100px]">{order.email}</td>
-                      <td className="hidden lg:table-cell py-2 sm:py-3 px-4 text-purple-300 text-sm">{order.gameCount}</td>
-                      <td className="py-2 px-2 sm:py-3 sm:px-4 text-purple-200 font-medium text-xs sm:text-sm">
-                        {order.price.toLocaleString("vi-VN")} ₫
-                      </td>
-                      <td className="hidden md:table-cell py-2 sm:py-3 px-4 text-purple-300 text-xs truncate">{order.date}</td>
-                      
-                      <td className="py-2 px-2 sm:py-3 sm:px-4">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
-                          {/* Badge trạng thái */}
-                          <span
-                            className={`inline-flex px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border transition-colors whitespace-nowrap ${getStatusBadgeClass(order.status)}`}
-                          >
-                            {order.status}
-                          </span>
+  // --- Hàm tiện ích ---
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-                          {/* Nút hành động */}
-                          {order.status === "Đang xử lý" && (
-                            <div className="flex items-center gap-0.5 sm:gap-1 mt-1 sm:mt-0">
-                              <Button
-                                size="icon" // Dùng size="icon" để có kích thước nhỏ hơn mặc định
-                                variant="ghost"
-                                disabled={updatingId === order.id}
-                                className="h-6 w-6 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-full transition-colors"
-                                onClick={() => handleUpdateStatus(order.id, "Đã thanh toán")}
-                                title="Đánh dấu đã thanh toán"
-                              >
-                                {updatingId === order.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="h-3 w-3" />
-                                )}
-                              </Button>
+  const getStatusBadge = (status) => {
+    const map = {
+      COMPLETED: { text: 'Hoàn tất', style: 'bg-green-100 text-green-800 border-green-200' },
+      PAID: { text: 'Đã thanh toán', style: 'bg-blue-100 text-blue-800 border-blue-200' },
+      PROCESSING: { text: 'Đang xử lý', style: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+      PENDING: { text: 'Chờ thanh toán', style: 'bg-orange-100 text-orange-800 border-orange-200' },
+      CANCELLED: { text: 'Đã hủy', style: 'bg-red-100 text-red-800 border-red-200' },
+      FAILED: { text: 'Thất bại', style: 'bg-red-100 text-red-800 border-red-200' },
+    };
+    const { text, style } = map[status] || map.PENDING;
+    return <Badge className={`${style} px-3 py-1`}>{text}</Badge>;
+  };
 
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                disabled={updatingId === order.id}
-                                className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full transition-colors"
-                                onClick={() => handleUpdateStatus(order.id, "Đã hủy")}
-                                title="Hủy đơn hàng"
-                              >
-                                {updatingId === order.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <XCircle className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+  // --- Event handlers ---
+  const handleSearchChange = (e) =>
+    setFilters((prev) => ({ ...prev, keyword: e.target.value, page: 0 }));
+
+  const handleStatusChange = (status) =>
+    setFilters((prev) => ({ ...prev, status, page: 0 }));
+
+  const handlePageChange = (newPage) =>
+    newPage >= 0 &&
+    newPage < pagination.totalPages &&
+    setFilters((prev) => ({ ...prev, page: newPage }));
+
+  // --- Render ---
+  return (
+    <AdminLayout>
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Quản lý Đơn hàng</h1>
+            <p className="text-muted-foreground mt-2">
+              Theo dõi và xử lý các giao dịch mua game
+            </p>
+          </div>
+          <Button className="bg-primary hover:bg-primary/90">Xuất báo cáo</Button>
+        </div>
+
+        {/* Bộ lọc và tìm kiếm */}
+        <div className="flex gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm theo mã đơn, tên khách hoặc email..."
+              className="pl-9 bg-background"
+              value={filters.keyword}
+              onChange={handleSearchChange}
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 min-w-[140px] justify-between">
+                <Filter className="h-4 w-4" />
+                <span>
+                  {filters.status === 'ALL' ? 'Tất cả trạng thái' : filters.status}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {['ALL', 'COMPLETED', 'PROCESSING', 'PENDING', 'CANCELLED'].map((st) => (
+                <DropdownMenuItem key={st} onClick={() => handleStatusChange(st)}>
+                  {st === 'ALL' ? 'Tất cả' : getStatusBadge(st)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Bảng dữ liệu */}
+        <div className="overflow-x-auto bg-[#3D1778] p-4 rounded-xl">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-purple-400 bg-purple-900/40">
+                <th className="p-3 text-white font-semibold">Mã ĐH</th>
+                <th className="p-3 text-white font-semibold">Người mua</th>
+                <th className="p-3 text-white font-semibold">Email</th>
+                <th className="p-3 text-center text-white font-semibold">SL Game</th>
+                <th className="p-3 text-white font-semibold">Tổng tiền</th>
+                <th className="p-3 text-white font-semibold">Ngày tạo</th>
+                <th className="p-3 text-white font-semibold">Trạng thái</th>
+                <th className="p-3 text-center text-white font-semibold">Thao tác</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-white">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-white">
+                    Không tìm thấy đơn hàng nào.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((o) => (
+                  <tr key={o.id} className="border-b border-purple-700/50 hover:bg-purple-800/30 transition-colors">
+                    <td className="p-3 text-white font-medium">{o.orderCode}</td>
+                    <td className="p-3 text-white">{o.customerName}</td>
+                    <td className="p-3 text-gray-300">{o.email}</td>
+                    <td className="p-3 text-center">
+                      <span className="inline-block bg-purple-700 text-white px-2.5 py-1 rounded-full text-xs font-medium">
+                        {o.gameCount}
+                      </span>
+                    </td>
+                    <td className="p-3 text-green-400 font-semibold">{formatCurrency(o.total)}</td>
+                    <td className="p-3 text-gray-300">
+                      {new Date(o.createdAt).toLocaleDateString('vi-VN')}
+                    </td>
+                    <td className="p-3">{getStatusBadge(o.status)}</td>
+                    <td className="p-3 text-center">
+                      <button
+                        className="text-blue-400 hover:text-blue-300 hover:underline"
+                        onClick={() => console.log('Xem chi tiết:', o)}
+                      >
+                        <Eye className="w-4 h-4 inline mr-1" /> Xem
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Phân trang */}
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-muted-foreground">
+            Hiển thị <strong>{orders.length}</strong> /{' '}
+            <strong>{pagination.totalElements}</strong> đơn hàng
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(filters.page - 1)}
+              disabled={pagination.first || loading}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Trước
+            </Button>
+            <div className="text-sm font-medium">
+              Trang {filters.page + 1} / {pagination.totalPages || 1}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(filters.page + 1)}
+              disabled={pagination.last || loading}
+            >
+              Sau <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+};
+
+export default AdminOrders;

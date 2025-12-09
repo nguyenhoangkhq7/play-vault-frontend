@@ -747,28 +747,30 @@ export default function ProductDetailPage() {
                     </button>
                   )}
 
-                  {/* Nút Yêu Thích */}
-                  <button
-                    onClick={handleToggleFavorite}
-                    className={`w-full bg-transparent hover:bg-white/10 font-semibold py-4 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-3 group
-                        ${
+                  {/* Nút Yêu Thích - ẩn nếu đã sở hữu */}
+                  {!isOwned && (
+                    <button
+                      onClick={handleToggleFavorite}
+                      className={`w-full bg-transparent hover:bg-white/10 font-semibold py-4 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-3 group
+                          ${
+                            isFavorite
+                              ? "border-pink-500 text-pink-500"
+                              : "border-purple-500/50 text-purple-300 hover:text-white"
+                          }
+                        `}
+                    >
+                      <Heart
+                        className={`w-5 h-5 transition-all ${
                           isFavorite
-                            ? "border-pink-500 text-pink-500"
-                            : "border-purple-500/50 text-purple-300 hover:text-white"
-                        }
-                      `}
-                  >
-                    <Heart
-                      className={`w-5 h-5 transition-all ${
-                        isFavorite
-                          ? "fill-pink-500"
-                          : "group-hover:text-pink-500 group-hover:fill-pink-500"
-                      }`}
-                    />
-                    {isFavorite
-                      ? "Đã yêu thích"
-                      : "Thêm vào danh sách yêu thích"}
-                  </button>
+                            ? "fill-pink-500"
+                            : "group-hover:text-pink-500 group-hover:fill-pink-500"
+                        }`}
+                      />
+                      {isFavorite
+                        ? "Đã yêu thích"
+                        : "Thêm vào danh sách yêu thích"}
+                    </button>
+                  )}
                 </div>
               </div>
             )}

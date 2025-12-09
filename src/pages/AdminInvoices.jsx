@@ -131,26 +131,26 @@ const AdminInvoices = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 space-y-8 text-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-purple-800 to-purple-900 p-6 space-y-8 text-white">
       {/* --- Header Section --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
             Quản Lý Hóa Đơn
           </h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-purple-200/80 mt-1">
             Theo dõi lịch sử giao dịch và xuất hóa đơn.
           </p>
         </div>
       </div>
 
       {/* --- Filter Toolbar --- */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800 backdrop-blur-sm">
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-purple-900/50 p-4 rounded-xl border border-purple-700/60 backdrop-blur-sm shadow-lg">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-200/70" />
           <Input
             placeholder="Tìm theo Mã hóa đơn (số ID) hoặc Tên khách hàng..."
-            className="pl-10 bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-500 focus-visible:ring-purple-500"
+            className="pl-10 bg-purple-950/70 border-purple-700/60 text-white placeholder:text-purple-200/60 focus-visible:ring-pink-500"
             value={filters.keyword}
             onChange={handleSearchChange}
           />
@@ -160,7 +160,7 @@ const AdminInvoices = () => {
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="w-full md:w-auto min-w-[180px] justify-between border-slate-800 bg-slate-950 text-slate-200 hover:bg-slate-900 hover:text-white"
+              className="w-full md:w-auto min-w-[180px] justify-between border-purple-700/60 bg-purple-950 text-white hover:bg-purple-800 hover:text-white"
             >
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-purple-400" />
@@ -172,13 +172,13 @@ const AdminInvoices = () => {
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+          <DropdownMenuContent align="end" className="bg-purple-900 border-purple-700/60 text-white">
             {["ALL", "PAID", "UNPAID", "CANCELLED"].map(
               (st) => (
                 <DropdownMenuItem
                   key={st}
                   onClick={() => handleStatusChange(st)}
-                  className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer"
+                  className="hover:bg-purple-800 focus:bg-purple-800 cursor-pointer"
                 >
                   {st === "ALL" ? "Tất cả trạng thái" : getStatusBadge(st)}
                 </DropdownMenuItem>
@@ -189,39 +189,39 @@ const AdminInvoices = () => {
       </div>
 
       {/* --- Data Table --- */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden shadow-xl">
+      <div className="rounded-xl border border-purple-700/60 bg-purple-900/50 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/80">
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">
+              <tr className="border-b border-purple-700/60 bg-purple-900/80">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
                   Mã HĐ
                 </th>
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
                   Khách hàng
                 </th>
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
                   Mã Đơn
                 </th>
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
                   Ngày xuất
                 </th>
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider text-center">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider text-center">
                   Phương thức
                 </th>
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider text-right">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider text-right">
                   Tổng tiền
                 </th>
-                <th className="p-4 text-slate-400 font-semibold uppercase text-xs tracking-wider text-center">
+                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider text-center">
                   Trạng thái
                 </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-purple-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-purple-200/80">
                     <div className="flex justify-center items-center gap-2">
                        <span className="animate-spin h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full"></span>
                        Đang tải dữ liệu hóa đơn...
@@ -230,7 +230,7 @@ const AdminInvoices = () => {
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-purple-200/80">
                     Không tìm thấy hóa đơn nào phù hợp.
                   </td>
                 </tr>
@@ -238,7 +238,7 @@ const AdminInvoices = () => {
                 invoices.map((inv) => (
                   <tr
                     key={inv.id}
-                    className="group hover:bg-slate-800/50 transition-colors"
+                    className="group hover:bg-purple-800/50 transition-colors"
                   >
                     <td className="p-4 font-medium text-purple-300">
                       {inv.id}
@@ -246,23 +246,23 @@ const AdminInvoices = () => {
                     <td className="p-4 font-medium text-white">
                       {inv.customerName}
                     </td>
-                    <td className="p-4 text-slate-400 text-xs">
-                        <span className="bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                    <td className="p-4 text-purple-200/80 text-xs">
+                        <span className="bg-purple-900/70 px-2 py-1 rounded border border-purple-700">
                             {inv.orderCode}
                         </span>
                     </td>
-                    <td className="p-4 text-slate-400">
+                    <td className="p-4 text-purple-200/80">
                       {inv.issueDate}
                     </td>
                     <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1 text-slate-300">
+                        <div className="flex items-center justify-center gap-1 text-white">
                             {inv.paymentMethod ? (
                                 <>
                                     <CreditCard className="w-3 h-3" />
                                     <span>{inv.paymentMethod}</span>
                                 </>
                             ) : (
-                                <span className="text-slate-500 italic">Chưa có</span>
+                                <span className="text-purple-200/70 italic">Chưa có</span>
                             )}
                         </div>
                     </td>
@@ -282,7 +282,7 @@ const AdminInvoices = () => {
 
       {/* --- Pagination --- */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-        <div className="text-sm text-slate-400">
+        <div className="text-sm text-purple-200/80">
           Hiển thị <strong className="text-white">{invoices.length}</strong> /{" "}
           <strong className="text-white">{pagination.totalElements}</strong> hóa đơn
         </div>
@@ -292,11 +292,11 @@ const AdminInvoices = () => {
             size="sm"
             onClick={() => handlePageChange(filters.page - 1)}
             disabled={pagination.first || loading}
-            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+            className="border-purple-700/60 bg-purple-900 text-white hover:bg-purple-800 hover:text-white disabled:opacity-50"
           >
             <ChevronLeft className="h-4 w-4 mr-1" /> Trước
           </Button>
-          <div className="text-sm font-medium px-2 text-slate-300">
+          <div className="text-sm font-medium px-2 text-white">
             Trang {filters.page + 1} / {pagination.totalPages || 1}
           </div>
           <Button
@@ -304,7 +304,7 @@ const AdminInvoices = () => {
             size="sm"
             onClick={() => handlePageChange(filters.page + 1)}
             disabled={pagination.last || loading}
-            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+            className="border-purple-700/60 bg-purple-900 text-white hover:bg-purple-800 hover:text-white disabled:opacity-50"
           >
             Sau <ChevronRight className="h-4 w-4 ml-1" />
           </Button>

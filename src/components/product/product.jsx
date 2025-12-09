@@ -182,33 +182,51 @@ export default function GamesPage() {
     }
   };
 
+  // 2. Fetch Games - Kết hợp search thường (search-for) và search AI
   const fetchGames = async () => {
     try {
       setLoading(true);
-      const normalResponse = await searchApi.searchGames(filterParams);
-      let normalGames = normalResponse?.content || [];
-      let totalPagesFromApi = normalResponse?.totalPages || 0;
+      const keyword = (filterParams.keyword || '').trim();
 
-      if (filterParams.keyword && filterParams.keyword.trim() !== "") {
+      const normalResponse = await searchApi.searchGamesKey(keyword);
+      const normalGames = Array.isArray(normalResponse)
+        ? normalResponse
+        : normalResponse?.content || normalResponse?.data?.content || [];
+      const totalPagesFromApi =
+        normalResponse?.totalPages || normalResponse?.data?.totalPages || 0;
+
+      const seenIds = new Set();
+      const combinedGames = [];
+      const pushUnique = (list) => {
+        (list || []).forEach((game) => {
+          const id = game?.id ?? game?.gameId;
+          if (id == null || seenIds.has(id)) return;
+          seenIds.add(id);
+          combinedGames.push(game);
+        });
+      };
+
+      pushUnique(normalGames);
+
+      if (keyword) {
         try {
-          const aiResponse = await searchApi.searchGamesAI(
-            filterParams.keyword
-          );
+          const aiResponse = await searchApi.searchGamesAI(keyword);
           const aiGames = Array.isArray(aiResponse)
             ? aiResponse
-            : aiResponse?.content || [];
-          const existingIds = new Set(normalGames.map((g) => g.id));
-          const uniqueAiGames = aiGames.filter((g) => !existingIds.has(g.id));
-          normalGames = [...normalGames, ...uniqueAiGames];
+            : aiResponse?.content || aiResponse?.data?.content || [];
+
+          pushUnique(aiGames);
         } catch (aiError) {
-          console.warn("Lỗi search AI:", aiError);
+          console.warn('Không thể gọi search AI, sử dụng dữ liệu search thường:', aiError);
         }
       }
-      setGames(normalGames);
-      setTotalPages(totalPagesFromApi);
+
+      setGames(combinedGames);
+      setTotalPages(totalPagesFromApi || (combinedGames.length ? 1 : 0));
     } catch (error) {
-      console.error("Lỗi:", error);
+      console.error('Lỗi:', error);
       setGames([]);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }

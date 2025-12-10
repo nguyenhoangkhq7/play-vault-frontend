@@ -33,7 +33,9 @@ export default function GamesPage() {
   const navigate = useNavigate();
   const { user, accessToken } = useUser(); // Không cần accessToken ở đây nếu axiosClient đã tự xử lý
 
-  const [games, setGames] = useState([]);
+  const [games, setGames] = useState([]); // trang hiện tại sau phân trang
+  const [allGames, setAllGames] = useState([]); // toàn bộ kết quả fetch theo keyword
+  const [filteredGames, setFilteredGames] = useState([]); // kết quả sau lọc category/price
   const [featuredGames, setFeaturedGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
@@ -48,7 +50,7 @@ export default function GamesPage() {
   const [genres, setGenres] = useState([{ id: null, name: "All" }]);
   const [filterParams, setFilterParams] = useState({
     keyword: "",
-    categoryId: null,
+    categoryName: null,
     minPrice: null,
     maxPrice: null,
     page: 0,
@@ -184,26 +186,16 @@ export default function GamesPage() {
     }
   };
 
-  // 2. Fetch Games - Kết hợp search thường (search) và search AI
+  // 2. Fetch Games - chỉ dựa vào keyword (search-for) + AI, lọc còn lại làm client-side
   const fetchGames = async () => {
     try {
       setLoading(true);
       const keyword = (filterParams.keyword || '').trim();
 
-      // ✅ SỬA: Dùng searchGames thay vì searchGamesKey để có discount
-      const normalResponse = await searchApi.searchGames({ 
-        keyword: keyword,
-        categoryId: filterParams.categoryId,
-        minPrice: filterParams.minPrice,
-        maxPrice: filterParams.maxPrice,
-        page: filterParams.page,
-        size: filterParams.size
-      });
+      const normalResponse = await searchApi.searchGamesKey(keyword);
       const normalGames = Array.isArray(normalResponse)
         ? normalResponse
         : normalResponse?.content || normalResponse?.data?.content || [];
-      const totalPagesFromApi =
-        normalResponse?.totalPages || normalResponse?.data?.totalPages || 0;
 
       const seenIds = new Set();
       const combinedGames = [];
@@ -251,10 +243,37 @@ export default function GamesPage() {
       });
       
       console.log("✅ Normalized games with discount:", normalizedGames);
-      
-      setGames(normalizedGames);
-      setTotalPages(totalPagesFromApi);
-    } catch (error) { console.error("Lỗi:", error); setGames([]); } finally { setLoading(false); }
+      setAllGames(normalizedGames);
+    } catch (error) { console.error("Lỗi:", error); setAllGames([]); setFilteredGames([]); setGames([]); setTotalPages(0); } finally { setLoading(false); }
+  };
+
+  // Lọc client-side theo categoryName + giá, sau đó phân trang
+  const applyFiltersAndPagination = () => {
+    const { categoryName, minPrice, maxPrice, page } = filterParams;
+    const selectedCat = categoryName?.trim().toLowerCase() || null;
+
+    const filtered = allGames.filter((game) => {
+      const gameCat = game.categoryName?.trim().toLowerCase() || "";
+      const matchesCategory = !selectedCat || gameCat === selectedCat;
+
+      const price = Number.isFinite(game.price) ? game.price : 0;
+      const discount = Number.isFinite(game.discount) ? game.discount : 0;
+      const effectivePrice = Math.max(0, price - discount);
+
+      const minOk = minPrice !== null && minPrice !== "" ? effectivePrice >= parseFloat(minPrice) : true;
+      const maxOk = maxPrice !== null && maxPrice !== "" ? effectivePrice <= parseFloat(maxPrice) : true;
+
+      return matchesCategory && minOk && maxOk;
+    });
+
+    // Bỏ phân trang: hiển thị tất cả
+    setFilteredGames(filtered);
+    setGames(filtered);
+    setTotalPages(filtered.length > 0 ? 1 : 0);
+
+    if (page !== 0) {
+      setFilterParams((prev) => ({ ...prev, page: 0 }));
+    }
   };
 
   const fetchFeaturedGames = async () => {
@@ -273,9 +292,10 @@ export default function GamesPage() {
     fetchFeaturedGames();
   }, [searchParams]);
 
+  // Chỉ fetch khi keyword đổi
   useEffect(() => {
     fetchGames();
-  }, [filterParams]);
+  }, [filterParams.keyword]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -284,8 +304,13 @@ export default function GamesPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  const handleGenreSelect = (id) =>
-    setFilterParams((prev) => ({ ...prev, categoryId: id, page: 0 }));
+  // Lọc mỗi khi dữ liệu hoặc bộ lọc đổi
+  useEffect(() => {
+    applyFiltersAndPagination();
+  }, [allGames, filterParams.categoryName, filterParams.minPrice, filterParams.maxPrice]);
+
+  const handleGenreSelect = (name) =>
+    setFilterParams((prev) => ({ ...prev, categoryName: name || null, page: 0 }));
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
       setFilterParams((prev) => ({ ...prev, page: newPage }));
@@ -350,21 +375,23 @@ export default function GamesPage() {
           </div>
           <div className="w-full overflow-x-auto pb-2 no-scrollbar">
             <div className="flex flex-nowrap gap-2 min-w-max">
-              {genres.map((genre) => (
+              {genres.map((genre) => {
+                const isSelected = (!genre.id && !filterParams.categoryName) || filterParams.categoryName === genre.name;
+                return (
                 <motion.button
                   key={genre.id || "all"}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleGenreSelect(genre.id)}
+                  onClick={() => handleGenreSelect(genre.id ? genre.name : null)}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition border whitespace-nowrap ${
-                    filterParams.categoryId === genre.id
+                    isSelected
                       ? "bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500/50 text-pink-300 shadow-lg shadow-pink-500/20"
                       : "bg-purple-900/50 border-purple-700 text-purple-300 hover:text-purple-100 hover:border-purple-600"
                   }`}
                 >
                   {genre.name}
                 </motion.button>
-              ))}
+              );})}
             </div>
           </div>
         </div>
@@ -474,7 +501,9 @@ export default function GamesPage() {
             <p className="text-slate-400 text-sm mt-2">
               {loading
                 ? "Đang tải..."
-                : `Hiển thị trang ${filterParams.page + 1} trên ${totalPages}`}
+                : filteredGames.length > 0
+                ? `Hiển thị ${filteredGames.length} game phù hợp`
+                : "Không có dữ liệu phù hợp"}
             </p>
           </div>
 
@@ -671,32 +700,7 @@ export default function GamesPage() {
                 </div>
               )}
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-12">
-                  <button
-                    disabled={filterParams.page === 0}
-                    onClick={() => handlePageChange(filterParams.page - 1)}
-                    className="p-2 rounded-full bg-purple-900/50 border border-purple-700 text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-purple-800 transition"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className="text-slate-300 font-medium">
-                    Trang{" "}
-                    <span className="text-white font-bold">
-                      {filterParams.page + 1}
-                    </span>{" "}
-                    / {totalPages}
-                  </div>
-                  <button
-                    disabled={filterParams.page + 1 >= totalPages}
-                    onClick={() => handlePageChange(filterParams.page + 1)}
-                    className="p-2 rounded-full bg-purple-900/50 border border-purple-700 text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-purple-800 transition"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
-              )}
+              {/* Pagination removed: hiển thị toàn bộ danh sách */}
             </>
           )}
         </section>

@@ -48,20 +48,20 @@ export default function Sidebar() {
 
   const publisherMenu = [
     {
-      icon: Upload,
-      label: "Up Game",
-      path: "/publisher/upload",
-      gradient: "from-emerald-500 to-cyan-500",
-    },
-    {
       icon: GamepadIcon,
       label: "Quản lý Game",
       path: "/publisher/games",
       gradient: "from-purple-500 to-pink-500",
     },
     {
+      icon: Upload,
+      label: "Up Game",
+      path: "/publisher/upload",
+      gradient: "from-emerald-500 to-cyan-500",
+    },
+    {
       icon: Percent,
-      label: "Promotions",
+      label: "Quản lý khuyến mãi",
       path: "/promotions",
       gradient: "from-orange-500 to-red-500",
     },

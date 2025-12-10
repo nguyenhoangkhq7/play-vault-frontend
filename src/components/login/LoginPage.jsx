@@ -82,9 +82,14 @@ export default function LoginPage() {
       // Lưu vào UserContext + localStorage
       login(user, accessToken);
 
-      // Điều hướng theo role: admin vào trang quản trị, còn lại về home
+      // Dieu huong theo role: admin vao trang quan tri, publisher vao trang quan ly game, con lai ve home
       const role = user?.role;
-      const redirectPath = role === "ADMIN" ? "/admin" : "/";
+      const redirectPath =
+        role === "ADMIN"
+          ? "/admin"
+          : role === "PUBLISHER"
+          ? "/publisher/games"
+          : "/";
 
       toast.success("Đăng nhập thành công!", {
         description: "Chào mừng bạn quay lại!",

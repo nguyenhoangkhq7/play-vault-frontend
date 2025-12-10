@@ -3,10 +3,13 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/home/navbar";
 import Footer from "../components/home/footer";
 import Sidebar from "../components/home/sidebar";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-// ✅ Thêm 2 service gọi API
-import { driveService } from "../api/driveService";
+// ✅ Thêm service gọi API
 import { gameService } from "../api/gameService";
+import { r2Service } from "../api/r2Service";
+import { uploadImageToCloudinary } from "../api/uploadImage"; // ✅ Dùng Cloudinary cho ảnh
 
 export default function PublisherUpload() {
   return <PublisherUploadInner />;
@@ -20,27 +23,36 @@ function PublisherUploadInner() {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [genre, setGenre] = useState("");
-  const [platforms, setPlatforms] = useState([]); // ["Windows", "macOS", "Linux"]
+  const [platforms, setPlatforms] = useState([]); // ["PC", "Mobile", "PlayStation", "Xbox", "Nintendo Switch"]
   const [release, setRelease] = useState("");
   const [trailer, setTrailer] = useState("");
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState("");
 
-  // Cover upload
-  const [coverUrl, setCoverUrl] = useState("");
+  // Cover upload - ✅ Lưu vào localStorage
+  const [coverUrl, setCoverUrl] = useState(() => 
+    localStorage.getItem("publisher_coverUrl") || ""
+  );
   const coverInputRef = useRef(null);
 
-  // Build upload
+  // Build upload - ✅ Lưu vào localStorage
   const buildInputRef = useRef(null);
-  const [buildName, setBuildName] = useState("");
-  const [buildUrl, setBuildUrl] = useState("");       // ✅ link build thật sau upload
+  const [buildName, setBuildName] = useState(() => 
+    localStorage.getItem("publisher_buildName") || ""
+  );
+  const [buildUrl, setBuildUrl] = useState(() => 
+    localStorage.getItem("publisher_buildUrl") || ""
+  );
   const [buildProgress, setBuildProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const uploadTimerRef = useRef(null); // giữ lại để clear nếu cần (không dùng fake nữa)
+  const uploadTimerRef = useRef(null);
 
-  // Screenshots
+  // Screenshots - ✅ Lưu vào localStorage
   const ssRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
-  const [ssUrls, setSsUrls] = useState(["", "", "", ""]);
+  const [ssUrls, setSsUrls] = useState(() => {
+    const saved = localStorage.getItem("publisher_ssUrls");
+    return saved ? JSON.parse(saved) : ["", "", "", ""];
+  });
 
   // --- FORM STATE BỔ SUNG (đồng bộ backend) ---
   const [notes, setNotes] = useState("");        // description (ghi chú phát hành)
@@ -64,26 +76,33 @@ function PublisherUploadInner() {
     useRef(null),
     useRef(null),
   ];
-  const [galleryUrls, setGalleryUrls] = useState(["", "", "", ""]);
-  // Upload lên Drive ngay khi chọn, lưu URL trả về
+  // ✅ Khởi tạo từ localStorage
+  const [galleryUrls, setGalleryUrls] = useState(() => {
+    const saved = localStorage.getItem("publisher_galleryUrls");
+    return saved ? JSON.parse(saved) : ["", "", "", ""];
+  });
+  // ✅ Upload ảnh gallery lên Cloudinary
 const onGalleryFiles = async (index, files) => {
   const f = files?.[0];
   if (!f) return;
   if (!f.type.startsWith("image/")) {
-    alert("Vui lòng chọn ảnh (JPG/PNG/WEBP/GIF)");
+    toast.error("🖼️ Vui lòng chọn ảnh (JPG/PNG/WEBP/GIF)");
     return;
   }
   try {
-    const up = await driveService.uploadFile(f, true);
-    const link = up.directLink || up.viewLink || up.downloadLink; // server sẽ convert sang lh3 khi lưu
+    const result = await uploadImageToCloudinary(f);
+    const link = result.secure_url;
     setGalleryUrls((prev) => {
       const next = [...prev];
       next[index] = link;
+      // ✅ Lưu vào localStorage
+      localStorage.setItem("publisher_galleryUrls", JSON.stringify(next));
       return next;
     });
+    console.log("✅ Upload gallery image:", link);
   } catch (e) {
-    console.error(e);
-    alert("Upload ảnh gallery thất bại!");
+    console.error("❌ Upload gallery thất bại:", e);
+    toast.error("❌ Upload ảnh gallery thất bại! Vui lòng thử lại.");
   }
 };
 
@@ -114,66 +133,16 @@ const onGalleryFiles = async (index, files) => {
   setAge18(0);
   setController(false);
   setCpu(""); setGpu(""); setStorage(""); setRam("");
+  
+  // ✅ Xóa localStorage khi reset form
+  localStorage.removeItem("publisher_coverUrl");
+  localStorage.removeItem("publisher_galleryUrls");
+  localStorage.removeItem("publisher_ssUrls");
+  localStorage.removeItem("publisher_buildUrl");
+  localStorage.removeItem("publisher_buildName");
 };
 
-  // ---------------------- Validation helpers ----------------------
-  const validateInfoStep = () => {
-    const errors = [];
-    if (!title.trim()) errors.push("Tên game");
-    if (!summary.trim()) errors.push("Mô tả ngắn");
-    if (!genre) errors.push("Thể loại");
-    if (!platforms || platforms.length === 0) errors.push("Nền tảng");
-    if (!isFree) {
-      if (!String(price).trim()) {
-        errors.push("Giá");
-      } else {
-        const priceNum = Number(price);
-        if (priceNum <= 0) {
-          errors.push("Giá phải lớn hơn 0 nếu bằng 0 vui lòng chọn 'Miễn phí'");
-        } else if (priceNum > 10000000) {
-          errors.push("Giá không được vượt quá 10.000.000 VND");
-        }
-      }
-    }
-    if (!release) errors.push("Ngày phát hành");
-    if (!coverUrl) errors.push("Ảnh bìa");
-    if (!galleryUrls.some((url) => url)) errors.push("Ít nhất một ảnh gallery");
-    return errors;
-  };
-
-  const validateBeforeSubmit = () => {
-    const errors = validateInfoStep();
-    // Build must be uploaded
-    if (!buildName && !buildUrl) errors.push("Bản build (tải lên)");
-    // Thumbnail
-    if (!coverUrl) errors.push("Ảnh bìa");
-    // Build / Release notes related
-    if (!notes || !String(notes).trim()) errors.push("Ghi chú phát hành");
-    if (!cpu || !String(cpu).trim()) errors.push("Yêu cầu CPU");
-    if (!gpu || !String(gpu).trim()) errors.push("Yêu cầu GPU");
-    if (!storage || !String(storage).trim()) errors.push("Bộ nhớ (Storage)");
-    else if (!/^\d+\s*GB$/i.test(String(storage).trim())) {
-      errors.push("Bộ nhớ phải có dạng số + GB (ví dụ: 50 GB)");
-    }
-    if (!ram || !String(ram).trim()) errors.push("RAM");
-    else if (!/^\d+\s*GB$/i.test(String(ram).trim())) {
-      errors.push("RAM phải có dạng số + GB (ví dụ: 8 GB)");
-    }
-    // Age should be a positive number (0 is treated as unspecified)
-    const ageNum = Number(age18);
-    if (!ageNum || ageNum === 0) {
-      errors.push("Tuổi yêu cầu");
-    } else if (ageNum < 10) {
-      errors.push("Tuổi yêu cầu phải lớn hơn 10");
-    } else if (ageNum > 80) {
-      errors.push("Tuổi yêu cầu quá lớn (tối đa 80)");
-    }
-    return errors;
-  };
-
-  const osMap = { Windows: "WINDOWS", macOS: "MAC", Linux: "LINUX" };
-  const primaryOs = platforms[0] ? (osMap[platforms[0]] || "WINDOWS") : "WINDOWS";
-
+  // Platform names now match database exactly: PC, Mobile, PlayStation, Xbox, Nintendo Switch
   const platformIds = platforms.length ? [1] : [];
 
   // Thể loại (VN) -> id (theo DB dump của bạn)
@@ -189,30 +158,32 @@ const onGalleryFiles = async (index, files) => {
   };
 const categoryIdMapped = categoryMap[genre] || 1;
 
-  // ====================== Cover handlers (UPLOAD THẬT) ======================
+  // ====================== Cover handlers (UPLOAD LÊN CLOUDINARY) ======================
   const onCoverFiles = async (files) => {
     const f = files?.[0];
     if (!f) return;
     if (!f.type.startsWith("image/")) {
-      alert("Vui lòng chọn ảnh (JPG/PNG)");
+      toast.error("🖼️ Vui lòng chọn ảnh (JPG/PNG)");
       return;
     }
     try {
-      const up = await driveService.uploadFile(f, true);
-      const link = up.directLink || up.viewLink || up.downloadLink;
+      const result = await uploadImageToCloudinary(f);
+      const link = result.secure_url;
       setCoverUrl(link);
+      localStorage.setItem("publisher_coverUrl", link); // ✅ Lưu localStorage
+      console.log("✅ Upload cover image:", link);
     } catch (e) {
-      console.error(e);
-      alert("Upload ảnh bìa thất bại!");
+      console.error("❌ Upload cover thất bại:", e);
+      toast.error("❌ Upload ảnh bìa thất bại! Vui lòng thử lại.");
     }
   };
 
-  // ====================== Build handlers (UPLOAD THẬT + PROGRESS) ======================
+  // ====================== Build handlers (UPLOAD THẬT + PROGRESS VỚI R2) ======================
   const onBuildFiles = async (files) => {
     const f = files?.[0];
     if (!f) return;
-    if (!/(zip|7z|rar)$/i.test(f.name)) {
-      alert("Chỉ nhận .zip, .7z, .rar");
+    if (!/(\.zip|\.7z|\.rar|\.exe)$/i.test(f.name)) {
+      toast.error("📦 Chỉ nhận file .zip, .7z, .rar, .exe");
       return;
     }
     // set tên build hiển thị
@@ -220,24 +191,26 @@ const categoryIdMapped = categoryMap[genre] || 1;
     setIsUploading(true);
     setBuildProgress(0);
 
-    // Clear bất kỳ timer cũ (không dùng fake nhưng để chắc chắn)
+    // Clear bất kỳ timer cũ
     if (uploadTimerRef.current) {
       clearInterval(uploadTimerRef.current);
       uploadTimerRef.current = null;
     }
 
     try {
-      const up = await driveService.uploadFile(f, true, (pe) => {
-        if (pe?.total) {
-          const pct = Math.round((pe.loaded * 100) / pe.total);
-          setBuildProgress(pct);
-        }
+      // ✅ DÙNG R2 SERVICE: Upload file game và nhận filePath
+      const filePath = await r2Service.uploadGameFile(f, (percent) => {
+        setBuildProgress(percent);
       });
-      const link = up.directLink || up.downloadLink || up.viewLink;
-      setBuildUrl(link);
+      
+      // ✅ Lưu filePath để gửi lên backend khi submit
+      setBuildUrl(filePath);
+      localStorage.setItem("publisher_buildUrl", filePath); // ✅ Lưu localStorage
+      localStorage.setItem("publisher_buildName", f.name); // ✅ Lưu tên file
+      console.log("✅ Upload thành công! FilePath:", filePath);
     } catch (e) {
-      console.error(e);
-      alert("Upload build thất bại!");
+      console.error("❌ Upload build thất bại:", e);
+      toast.error("❌ Upload build thất bại! Vui lòng thử lại.");
     } finally {
       setIsUploading(false);
     }
@@ -248,18 +221,23 @@ const categoryIdMapped = categoryMap[genre] || 1;
     []
   );
 
-  // ====================== Screenshots handlers (UPLOAD THẬT) ======================
+  // ====================== Screenshots handlers (UPLOAD LÊN CLOUDINARY) ======================
   const onPickSS = async (idx, files) => {
     const f = files?.[0];
     if (!f) return;
     if (!f.type.startsWith("image/")) return;
     try {
-      const up = await driveService.uploadFile(f, true);
-      const link = up.directLink || up.viewLink || up.downloadLink;
-      setSsUrls((prev) => prev.map((u, i) => (i === idx ? link : u)));
+      const result = await uploadImageToCloudinary(f);
+      const link = result.secure_url;
+      setSsUrls((prev) => {
+        const updated = prev.map((u, i) => (i === idx ? link : u));
+        localStorage.setItem("publisher_ssUrls", JSON.stringify(updated)); // ✅ Lưu localStorage
+        return updated;
+      });
+      console.log("✅ Upload screenshot:", link);
     } catch (e) {
-      console.error(e);
-      alert("Upload screenshot thất bại!");
+      console.error("❌ Upload screenshot thất bại:", e);
+      toast.error("❌ Upload screenshot thất bại! Vui lòng thử lại.");
     }
   };
 
@@ -273,55 +251,125 @@ const categoryIdMapped = categoryMap[genre] || 1;
       Boolean(genre.trim()),
       isFree ? true : Boolean(String(price).trim()),
       Boolean(buildName.trim()), // đã chọn file build
+      Boolean(coverUrl), // ✅ Ảnh bìa bắt buộc
+      galleryUrls.filter(Boolean).length >= 2, // ✅ Ít nhất 2 ảnh gallery
+      Boolean(notes.trim()), // ✅ Ghi chú phát hành bắt buộc
+      Boolean(trailer.trim()), // ✅ Trailer bắt buộc
     ];
     const filled = required.filter(Boolean).length;
     const pct = Math.round((filled / required.length) * 100) || 0;
     return pct;
-  }, [title, summary, genre, isFree, price, buildName]);
+  }, [title, summary, genre, isFree, price, buildName, coverUrl, galleryUrls, notes, trailer]);
 
   // ✅ Gửi duyệt thật: POST /api/games
   const onSubmitReview = async () => {
     try {
-      // validate before submit
-      const errs = validateBeforeSubmit();
-      if (errs.length) {
-        alert("Vui lòng hoàn thành các thông tin trước khi gửi: " + errs.join(", "));
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+
+      // ✅ Validate required fields
+      if (!title || !summary || !buildUrl) {
+        toast.error("⚠️ Vui lòng điền đầy đủ thông tin: Tên game, Mô tả, và File game!");
         return;
       }
 
-      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+      if (!coverUrl) {
+        toast.error("🖼️ Vui lòng upload ảnh bìa game!");
+        return;
+      }
 
+      if (!notes || !notes.trim()) {
+        toast.error("📝 Vui lòng nhập ghi chú phát hành!");
+        return;
+      }
+
+      if (!trailer || !trailer.trim()) {
+        toast.error("🎥 Vui lòng nhập link trailer YouTube!");
+        return;
+      }
+
+      // ✅ Validate gallery images (bắt buộc ít nhất 2 ảnh)
+      const validGalleryCount = galleryUrls.filter(Boolean).length;
+      if (validGalleryCount < 2) {
+        toast.error(`🖼️ Vui lòng upload ít nhất 2 ảnh gallery! (Hiện tại: ${validGalleryCount}/4)`);
+        return;
+      }
+
+      // ✅ Validate system requirements (optional nhưng nếu nhập thì phải đúng format)
+      if (cpu.trim() && cpu.trim().length < 3) {
+        toast.error("💻 Yêu cầu CPU phải có ít nhất 3 ký tự!");
+        return;
+      }
+      if (gpu.trim() && gpu.trim().length < 3) {
+        toast.error("🎮 Yêu cầu GPU phải có ít nhất 3 ký tự!");
+        return;
+      }
+      if (ram.trim() && !/^\d+\s*(GB|MB|gb|mb)$/i.test(ram.trim())) {
+        toast.error("💾 RAM phải theo định dạng: 8 GB, 16GB, 512MB, v.v.");
+        return;
+      }
+      if (storage.trim() && !/^\d+\s*(GB|MB|TB|gb|mb|tb)$/i.test(storage.trim())) {
+        toast.error("💿 Dung lượng phải theo định dạng: 10 GB, 500MB, 1TB, v.v.");
+        return;
+      }
+
+      // ✅ Payload khớp với GameCreateRequest của backend
       const payload = {
-        name: title,
-        shortDescription: summary,
-        description: notes,
-        price: isFree ? 0 : Number(price || 0),
-        releaseDate: release || null,             // "yyyy-MM-dd"
+        title: title,                           // ✅ Đổi name → title
+        summary: summary,                        // ✅ Đổi shortDescription → summary
+        description: notes || summary,           // ✅ description
+        coverUrl: coverUrl,                      // ✅ Đổi thumbnail → coverUrl
         trailerUrl: trailer || null,
+        isFree: isFree,                          // ✅ boolean
+        price: isFree ? 0 : Number(price || 0),
+        releaseDate: release || new Date().toISOString().split('T')[0], // yyyy-MM-dd
         categoryId: categoryIdMapped,
-        requiredAge: Number(age18 || 0),
+        platforms: platforms.length > 0 
+          ? platforms // ✅ Send exactly as selected: PC, Mobile, PlayStation, Xbox, Nintendo Switch
+          : ["PC"], // ✅ Default to PC
+        filePath: buildUrl,                      // ✅ File path từ R2
+        isAge18: age18 >= 18,                    // ✅ boolean
         isSupportController: Boolean(controller),
-        platformIds,                              // [1] = PC
-        systemRequirement: {
-          os: primaryOs,                          // WINDOWS | MAC | LINUX
-          cpu,
-          gpu,
-          storage,
-          ram,
+        gallery: galleryUrls.filter(Boolean),    // ✅ Thêm gallery URLs
+        systemRequirement: {                     // ✅ THÊM SYSTEM REQUIREMENT
+          cpu: cpu.trim() || "Intel Core i5 hoặc tương đương",
+          gpu: gpu.trim() || "NVIDIA GTX 1050 Ti hoặc tương đương",
+          ram: ram.trim() || "8 GB",
+          storage: storage.trim() || "10 GB",
         },
-        filePath: buildUrl,                       // gbi.file_path
-        thumbnail: coverUrl,                      // gbi.thumbnail
-        gallery: (galleryUrls || []).filter(Boolean),
       };
 
-      await gameService.createPendingJson(payload, token);
+      console.log("📤 Submitting game payload:", payload);
+      console.log("📊 Payload details:", {
+        title, summary, coverUrl, buildUrl,
+        categoryId: categoryIdMapped,
+        platforms,
+        galleryCount: galleryUrls.filter(Boolean).length
+      });
 
-      alert("Đã gửi duyệt thành công!");
-      resetForm();
-      navigate("/publisher/games");
+      const response = await gameService.createPendingJson(payload, token);
+      
+      console.log("✅ Game submitted successfully:", response);
+      toast.success("🎉 Đã gửi duyệt game thành công! Chuyển đến trang quản lý...", {
+        autoClose: 2000,
+      });
+      
+      setTimeout(() => {
+        resetForm();
+        navigate("/publisher/games");
+      }, 2000);
     } catch (e) {
-      console.error(e);
-      alert("Gửi duyệt thất bại!");
+      console.error("❌ Error submitting game:", e);
+      console.error("Error response:", e.response?.data);
+      
+      if (e.response?.status === 401) {
+        toast.error("🔒 Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
+        setTimeout(() => navigate("/login"), 2000);
+      } else if (e.response?.status === 403) {
+        toast.error("⛔ Bạn không có quyền tạo game. Vui lòng đăng nhập với tài khoản Publisher!");
+      } else {
+        const errorMsg = e.response?.data?.message || e.message || "Lỗi không xác định";
+        toast.error(`❌ Gửi duyệt thất bại: ${errorMsg}`);
+      }
     }
   };
 
@@ -330,11 +378,6 @@ const categoryIdMapped = categoryMap[genre] || 1;
     if (location.pathname.endsWith("/build")) {
       return; // Last step
     } else {
-      const errs = validateInfoStep();
-      if (errs.length) {
-        alert("Vui lòng hoàn thành các thông tin: " + errs.join(", "));
-        return;
-      }
       navigate("/publisher/upload/build");
     }
   };
@@ -344,6 +387,20 @@ const categoryIdMapped = categoryMap[genre] || 1;
   // ---------------------- Render ----------------------
   return (
     <div className="publisher-root" data-bs-theme="dark">
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+        style={{ zIndex: 9999 }}
+      />
       {/* Sidebar */}
       <Sidebar />
 

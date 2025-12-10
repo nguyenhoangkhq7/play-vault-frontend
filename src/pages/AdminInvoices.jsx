@@ -104,7 +104,7 @@ const AdminInvoices = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
             Quản Lý Hóa Đơn
           </h1>
           <p className="text-slate-400 mt-1">Theo dõi lịch sử thanh toán.</p>
@@ -117,7 +117,7 @@ const AdminInvoices = () => {
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-200/70" />
           <Input
             placeholder="Tìm theo Mã HĐ, Tên hoặc Email..."
             className="pl-10 bg-slate-950 border-slate-800 text-slate-200"

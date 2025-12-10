@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { toast } from 'react-toastify';
 import {
   Building2,
   FileText,
@@ -221,7 +222,7 @@ export default function PublisherRegister() {
 
       await publisherApi.register(payload);
       
-      alert("Đăng ký thành công! Vui lòng chờ Admin duyệt hồ sơ.");
+      toast.success("🎉 Đăng ký thành công! Vui lòng chờ Admin duyệt hồ sơ.");
       setFormData(INITIAL_FORM_DATA);
       setCurrentStep("studio");
       window.scrollTo({ top: 0, behavior: "smooth" });

@@ -10,7 +10,8 @@ import {
     ShoppingBag,
     Star,
     LogIn,
-    Search
+    Search,
+    Download
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,12 +31,14 @@ import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getMyPurchasedGames } from "../../api/library.js";
 import { useUser } from "../../store/UserContext.jsx";
+import { r2Service } from "../../api/r2Service.js"; // ✅ THÊM R2 SERVICE
+import searchApi from "../../api/searchApi.js"; // ✅ THÊM: Để fetch game details với category
 
 
 export default function PurchasedProducts() {
     const [view, setView] = useState("list");
-    const [priceFilter, setPriceFilter] = useState("all");
-    const [categoryFilter, setCategoryFilter] = useState("all");
+    const [categoryFilter, setCategoryFilter] = useState("all"); // ✅ Filter theo thể loại
+    const [sortOrder, setSortOrder] = useState("default"); // ✅ Sort theo bảng chữ cái
     
     // Danh sách thể loại game từ database
     const gameCategories = [
@@ -55,6 +58,7 @@ export default function PurchasedProducts() {
     const [error, setError] = useState(null);
     const navigate = useNavigate();
     const location = useLocation(); // ✅ Detect khi component được access
+    const [downloadingGameId, setDownloadingGameId] = useState(null); // ✅ THÊM: Track game đang download
     
     // Lấy user và setAccessToken từ UserContext
     const { user, setAccessToken } = useUser();
@@ -90,14 +94,15 @@ export default function PurchasedProducts() {
 
             // Transform data từ backend sang format của frontend
             const transformedProducts = purchasedGames.map(game => {
-                console.log("🎮 Transforming game:", game);
                 return {
                     id: game.id,
                     name: game.name || "Unknown Game",
                     price: game.price || 0,
+                    purchasePrice: game.purchasePrice || game.price || 0, // Giá thực tế đã mua
                     thumbnail_image: game.thumbnail || 'https://placehold.co/400x200/3a1a5e/ffffff?text=Game+Image',
                     purchaseDate: game.purchaseDate ? new Date(game.purchaseDate) : new Date(),
-                    status: "delivered", // Mặc định là đã giao
+                    status: "delivered",
+                    categoryName: game.categoryName || null, // ✅ Backend sẽ trả về field này
                     tags: game.categoryName ? [game.categoryName] : [],
                     details: {
                         publisher: game.publisherName || "Unknown Publisher"
@@ -143,27 +148,61 @@ export default function PurchasedProducts() {
         }
     };
 
-    // ✅ Filter theo search, price, category (client-side)
-    const filteredProducts = products.filter((product) => {
+    // ✅ THÊM: Xử lý download game
+    const handleDownloadGame = async (e, gameId, gameName) => {
+        e.stopPropagation(); // Prevent navigation to game detail
+
+        if (!user) {
+            alert("Vui lòng đăng nhập để tải game!");
+            navigate("/login");
+            return;
+        }
+
+        try {
+            setDownloadingGameId(gameId);
+            
+            // Lấy secure download URL từ backend
+            const { downloadUrl, fileName } = await r2Service.getSecureDownloadUrl(gameId);
+            
+            // Trigger download
+            r2Service.downloadGameFile(downloadUrl, fileName || `${gameName}.rar`);
+            
+            alert(`Đang tải "${gameName}"... Vui lòng kiểm tra Downloads folder!`);
+        } catch (error) {
+            console.error("❌ Error downloading game:", error);
+            if (error.response?.status === 403) {
+                alert("Bạn không có quyền tải game này!");
+            } else {
+                alert("Có lỗi xảy ra khi tải game. Vui lòng thử lại!");
+            }
+        } finally {
+            setDownloadingGameId(null);
+        }
+    };
+
+    // ✅ Filter và Sort products
+    let filteredProducts = products.filter((product) => {
         // Filter theo search query (tên game)
         const matchesSearch = searchQuery === "" || product.name.toLowerCase().includes(searchQuery.toLowerCase());
         
-        // Filter theo category
+        // ✅ Filter theo category (SỚ SÀNG khi backend trả về categoryName)
         const matchesCategory = categoryFilter === "all" || 
-            (product.tags && product.tags.some(tag => tag.toLowerCase() === categoryFilter.toLowerCase()));
+            (product.categoryName && product.categoryName.toLowerCase() === categoryFilter.toLowerCase());
         
-        // Filter theo price
-        let matchesPrice = true;
-        if (priceFilter === "under100k") {
-            matchesPrice = product.price < 100000;
-        } else if (priceFilter === "100k-300k") {
-            matchesPrice = product.price >= 100000 && product.price <= 300000;
-        } else if (priceFilter === "over300k") {
-            matchesPrice = product.price > 300000;
-        }
-        
-        return matchesSearch && matchesCategory && matchesPrice;
+        return matchesSearch && matchesCategory;
     });
+
+    // ✅ Sort theo sortOrder
+    if (sortOrder === "name-asc") {
+        filteredProducts = [...filteredProducts].sort((a, b) => 
+            a.name.localeCompare(b.name, 'vi')
+        );
+    } else if (sortOrder === "name-desc") {
+        filteredProducts = [...filteredProducts].sort((a, b) => 
+            b.name.localeCompare(a.name, 'vi')
+        );
+    }
+    // "default" giữ nguyên thứ tự từ API
 
     const formatCurrency = (amount) => {
         // Nếu amount là số, format bình thường
@@ -231,9 +270,6 @@ export default function PurchasedProducts() {
                         <ShoppingBag className="h-6 w-6 text-pink-500" />
                         Sản Phẩm Đã Mua
                     </h1>
-                    <p className="text-purple-300">
-                        {user && `${user.f_name || user.firstName || 'User'} ${user.l_name || user.lastName || ''} • `}{products.length} game đã mua
-                    </p>
 
                     <div className="flex items-center gap-3 mt-4 md:mt-0 w-full md:w-auto justify-end">
                         <div className="flex bg-purple-800/80 rounded-md overflow-hidden border border-purple-700/50 shadow-lg">
@@ -278,6 +314,7 @@ export default function PurchasedProducts() {
                         />
                     </div>
 
+                    {/* ✅ Lọc theo thể loại */}
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                         <SelectTrigger className="w-[180px] bg-purple-900/80 border-purple-700/50 hover:border-purple-600 shadow-lg rounded-lg text-white">
                             <SelectValue placeholder="Thể loại" />
@@ -292,31 +329,25 @@ export default function PurchasedProducts() {
                         </SelectContent>
                     </Select>
 
-                    <Select value={priceFilter} onValueChange={setPriceFilter}>
+                    {/* ✅ Sắp xếp theo bảng chữ cái */}
+                    <Select value={sortOrder} onValueChange={setSortOrder}>
                         <SelectTrigger className="w-[180px] bg-purple-900/80 border-purple-700/50 hover:border-purple-600 shadow-lg rounded-lg text-white">
-                            <SelectValue placeholder="Mức giá" />
+                            <SelectValue placeholder="Sắp xếp" />
                         </SelectTrigger>
                         <SelectContent className="bg-purple-900 border-purple-700 text-white rounded-lg">
-                            <SelectItem value="all">Tất cả mức giá</SelectItem>
-                            <SelectItem value="under100k">
-                                Dưới 100,000 GCoin
-                            </SelectItem>
-                            <SelectItem value="100k-300k">
-                                100,000 - 300,000 GCoin
-                            </SelectItem>
-                            <SelectItem value="over300k">
-                                Trên 300,000 GCoin
-                            </SelectItem>
+                            <SelectItem value="default">Mặc định</SelectItem>
+                            <SelectItem value="name-asc">Tên A → Z</SelectItem>
+                            <SelectItem value="name-desc">Tên Z → A</SelectItem>
                         </SelectContent>
                     </Select>
 
                     <Button
                         className="bg-purple-700 hover:bg-purple-600 text-white"
                         onClick={() => {
-                            setPriceFilter("all");
                             setCategoryFilter("all");
                             setSearchQuery("");
                             setSearchInput("");
+                            setSortOrder("default");
                         }}
                     >
                         Đặt lại bộ lọc
@@ -371,9 +402,6 @@ export default function PurchasedProducts() {
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 to-transparent"></div>
                                             <div className="absolute bottom-4 left-4 flex items-center space-x-2">
-                                                <span className="bg-purple-600/90 text-white text-xs px-2 py-1 rounded-full">
-                                                    {product.details?.publisher || "Publisher"}
-                                                </span>
                                                 {product.tags?.slice(0, 1).map((tag) => (
                                                     <span key={tag} className="bg-pink-600/90 text-white text-xs px-2 py-1 rounded-full">
                                                         {tag}
@@ -387,19 +415,20 @@ export default function PurchasedProducts() {
                                             <div className="text-sm text-purple-300 mt-1">
                                                 Ngày mua: {format(product.purchaseDate, "dd/MM/yyyy", { locale: vi })}
                                             </div>
-                                            <div className="mt-3 flex justify-between items-center">
-                                                <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
+                                            <div className="mt-3 flex justify-end items-center">
                                                 <Button
-                                                    // onClick={(e) => {
-                                                    //     e.stopPropagation();
-                                                    //     // TODO: Implement download functionality
-                                                    //     console.log('Download game:', product.id);
-                                                    // }}
-                                                    key={product.id} 
-                                                    onClick={() => navigate(`/product/${product.id}`)}
-                                                    className="text-xs h-8 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg hover:shadow-purple-500/30"
+                                                    onClick={(e) => handleDownloadGame(e, product.id, product.name)}
+                                                    disabled={downloadingGameId === product.id}
+                                                    className="text-xs h-8 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
-                                                    Tải lại game
+                                                    {downloadingGameId === product.id ? (
+                                                        <>Đang tải...</>
+                                                    ) : (
+                                                        <>
+                                                            <Download className="h-3 w-3 mr-1" />
+                                                            Tải game
+                                                        </>
+                                                    )}
                                                 </Button>
                                             </div>
                                         </div>
@@ -430,14 +459,19 @@ export default function PurchasedProducts() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-purple-200 font-medium">{formatCurrency(product.price || 0)}</div>
                                                     <Button
-
-                                                        key={product.id} 
-                                                        onClick={() => navigate(`/product/${product.id}`)}
-                                                        className="text-xs h-8 mt-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
+                                                        onClick={(e) => handleDownloadGame(e, product.id, product.name)}
+                                                        disabled={downloadingGameId === product.id}
+                                                        className="text-xs h-8 mt-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        Tải lại game
+                                                        {downloadingGameId === product.id ? (
+                                                            <>Đang tải...</>
+                                                        ) : (
+                                                            <>
+                                                                <Download className="h-3 w-3 mr-1" />
+                                                                Tải game
+                                                            </>
+                                                        )}
                                                     </Button>
                                                 </div>
                                             </div>

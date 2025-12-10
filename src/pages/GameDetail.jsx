@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { Heart, ShoppingCart, ThumbsUp, ThumbsDown, Clock, User, Star, Tag, Award, Zap, Sparkles } from "lucide-react"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { Heart, ShoppingCart, ThumbsUp, ThumbsDown, Clock, User, Star, Tag, Award, Zap, Sparkles, Download } from "lucide-react"
 import { motion } from "framer-motion"
 import GameConfig from "../components/GameConfig"
 import { Button } from "../components/ui/Button"
@@ -14,10 +14,13 @@ import { getCart, addToCart, removeFromCart } from "../api/cart.js"
 import { Badge } from "../components/ui/badge"
 import { useUser } from "../store/UserContext.jsx"
 import { API_BASE_URL } from "../config/api.js"
+import { r2Service } from "../api/r2Service.js" // ✅ THÊM R2 SERVICE
+import { getMyPurchasedGames } from "../api/library.js" // ✅ THÊM: Check ownership từ library
 
 function GameDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation() // ✅ THÊM: Để nhận state từ navigation
   const [game, setGame] = useState(null)
   const [relatedGames, setRelatedGames] = useState([])
   const [isFavorite, setIsFavorite] = useState(false)
@@ -30,6 +33,30 @@ function GameDetail() {
   // const [user, setUser] = useState(null)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const {user}= useUser();
+  const [isOwned, setIsOwned] = useState(false); // ✅ THÊM: Kiểm tra quyền sở hữu
+  const [downloadLoading, setDownloadLoading] = useState(false); // ✅ THÊM: Loading khi download
+  const [refreshKey, setRefreshKey] = useState(0); // ✅ THÊM: Key để force refresh
+
+  // ✅ THÊM: Check nếu user vừa mua game thành công từ Cart
+  useEffect(() => {
+    if (location.state?.purchaseSuccess) {
+      // Force refresh để cập nhật isOwned
+      setRefreshKey(prev => prev + 1);
+      // Clear state để tránh reload liên tục
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  // ✅ THÊM: Lắng nghe sự kiện "focus" để reload khi user quay lại trang
+  useEffect(() => {
+    const handleFocus = () => {
+      // Force refresh data khi user quay lại trang (ví dụ: từ Cart sau khi mua game)
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,6 +66,36 @@ function GameDetail() {
         // Fetch game details
         const gameData = await getGameById(id)
         setGame(gameData)
+
+        // ✅ DEBUG: Log để kiểm tra backend response
+        console.log("🎮 Game data from backend:", gameData);
+        console.log("🔍 isOwned field:", gameData.owned);
+        console.log("🔍 gameData keys:", Object.keys(gameData));
+
+        // ✅ THÊM: Kiểm tra quyền sở hữu từ backend (check nhiều field names có thể có)
+        let ownedStatus = gameData.owned ?? gameData.isOwned ?? gameData.isPurchased ?? gameData.hasAccess ?? false;
+        
+        if (gameData.owned !== undefined || gameData.isOwned !== undefined || gameData.isPurchased !== undefined) {
+          console.log("✅ Setting isOwned to:", ownedStatus);
+          setIsOwned(ownedStatus);
+        } else {
+          console.warn("⚠️ Backend không trả về field ownership! Checking library...");
+          
+          // ✅ FALLBACK: Nếu backend không trả về owned, check trong library
+          if (user && user.customerId) {
+            try {
+              const purchasedGames = await getMyPurchasedGames(() => {}, {});
+              const isGameOwned = purchasedGames.some(g => 
+                String(g.id) === String(id) || 
+                String(g.gameId) === String(id)
+              );
+              console.log(`🔍 Checked library: isOwned = ${isGameOwned}`);
+              setIsOwned(isGameOwned);
+            } catch (err) {
+              console.error("❌ Error checking library:", err);
+            }
+          }
+        }
 
         const reviewData= await getReviewByGameId(id);
         setReviews(reviewData);
@@ -91,7 +148,7 @@ function GameDetail() {
     }
 
     fetchData()
-  }, [id, user, navigate])
+  }, [id, user, navigate, refreshKey]) // ✅ THÊM refreshKey để force reload
 
   const handleFavoriteToggle = async () => {
     if (!user || !user.customerId) {
@@ -152,8 +209,49 @@ function GameDetail() {
   }
 
   const handleBuyNow = () => {
-    alert(`You have selected to buy ${game?.name}!`)
-    // Implement actual purchase logic here
+    if (!user) {
+      alert("Vui lòng đăng nhập để mua game!");
+      navigate("/login");
+      return;
+    }
+    // ✅ TODO: Implement actual purchase logic here
+    // Sau khi mua thành công, setIsOwned(true)
+    alert(`You have selected to buy ${game?.gameBasicInfos.name}!`)
+  }
+
+  // ✅ THÊM: Xử lý download game
+  const handleDownloadGame = async () => {
+    if (!user) {
+      alert("Vui lòng đăng nhập để tải game!");
+      navigate("/login");
+      return;
+    }
+
+    if (!isOwned) {
+      alert("Bạn chưa mua game này!");
+      return;
+    }
+
+    try {
+      setDownloadLoading(true);
+      
+      // Lấy secure download URL từ backend
+      const { downloadUrl, fileName } = await r2Service.getSecureDownloadUrl(game.id);
+      
+      // Trigger download
+      r2Service.downloadGameFile(downloadUrl, fileName);
+      
+      alert("Đang tải game... Vui lòng kiểm tra Downloads folder!");
+    } catch (error) {
+      console.error("❌ Error downloading game:", error);
+      if (error.response?.status === 403) {
+        alert("Bạn không có quyền tải game này!");
+      } else {
+        alert("Có lỗi xảy ra khi tải game. Vui lòng thử lại!");
+      }
+    } finally {
+      setDownloadLoading(false);
+    }
   }
 
   const handleToggleCart = async () => {
@@ -409,29 +507,54 @@ function GameDetail() {
             {/* Price and Buttons */}
             <div className="border-t border-purple-700/30 pt-6">
               <div className="mb-4">
-                {/* <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
-                  {game.price === 0 ? "Free" : `${formatPrice(game.price)} VND`}
-                </p> */}
-                
-                <div>
-                  <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">${game.gameBasicInfos.price}</span>
-                  {game.discount>0 && (
-                  <div className="flex items-center space-x-2">
-                  <span className="text-gray-400 text-sm line-through">${game.gameBasicInfos.price - game.discount}</span>
+                {game.discount > 0 ? (
+                  <div className="space-y-2">
+                    {/* Giá sau giảm (lớn, nổi bật) */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
+                        {formatPrice(game.price - game.discount)} GCoin
+                      </span>
+                      {/* Badge giảm giá */}
+                      <span className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        -{formatPrice(game.discount)} GCoin
+                      </span>
                     </div>
-                  )}
-                </div>
-
+                    {/* Giá gốc gạch ngang */}
+                    <div>
+                      <span className="text-gray-400 text-lg line-through">
+                        {formatPrice(game.price)} GCoin
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300">
+                      {game.price === 0 ? "Free" : `${formatPrice(game.price)} GCoin`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-3">
-                <Button
-                  onClick={handleBuyNow}
-                  className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg"
-                >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  {game.price === 0 ? "Play Now" : "Buy Now"}
-                </Button>
+                {/* ✅ Hiển thị nút Download nếu đã mua, nếu không thì hiển thị Buy Now */}
+                {isOwned ? (
+                  <Button
+                    onClick={handleDownloadGame}
+                    disabled={downloadLoading}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+                  >
+                    <Download className="h-5 w-5 mr-2" />
+                    {downloadLoading ? "Đang tải..." : "Download Game"}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleBuyNow}
+                    className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg"
+                  >
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    {game.price === 0 ? "Play Now" : "Buy Now"}
+                  </Button>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <Button

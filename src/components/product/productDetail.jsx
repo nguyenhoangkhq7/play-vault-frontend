@@ -23,6 +23,7 @@ import { useUser } from "../../store/UserContext";
 // 🔥 Import cả 2 API
 import { api } from "../../api/authApi";
 import adminGamesApi from "../../api/adminGames";
+import { r2Service } from "../../api/r2Service"; // ✅ THÊM R2 SERVICE
 
 import GameReviews from "../review/GameReview";
 import SystemCompatibilityChecker from "../SystemCompatibilityChecker";
@@ -43,6 +44,7 @@ export default function ProductDetailPage() {
   const [isOwned, setIsOwnedState] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [downloadingGame, setDownloadingGame] = useState(false); // ✅ THÊM: Track download state
 
   // UI
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -312,6 +314,41 @@ export default function ProductDetailPage() {
       } catch (error) {
         console.error("Lỗi handleBuyNow:", error);
       }
+    }
+  };
+
+  // ✅ THÊM: Xử lý download game từ R2
+  const handleDownloadGame = async () => {
+    if (!user || !accessToken) {
+      toast.warning("Vui lòng đăng nhập để tải game!");
+      navigate("/login");
+      return;
+    }
+
+    if (!isOwned) {
+      toast.error("Bạn chưa sở hữu game này!");
+      return;
+    }
+
+    try {
+      setDownloadingGame(true);
+      
+      // Lấy secure download URL từ backend
+      const { downloadUrl, fileName } = await r2Service.getSecureDownloadUrl(game.id);
+      
+      // Trigger download
+      r2Service.downloadGameFile(downloadUrl, fileName || `${game.name}.rar`);
+      
+      toast.success(`Đang tải "${game.name}"... Vui lòng kiểm tra Downloads folder!`);
+    } catch (error) {
+      console.error("❌ Error downloading game:", error);
+      if (error.response?.status === 403) {
+        toast.error("Bạn không có quyền tải game này!");
+      } else {
+        toast.error("Có lỗi xảy ra khi tải game. Vui lòng thử lại!");
+      }
+    } finally {
+      setDownloadingGame(false);
     }
   };
 
@@ -613,21 +650,21 @@ export default function ProductDetailPage() {
                         <p className="text-green-400 text-lg mb-6">
                           Chúc mừng! Bạn đã sở hữu game này
                         </p>
-                        {downloadLink ? (
-                          <a
-                            href={downloadLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-5 rounded-full transition-all transform hover:scale-105 shadow-2xl"
-                            download
-                          >
-                            <Download className="w-6 h-6" /> Download Full Speed
-                          </a>
-                        ) : (
-                          <div className="text-gray-400">
-                            Chưa có file cài đặt.
-                          </div>
-                        )}
+                        <button
+                          onClick={handleDownloadGame}
+                          disabled={downloadingGame}
+                          className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xl px-10 py-5 rounded-full transition-all transform hover:scale-105 shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {downloadingGame ? (
+                            <>
+                              <Loader2 className="w-6 h-6 animate-spin" /> Đang tải...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-6 h-6" /> Download Full Speed
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
                   </motion.div>
@@ -737,15 +774,21 @@ export default function ProductDetailPage() {
                 <div className="space-y-3">
                   <button
                     onClick={
-                      isOwned ? () => setActiveTab("download") : handleBuyNow
+                      isOwned ? handleDownloadGame : handleBuyNow
                     }
                     className="w-full bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:via-purple-500 hover:to-indigo-500 text-white font-bold text-lg py-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={isOwned}
+                    disabled={downloadingGame}
                   >
                     {isOwned ? (
-                      <>
-                        <CheckCircle className="w-6 h-6" /> Đã sở hữu
-                      </>
+                      downloadingGame ? (
+                        <>
+                          <Loader2 className="w-6 h-6 animate-spin" /> Đang tải...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-6 h-6" /> Tải game ngay
+                        </>
+                      )
                     ) : game.price === 0 ? (
                       <>
                         <Gift className="w-6 h-6" /> Nhận miễn phí ngay
@@ -753,7 +796,7 @@ export default function ProductDetailPage() {
                     ) : (
                       <>
                         <ShoppingBag className="w-6 h-6" />{" "}
-                        {`Mua ngay • ${game.price.toLocaleString()} đ`}
+                        {`Mua ngay • ${(price - discount).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin`}
                       </>
                     )}
                   </button>

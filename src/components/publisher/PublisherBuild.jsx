@@ -107,7 +107,7 @@ export default function PublisherBuild() {
             "
           >
             <h6 className="text-white font-semibold text-sm mb-3">
-              Ghi chú phát hành
+              Ghi chú phát hành <span className="text-pink-400">*</span>
             </h6>
 
 
@@ -122,13 +122,14 @@ export default function PublisherBuild() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Nội dung cập nhật, yêu cầu cấu hình, known issues..."
+              required
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* RAM requirement */}
               <div>
                 <label className="block text-xs font-medium text-purple-200/80 mb-1">
-                  Yêu cầu tối thiểu (RAM)
+                  Yêu cầu tối thiểu (RAM) <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -147,7 +148,7 @@ export default function PublisherBuild() {
               {/* Disk size */}
               <div>
                 <label className="block text-xs font-medium text-purple-200/80 mb-1">
-                  Dung lượng sau cài đặt
+                  Dung lượng sau cài đặt <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -165,7 +166,7 @@ export default function PublisherBuild() {
 
               <div>
                 <label className="block text-xs font-medium text-purple-200/80 mb-1">
-                  CPU tối thiểu
+                  CPU tối thiểu <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -183,7 +184,7 @@ export default function PublisherBuild() {
 
               <div>
                 <label className="block text-xs font-medium text-purple-200/80 mb-1">
-                  GPU tối thiểu
+                  GPU tối thiểu <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -203,7 +204,7 @@ export default function PublisherBuild() {
               {/* Tuổi tối thiểu */}
               <div>
                 <label className="block text-xs font-medium text-purple-200/80 mb-1">
-                  Tuổi tối thiểu
+                  Tuổi tối thiểu <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -223,6 +224,9 @@ export default function PublisherBuild() {
 
               {/* Hỗ trợ tay cầm */}
               <div className="col-span-2">
+                <label className="block text-xs font-medium text-purple-200/80 mb-1">
+                  Hỗ trợ tay cầm <span className="text-pink-400">*</span>
+                </label>
                 <button
                   type="button"
                   onClick={() => setController(!controller)}
@@ -246,7 +250,6 @@ export default function PublisherBuild() {
                     />
                   </span>
                   <span className="text-sm text-white">
-                    Hỗ trợ tay cầm
                     <span className="block text-xs text-purple-200/70">
                       {controller ? "Có hỗ trợ" : "Không hỗ trợ"}
                     </span>

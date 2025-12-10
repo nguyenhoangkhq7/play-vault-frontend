@@ -241,7 +241,7 @@ export default function PublisherInfo() {
               {/* Nền tảng */}
               <div>
                 <label className="block text-sm font-medium text-purple-200/80 mb-1">
-                  Nền tảng hỗ trợ
+                  Nền tảng hỗ trợ <span className="text-pink-400">*</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {["PC", "Mobile", "PlayStation", "Xbox", "Nintendo Switch"].map((p) => (
@@ -270,7 +270,7 @@ export default function PublisherInfo() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-purple-200/80 mb-1">
-                  Ngày phát hành dự kiến
+                  Ngày phát hành dự kiến <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="date"
@@ -283,7 +283,7 @@ export default function PublisherInfo() {
 
               <div>
                 <label className="block text-sm font-medium text-purple-200/80 mb-1">
-                  Trailer (YouTube URL)
+                  Trailer (YouTube URL) <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="url"
@@ -292,6 +292,7 @@ export default function PublisherInfo() {
                   onChange={(e) => setTrailer(e.target.value)}
                   placeholder="https://youtu.be/..."
                   className="w-full rounded-lg border border-white/20 bg-black/20 text-sm text-white placeholder-purple-200/50 px-3 py-2 outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30 focus:bg-purple-800/40 transition"
+                  required
                 />
               </div>
             </div>
@@ -300,7 +301,7 @@ export default function PublisherInfo() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div className="flex flex-col justify-end">
                 <label className="block text-sm font-medium text-purple-200/80 mb-2">
-                  Hình thức phát hành
+                  Hình thức phát hành <span className="text-pink-400">*</span>
                 </label>
                 <button
                   type="button"
@@ -361,7 +362,7 @@ export default function PublisherInfo() {
           {/* Cover */}
           <div className="rounded-2xl border border-purple-500/40 bg-purple-900/40 p-4 md:p-6 shadow-[0_0_25px_rgba(236,72,153,0.25)] backdrop-blur-xl">
             <label className="block text-sm font-medium text-purple-200/80 mb-3">
-              Ảnh bìa (JPG/PNG/WEBP ≤ 7MB)
+              Ảnh bìa (JPG/PNG/WEBP ≤ 7MB) <span className="text-pink-400">*</span>
             </label>
 
             <div

@@ -140,64 +140,7 @@ const onGalleryFiles = async (index, files) => {
   localStorage.removeItem("publisher_buildName");
 };
 
-  // ---------------------- Validation helpers ----------------------
-  const validateInfoStep = () => {
-    const errors = [];
-    if (!title.trim()) errors.push("Tên game");
-    if (!summary.trim()) errors.push("Mô tả ngắn");
-    if (!genre) errors.push("Thể loại");
-    if (!platforms || platforms.length === 0) errors.push("Nền tảng");
-    if (!isFree) {
-      if (!String(price).trim()) {
-        errors.push("Giá");
-      } else {
-        const priceNum = Number(price);
-        if (priceNum <= 0) {
-          errors.push("Giá phải lớn hơn 0 nếu bằng 0 vui lòng chọn 'Miễn phí'");
-        } else if (priceNum > 10000000) {
-          errors.push("Giá không được vượt quá 10.000.000 VND");
-        }
-      }
-    }
-    if (!release) errors.push("Ngày phát hành");
-    if (!coverUrl) errors.push("Ảnh bìa");
-    if (!galleryUrls.some((url) => url)) errors.push("Ít nhất một ảnh gallery");
-    return errors;
-  };
-
-  const validateBeforeSubmit = () => {
-    const errors = validateInfoStep();
-    // Build must be uploaded
-    if (!buildName && !buildUrl) errors.push("Bản build (tải lên)");
-    // Thumbnail
-    if (!coverUrl) errors.push("Ảnh bìa");
-    // Build / Release notes related
-    if (!notes || !String(notes).trim()) errors.push("Ghi chú phát hành");
-    if (!cpu || !String(cpu).trim()) errors.push("Yêu cầu CPU");
-    if (!gpu || !String(gpu).trim()) errors.push("Yêu cầu GPU");
-    if (!storage || !String(storage).trim()) errors.push("Bộ nhớ (Storage)");
-    else if (!/^\d+\s*GB$/i.test(String(storage).trim())) {
-      errors.push("Bộ nhớ phải có dạng số + GB (ví dụ: 50 GB)");
-    }
-    if (!ram || !String(ram).trim()) errors.push("RAM");
-    else if (!/^\d+\s*GB$/i.test(String(ram).trim())) {
-      errors.push("RAM phải có dạng số + GB (ví dụ: 8 GB)");
-    }
-    // Age should be a positive number (0 is treated as unspecified)
-    const ageNum = Number(age18);
-    if (!ageNum || ageNum === 0) {
-      errors.push("Tuổi yêu cầu");
-    } else if (ageNum < 10) {
-      errors.push("Tuổi yêu cầu phải lớn hơn 10");
-    } else if (ageNum > 80) {
-      errors.push("Tuổi yêu cầu quá lớn (tối đa 80)");
-    }
-    return errors;
-  };
-
-  const osMap = { Windows: "WINDOWS", macOS: "MAC", Linux: "LINUX" };
-  const primaryOs = platforms[0] ? (osMap[platforms[0]] || "WINDOWS") : "WINDOWS";
-
+  // Platform names now match database exactly: PC, Mobile, PlayStation, Xbox, Nintendo Switch
   const platformIds = platforms.length ? [1] : [];
 
   // Thể loại (VN) -> id (theo DB dump của bạn)
@@ -306,22 +249,19 @@ const categoryIdMapped = categoryMap[genre] || 1;
       Boolean(genre.trim()),
       isFree ? true : Boolean(String(price).trim()),
       Boolean(buildName.trim()), // đã chọn file build
+      Boolean(coverUrl), // ✅ Ảnh bìa bắt buộc
+      galleryUrls.filter(Boolean).length >= 2, // ✅ Ít nhất 2 ảnh gallery
+      Boolean(notes.trim()), // ✅ Ghi chú phát hành bắt buộc
+      Boolean(trailer.trim()), // ✅ Trailer bắt buộc
     ];
     const filled = required.filter(Boolean).length;
     const pct = Math.round((filled / required.length) * 100) || 0;
     return pct;
-  }, [title, summary, genre, isFree, price, buildName]);
+  }, [title, summary, genre, isFree, price, buildName, coverUrl, galleryUrls, notes, trailer]);
 
   // ✅ Gửi duyệt thật: POST /api/games
   const onSubmitReview = async () => {
     try {
-      // validate before submit
-      const errs = validateBeforeSubmit();
-      if (errs.length) {
-        alert("Vui lòng hoàn thành các thông tin trước khi gửi: " + errs.join(", "));
-        return;
-      }
-
       const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
 
       // ✅ Validate required fields
@@ -332,6 +272,41 @@ const categoryIdMapped = categoryMap[genre] || 1;
 
       if (!coverUrl) {
         alert("Vui lòng upload ảnh bìa game!");
+        return;
+      }
+
+      if (!notes || !notes.trim()) {
+        alert("Vui lòng nhập ghi chú phát hành!");
+        return;
+      }
+
+      if (!trailer || !trailer.trim()) {
+        alert("Vui lòng nhập link trailer YouTube!");
+        return;
+      }
+
+      // ✅ Validate gallery images (bắt buộc ít nhất 2 ảnh)
+      const validGalleryCount = galleryUrls.filter(Boolean).length;
+      if (validGalleryCount < 2) {
+        alert(`Vui lòng upload ít nhất 2 ảnh gallery! (Hiện tại: ${validGalleryCount}/4)`);
+        return;
+      }
+
+      // ✅ Validate system requirements (optional nhưng nếu nhập thì phải đúng format)
+      if (cpu.trim() && cpu.trim().length < 3) {
+        alert("Yêu cầu CPU phải có ít nhất 3 ký tự!");
+        return;
+      }
+      if (gpu.trim() && gpu.trim().length < 3) {
+        alert("Yêu cầu GPU phải có ít nhất 3 ký tự!");
+        return;
+      }
+      if (ram.trim() && !/^\d+\s*(GB|MB|gb|mb)$/i.test(ram.trim())) {
+        alert("RAM phải theo định dạng: 8 GB, 16GB, 512MB, v.v.");
+        return;
+      }
+      if (storage.trim() && !/^\d+\s*(GB|MB|TB|gb|mb|tb)$/i.test(storage.trim())) {
+        alert("Dung lượng phải theo định dạng: 10 GB, 500MB, 1TB, v.v.");
         return;
       }
 
@@ -353,6 +328,12 @@ const categoryIdMapped = categoryMap[genre] || 1;
         isAge18: age18 >= 18,                    // ✅ boolean
         isSupportController: Boolean(controller),
         gallery: galleryUrls.filter(Boolean),    // ✅ Thêm gallery URLs
+        systemRequirement: {                     // ✅ THÊM SYSTEM REQUIREMENT
+          cpu: cpu.trim() || "Intel Core i5 hoặc tương đương",
+          gpu: gpu.trim() || "NVIDIA GTX 1050 Ti hoặc tương đương",
+          ram: ram.trim() || "8 GB",
+          storage: storage.trim() || "10 GB",
+        },
       };
 
       console.log("📤 Submitting game payload:", payload);
@@ -363,9 +344,14 @@ const categoryIdMapped = categoryMap[genre] || 1;
         galleryCount: galleryUrls.filter(Boolean).length
       });
 
-      alert("Đã gửi duyệt thành công!");
+      const response = await gameService.createPendingJson(payload, token);
+      
+      console.log("✅ Game submitted successfully:", response);
+      alert("Đã gửi duyệt game thành công! Vui lòng chờ admin phê duyệt.");
+      
       resetForm();
-      navigate("/publisher/games");
+      // Có thể navigate về dashboard
+      // navigate("/publisher/dashboard");
     } catch (e) {
       console.error("❌ Error submitting game:", e);
       console.error("Error response:", e.response?.data);
@@ -387,11 +373,6 @@ const categoryIdMapped = categoryMap[genre] || 1;
     if (location.pathname.endsWith("/build")) {
       return; // Last step
     } else {
-      const errs = validateInfoStep();
-      if (errs.length) {
-        alert("Vui lòng hoàn thành các thông tin: " + errs.join(", "));
-        return;
-      }
       navigate("/publisher/upload/build");
     }
   };

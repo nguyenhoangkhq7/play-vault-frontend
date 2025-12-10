@@ -184,13 +184,21 @@ export default function GamesPage() {
     }
   };
 
-  // 2. Fetch Games - Kết hợp search thường (search-for) và search AI
+  // 2. Fetch Games - Kết hợp search thường (search) và search AI
   const fetchGames = async () => {
     try {
       setLoading(true);
       const keyword = (filterParams.keyword || '').trim();
 
-      const normalResponse = await searchApi.searchGamesKey(keyword);
+      // ✅ SỬA: Dùng searchGames thay vì searchGamesKey để có discount
+      const normalResponse = await searchApi.searchGames({ 
+        keyword: keyword,
+        categoryId: filterParams.categoryId,
+        minPrice: filterParams.minPrice,
+        maxPrice: filterParams.maxPrice,
+        page: filterParams.page,
+        size: filterParams.size
+      });
       const normalGames = Array.isArray(normalResponse)
         ? normalResponse
         : normalResponse?.content || normalResponse?.data?.content || [];
@@ -223,22 +231,28 @@ export default function GamesPage() {
         }
       }
       
-      // Normalize data: Chuyển gameBasicInfos.price thành price
-      normalGames = normalGames.map(game => {
+      // Normalize data: Chuyển gameBasicInfos.price thành price và đảm bảo discount có giá trị
+      const normalizedGames = combinedGames.map(game => {
+        // Lấy giá từ nhiều nguồn có thể
+        const price = game.gameBasicInfos?.price || game.price || 0;
+        // Đảm bảo discount là số, không phải null/undefined
+        const discount = typeof game.discount === 'number' ? game.discount : (game.discount ? parseFloat(game.discount) : 0);
+        
         const normalized = {
           ...game,
-          price: game.gameBasicInfos?.price || game.price || 0,
+          price: price,
           name: game.gameBasicInfos?.name || game.name,
-          thumbnail: game.gameBasicInfos?.thumbnail || game.thumbnail,
-          discount: game.discount || 0
+          thumbnail: game.gameBasicInfos?.thumbnail || game.thumbnail || game.image,
+          discount: discount
         };
-        console.log(`🔍 Normalizing ${game.gameBasicInfos?.name}: original discount=${game.discount}, normalized discount=${normalized.discount}`);
+        
+        console.log(`🔍 Game: ${normalized.name}, Price: ${normalized.price}, Discount: ${normalized.discount}, Type: ${typeof normalized.discount}`);
         return normalized;
       });
       
-      console.log("✅ Normalized games with discount:", normalGames);
+      console.log("✅ Normalized games with discount:", normalizedGames);
       
-      setGames(normalGames);
+      setGames(normalizedGames);
       setTotalPages(totalPagesFromApi);
     } catch (error) { console.error("Lỗi:", error); setGames([]); } finally { setLoading(false); }
   };
@@ -547,19 +561,24 @@ export default function GamesPage() {
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
-                            {(() => {
-                              console.log(`Game ${game.name}: price=${game.price}, discount=${game.discount}, has discount: ${game.discount > 0}`);
-                              return game.discount > 0;
-                            })() ? (
+                            {game.discount > 0 ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg font-bold text-pink-400">{(game.price - game.discount).toFixed(2)} GCoin</span>
-                                  <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">-{Math.round((game.discount / game.price) * 100)}%</span>
+                                  <span className="text-lg font-bold text-pink-400">
+                                    {(game.price - game.discount).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin
+                                  </span>
+                                  <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                                    -{game.discount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                                  </span>
                                 </div>
-                                <span className="text-sm text-gray-400 line-through">{game.price} GCoin</span>
+                                <span className="text-sm text-gray-400 line-through">
+                                  {game.price.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin
+                                </span>
                               </div>
                             ) : (
-                              <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price} GCoin` : 'Free'}</span>
+                              <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                                {game.price ? `${game.price.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin` : 'Free'}
+                              </span>
                             )}
                             <div className="px-4 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/50 text-pink-300 text-xs font-bold cursor-pointer">Xem</div>
                           </div>
@@ -612,13 +631,21 @@ export default function GamesPage() {
                           {game.discount > 0 ? (
                             <div className="flex flex-col items-center sm:items-end gap-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-xl font-bold text-pink-400">{(game.price - game.discount).toFixed(2)} GCoin</span>
-                                <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">-{Math.round((game.discount / game.price) * 100)}%</span>
+                                <span className="text-xl font-bold text-pink-400">
+                                  {(game.price - game.discount).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin
+                                </span>
+                                <span className="bg-pink-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                                  -{game.discount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                                </span>
                               </div>
-                              <span className="text-sm text-gray-400 line-through">{game.price} GCoin</span>
+                              <span className="text-sm text-gray-400 line-through">
+                                {game.price.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin
+                              </span>
                             </div>
                           ) : (
-                            <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{game.price ? `${game.price} GCoin` : 'Free'}</span>
+                            <span className="text-xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                              {game.price ? `${game.price.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} GCoin` : 'Free'}
+                            </span>
                           )}
                           <div className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20">Chi tiết</div>
                         </div>

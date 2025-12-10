@@ -2,9 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Eye,
   Search,
-  FileDown,
   CreditCard,
   Filter,
 } from "lucide-react";
@@ -26,7 +24,6 @@ const AdminInvoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Filters chỉ cần keyword vì API tìm chung
   const [filters, setFilters] = useState({
     page: 0,
     size: 10,
@@ -49,7 +46,7 @@ const AdminInvoices = () => {
         const data = await fetchAdminInvoices(
           filters.page,
           filters.size,
-          filters.invoiceCode,
+          filters.keyword, // Lưu ý: Chỗ này logic cũ của bạn để là filters.invoiceCode, mình giữ nguyên hoặc đổi thành keyword tùy API của bạn
           filters.status
         );
 
@@ -57,12 +54,12 @@ const AdminInvoices = () => {
         const contentArray = data?.content || [];
         const normalized = contentArray.map((inv) => ({
           id: inv.id,
-          invoiceCode: inv.invoiceCode,     // INV-00001
-          orderCode: inv.orderCode,         // ORD-001
+          invoiceCode: inv.invoiceCode, // INV-00001
+          // Đã bỏ orderCode ở đây
           customerName: inv.customerName,
           issueDate: inv.issueDate,
           totalAmount: inv.totalAmount,
-          status: inv.status,               // PAID, UNPAID, CANCELLED
+          status: inv.status, // PAID, UNPAID, CANCELLED
           paymentMethod: inv.paymentMethod, // ZALOPAY, MOMO...
         }));
 
@@ -96,20 +93,22 @@ const AdminInvoices = () => {
     const map = {
       PAID: {
         text: "Đã thanh toán",
-        style: "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30",
+        style:
+          "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30",
       },
       UNPAID: {
         text: "Chưa thanh toán",
-        style: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30",
+        style:
+          "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30",
       },
       CANCELLED: {
         text: "Đã hủy",
-        style: "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30",
+        style:
+          "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30",
       },
     };
-    // Mặc định là UNPAID nếu status lạ
     const { text, style } = map[status] || map.UNPAID;
-    
+
     return (
       <Badge className={`${style} px-3 py-1 border shadow-sm transition-all`}>
         {text}
@@ -172,18 +171,19 @@ const AdminInvoices = () => {
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-purple-900 border-purple-700/60 text-white">
-            {["ALL", "PAID", "UNPAID", "CANCELLED"].map(
-              (st) => (
-                <DropdownMenuItem
-                  key={st}
-                  onClick={() => handleStatusChange(st)}
-                  className="hover:bg-purple-800 focus:bg-purple-800 cursor-pointer"
-                >
-                  {st === "ALL" ? "Tất cả trạng thái" : getStatusBadge(st)}
-                </DropdownMenuItem>
-              )
-            )}
+          <DropdownMenuContent
+            align="end"
+            className="bg-purple-900 border-purple-700/60 text-white"
+          >
+            {["ALL", "PAID", "UNPAID", "CANCELLED"].map((st) => (
+              <DropdownMenuItem
+                key={st}
+                onClick={() => handleStatusChange(st)}
+                className="hover:bg-purple-800 focus:bg-purple-800 cursor-pointer"
+              >
+                {st === "ALL" ? "Tất cả trạng thái" : getStatusBadge(st)}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -200,9 +200,7 @@ const AdminInvoices = () => {
                 <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
                   Khách hàng
                 </th>
-                <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
-                  Mã Đơn
-                </th>
+                {/* Đã xóa thẻ th Mã Đơn ở đây */}
                 <th className="p-4 text-purple-200/80 font-semibold uppercase text-xs tracking-wider">
                   Ngày xuất
                 </th>
@@ -221,16 +219,24 @@ const AdminInvoices = () => {
             <tbody className="divide-y divide-purple-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-purple-200/80">
+                  {/* Cập nhật colSpan từ 8 -> 7 vì đã xóa 1 cột */}
+                  <td
+                    colSpan={7}
+                    className="p-8 text-center text-purple-200/80"
+                  >
                     <div className="flex justify-center items-center gap-2">
-                       <span className="animate-spin h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full"></span>
-                       Đang tải dữ liệu hóa đơn...
+                      <span className="animate-spin h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full"></span>
+                      Đang tải dữ liệu hóa đơn...
                     </div>
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-purple-200/80">
+                  {/* Cập nhật colSpan từ 8 -> 7 */}
+                  <td
+                    colSpan={7}
+                    className="p-8 text-center text-purple-200/80"
+                  >
                     Không tìm thấy hóa đơn nào phù hợp.
                   </td>
                 </tr>
@@ -246,31 +252,29 @@ const AdminInvoices = () => {
                     <td className="p-4 font-medium text-white">
                       {inv.customerName}
                     </td>
-                    <td className="p-4 text-purple-200/80 text-xs">
-                        <span className="bg-purple-900/70 px-2 py-1 rounded border border-purple-700">
-                            {inv.orderCode}
-                        </span>
-                    </td>
-                    <td className="p-4 text-purple-200/80">
-                      {inv.issueDate}
-                    </td>
+
+                    {/* Đã xóa thẻ td hiển thị orderCode ở đây */}
+
+                    <td className="p-4 text-purple-200/80">{inv.issueDate}</td>
                     <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1 text-white">
-                            {inv.paymentMethod ? (
-                                <>
-                                    <CreditCard className="w-3 h-3" />
-                                    <span>{inv.paymentMethod}</span>
-                                </>
-                            ) : (
-                                <span className="text-purple-200/70 italic">Chưa có</span>
-                            )}
-                        </div>
+                      <div className="flex items-center justify-center gap-1 text-white">
+                        {inv.paymentMethod ? (
+                          <>
+                            <CreditCard className="w-3 h-3" />
+                            <span>{inv.paymentMethod}</span>
+                          </>
+                        ) : (
+                          <span className="text-purple-200/70 italic">
+                            Chưa có
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 font-semibold text-emerald-400 text-right">
                       {formatCurrency(inv.totalAmount)}
                     </td>
                     <td className="p-4 text-center">
-                        {getStatusBadge(inv.status)}
+                      {getStatusBadge(inv.status)}
                     </td>
                   </tr>
                 ))
@@ -284,7 +288,8 @@ const AdminInvoices = () => {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
         <div className="text-sm text-purple-200/80">
           Hiển thị <strong className="text-white">{invoices.length}</strong> /{" "}
-          <strong className="text-white">{pagination.totalElements}</strong> hóa đơn
+          <strong className="text-white">{pagination.totalElements}</strong> hóa
+          đơn
         </div>
         <div className="flex items-center space-x-2">
           <Button

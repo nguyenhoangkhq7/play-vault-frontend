@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CreditCard, Zap, Check } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
+import { useUser } from "../../store/UserContext.jsx";
 
 export default function PaymentModal({ isOpen = true, onClose }) {
+  const { user, setUser } = useUser();
   const packages = [
     { amount: 10000, label: "10.000", gcoin: "10K G-Coin", bonus: 0 },
     { amount: 20000, label: "20.000", gcoin: "20K G-Coin", bonus: 0 },
@@ -17,6 +19,62 @@ export default function PaymentModal({ isOpen = true, onClose }) {
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [paymentResult, setPaymentResult] = useState(null);
+
+  // Lắng nghe kết quả trả về từ VNPay (redirect với query params)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const responseCode =
+      params.get("vnp_ResponseCode") || params.get("responseCode");
+    const transactionStatus = params.get("vnp_TransactionStatus");
+    const txnRef = params.get("vnp_TxnRef");
+    const amount = params.get("amount") || params.get("vnp_Amount");
+
+    if (responseCode || transactionStatus) {
+      const success =
+        responseCode === "00" &&
+        (!transactionStatus || transactionStatus === "00");
+      const message = success
+        ? "Thanh toán thành công!"
+        : "Thanh toán thất bại. Vui lòng thử lại.";
+
+      setPaymentResult({
+        status: success ? "success" : "error",
+        message,
+        txnRef,
+        amount,
+      });
+
+      if (success) {
+        toast.success(message);
+        const addAmount = Number(amount);
+        if (!Number.isNaN(addAmount) && setUser) {
+          setUser((prev) => ({
+            ...prev,
+            balance: Number(prev?.balance || 0) + addAmount,
+          }));
+        }
+      } else {
+        toast.error(message);
+      }
+
+      // Loại bỏ query thanh toán khỏi URL để tránh hiển thị lại khi reload
+      [
+        "vnp_ResponseCode",
+        "responseCode",
+        "vnp_TransactionStatus",
+        "vnp_TxnRef",
+        "vnp_Amount",
+        "vnp_OrderInfo",
+        "amount",
+      ].forEach((key) => params.delete(key));
+      const newQuery = params.toString();
+      const newUrl = `${window.location.pathname}${
+        newQuery ? `?${newQuery}` : ""
+      }${window.location.hash}`;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
 
   // Xử lý thanh toán VNPay
   const handlePaymentVNPay = async () => {
@@ -28,20 +86,60 @@ export default function PaymentModal({ isOpen = true, onClose }) {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+      const token =
+        localStorage.getItem("accessToken") || localStorage.getItem("token");
       if (!token) {
         toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
         onClose();
         return;
       }
 
-      // Gọi API tạo URL thanh toán VNPay
+      if (selectedMethod === "vnpay") {
+        // Gọi API mới của VNPay để lấy link thanh toán
+        const storedUser = localStorage.getItem("user");
+        const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+        const customerId =
+          user?.customerId ||
+          parsedUser?.customerId ||
+          user?.id ||
+          parsedUser?.id;
+
+        if (!customerId) {
+          toast.error("Không tìm thấy Customer ID. Vui lòng đăng nhập lại!");
+          return;
+        }
+
+        const { data } = await axios.get(
+          "http://localhost:8080/api/payment/vn-pay",
+          {
+            params: { amount: selectedAmount, customerId },
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 10000,
+          }
+        );
+
+        const paymentUrl = data?.data?.paymentUrl || data?.paymentUrl;
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+        } else {
+          toast.error("Không thể tạo link thanh toán. Vui lòng thử lại!");
+        }
+        return;
+      }
+
+      // Mặc định giữ nguyên luồng cũ cho các phương thức khác (ví dụ Momo)
       const res = await axios.post(
-        "http://localhost:8080/api/wallet/vnpay-payment",
+        "https://f171cf5f7400.ngrok-free.app/api/wallet/vnpay-payment",
         null,
         {
-          params: { amount: selectedAmount, method: selectedMethod.toUpperCase() },
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          params: {
+            amount: selectedAmount,
+            method: selectedMethod.toUpperCase(),
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           timeout: 10000,
         }
       );
@@ -49,7 +147,6 @@ export default function PaymentModal({ isOpen = true, onClose }) {
       const data = res.data;
 
       if (data.paymentUrl) {
-        // Chuyển hướng đến VNPay hoặc Momo
         window.location.href = data.paymentUrl;
       } else {
         toast.error("Không thể tạo link thanh toán. Vui lòng thử lại!");
@@ -58,9 +155,13 @@ export default function PaymentModal({ isOpen = true, onClose }) {
       console.error("Lỗi thanh toán:", err);
       let message = "Tạo link thanh toán thất bại. Vui lòng thử lại sau.";
       if (err.response) {
-        if (err.response.status === 401) message = "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!";
-        else message = err.response.data?.error || err.response.data?.message || message;
-      } else if (err.message.includes("timeout")) message = "Kết nối quá lâu. Vui lòng thử lại.";
+        if (err.response.status === 401)
+          message = "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!";
+        else
+          message =
+            err.response.data?.error || err.response.data?.message || message;
+      } else if (err.message.includes("timeout"))
+        message = "Kết nối quá lâu. Vui lòng thử lại.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -101,12 +202,41 @@ export default function PaymentModal({ isOpen = true, onClose }) {
                   Nạp G-Coin
                 </h2>
               </div>
-              <p className="text-slate-400">Chọn mệnh giá và thanh toán qua VNPay</p>
+              <p className="text-slate-400">
+                Chọn mệnh giá và thanh toán qua VNPay
+              </p>
             </div>
+
+            {paymentResult && (
+              <div
+                className={`mb-6 p-4 rounded-xl border ${
+                  paymentResult.status === "success"
+                    ? "border-green-500/50 bg-green-900/20 text-green-200"
+                    : "border-red-500/50 bg-red-900/20 text-red-200"
+                }`}
+              >
+                <p className="font-semibold">
+                  {paymentResult.status === "success"
+                    ? "Thanh toán thành công!"
+                    : "Thanh toán thất bại"}
+                </p>
+                <p className="text-sm mt-1 text-slate-200">
+                  {paymentResult.message}
+                  {paymentResult.amount
+                    ? ` | Số tiền: ${paymentResult.amount}`
+                    : ""}
+                  {paymentResult.txnRef
+                    ? ` | Mã GD: ${paymentResult.txnRef}`
+                    : ""}
+                </p>
+              </div>
+            )}
 
             {/* Packages Grid */}
             <div className="mb-8">
-              <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Chọn mệnh giá</h3>
+              <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">
+                Chọn mệnh giá
+              </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {packages.map((pkg) => (
                   <motion.button
@@ -125,7 +255,9 @@ export default function PaymentModal({ isOpen = true, onClose }) {
 
                     {/* Content */}
                     <div className="relative">
-                      <p className="text-xl font-bold text-white">{pkg.label}</p>
+                      <p className="text-xl font-bold text-white">
+                        {pkg.label}
+                      </p>
                       <p className="text-sm text-slate-300 mt-1">{pkg.gcoin}</p>
 
                       {/* Bonus Badge */}
@@ -162,13 +294,20 @@ export default function PaymentModal({ isOpen = true, onClose }) {
                 className="mb-8 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg"
               >
                 <p className="text-sm text-slate-300">
-                  <span className="font-semibold text-blue-400">Mệnh giá: </span>
+                  <span className="font-semibold text-blue-400">
+                    Mệnh giá:{" "}
+                  </span>
                   {selectedAmount.toLocaleString("vi-VN")} VNĐ
-                  {packages.find(p => p.amount === selectedAmount)?.bonus > 0 && (
+                  {packages.find((p) => p.amount === selectedAmount)?.bonus >
+                    0 && (
                     <>
                       <span className="mx-2">•</span>
                       <span className="font-semibold text-orange-400">
-                        Nhận thêm {packages.find(p => p.amount === selectedAmount).bonus.toLocaleString("vi-VN")} G-Coin
+                        Nhận thêm{" "}
+                        {packages
+                          .find((p) => p.amount === selectedAmount)
+                          .bonus.toLocaleString("vi-VN")}{" "}
+                        G-Coin
                       </span>
                     </>
                   )}
@@ -178,11 +317,17 @@ export default function PaymentModal({ isOpen = true, onClose }) {
 
             {/* Payment Methods Info */}
             <div className="mb-8">
-              <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Chọn phương thức thanh toán</h3>
+              <h3 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">
+                Chọn phương thức thanh toán
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 {/* VNPay */}
                 <motion.button
-                  onClick={() => setSelectedMethod(selectedMethod === "vnpay" ? null : "vnpay")}
+                  onClick={() =>
+                    setSelectedMethod(
+                      selectedMethod === "vnpay" ? null : "vnpay"
+                    )
+                  }
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`relative p-4 h-32 rounded-xl border-2 transition-all duration-300 overflow-hidden group flex items-center justify-center ${
@@ -192,10 +337,10 @@ export default function PaymentModal({ isOpen = true, onClose }) {
                   }`}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-cyan-500/0 group-hover:from-blue-500/5 group-hover:to-cyan-500/5 transition-all duration-300" />
-                  
+
                   <div className="relative w-24 h-16 flex items-center justify-center">
-                    <img 
-                      src="https://yt3.googleusercontent.com/JM1m2wng0JQUgSg9ZSEvz7G4Rwo7pYb4QBYip4PAhvGRyf1D_YTbL2DdDjOy0qOXssJPdz2r7Q=s900-c-k-c0x00ffffff-no-rj" 
+                    <img
+                      src="https://yt3.googleusercontent.com/JM1m2wng0JQUgSg9ZSEvz7G4Rwo7pYb4QBYip4PAhvGRyf1D_YTbL2DdDjOy0qOXssJPdz2r7Q=s900-c-k-c0x00ffffff-no-rj"
                       alt="VNPay"
                       className="w-full h-full object-contain rounded-lg"
                     />
@@ -215,7 +360,9 @@ export default function PaymentModal({ isOpen = true, onClose }) {
 
                 {/* Momo */}
                 <motion.button
-                  onClick={() => setSelectedMethod(selectedMethod === "momo" ? null : "momo")}
+                  onClick={() =>
+                    setSelectedMethod(selectedMethod === "momo" ? null : "momo")
+                  }
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`relative p-4 h-32 rounded-xl border-2 transition-all duration-300 overflow-hidden group flex items-center justify-center ${
@@ -225,10 +372,10 @@ export default function PaymentModal({ isOpen = true, onClose }) {
                   }`}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 to-red-500/0 group-hover:from-pink-500/5 group-hover:to-red-500/5 transition-all duration-300" />
-                  
+
                   <div className="relative w-24 h-16 flex items-center justify-center">
-                    <img 
-                      src="https://play-lh.googleusercontent.com/uCtnppeJ9ENYdJaSL5av-ZL1ZM1f3b35u9k8EOEjK3ZdyG509_2osbXGH5qzXVmoFv0" 
+                    <img
+                      src="https://play-lh.googleusercontent.com/uCtnppeJ9ENYdJaSL5av-ZL1ZM1f3b35u9k8EOEjK3ZdyG509_2osbXGH5qzXVmoFv0"
                       alt="Momo"
                       className="w-full h-full object-contain rounded-lg"
                     />
@@ -252,8 +399,12 @@ export default function PaymentModal({ isOpen = true, onClose }) {
             <motion.button
               onClick={handlePaymentVNPay}
               disabled={!selectedAmount || !selectedMethod || loading}
-              whileHover={{ scale: selectedAmount && selectedMethod && !loading ? 1.02 : 1 }}
-              whileTap={{ scale: selectedAmount && selectedMethod && !loading ? 0.98 : 1 }}
+              whileHover={{
+                scale: selectedAmount && selectedMethod && !loading ? 1.02 : 1,
+              }}
+              whileTap={{
+                scale: selectedAmount && selectedMethod && !loading ? 0.98 : 1,
+              }}
               className={`w-full py-3 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2 ${
                 selectedAmount && selectedMethod && !loading
                   ? selectedMethod === "vnpay"
@@ -270,7 +421,12 @@ export default function PaymentModal({ isOpen = true, onClose }) {
               ) : (
                 <>
                   <CreditCard className="w-5 h-5" />
-                  Thanh toán với {selectedMethod === "vnpay" ? "VNPay" : selectedMethod === "momo" ? "Momo" : "..."}
+                  Thanh toán với{" "}
+                  {selectedMethod === "vnpay"
+                    ? "VNPay"
+                    : selectedMethod === "momo"
+                    ? "Momo"
+                    : "..."}
                 </>
               )}
             </motion.button>

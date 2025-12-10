@@ -42,7 +42,7 @@ import Approval from "./pages/Approval";
 import Monitoring from "./pages/Monitoring";
 import Reports from "./pages/Reports";
 import AdminProfile from "./pages/AdminProfiles.jsx";
-import AdminOrders from "./pages/AdminOrders.jsx";
+import AdminOrders from "./pages/AdminInvoices.jsx";
 import PublisherRegisterPage from "./pages/PublisherRegisterPage.jsx";
 import { CartProvider } from "./store/CartContext";
 import PublisherProfile from "./components/userprofile/PublisherProfile.jsx";

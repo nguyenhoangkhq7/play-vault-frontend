@@ -70,9 +70,24 @@ const GameCard = ({ game, idx, onFavoriteToggle, isInWishlist, isWishlistLoading
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-auto">
-            <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-              {game.originalPrice === "0 GCoin" ? 'Free' : game.originalPrice}
-            </span>
+            <div className="flex flex-col gap-1">
+              {game.discount > 0 ? (
+                <>
+                  {/* Giá sau giảm (lớn, nổi bật) */}
+                  <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    {game.finalPrice === "0 GCoin" ? 'Free' : game.finalPrice}
+                  </span>
+                  {/* Giá gốc (nhỏ, gạch ngang) */}
+                  <span className="text-xs text-gray-400 line-through">
+                    {game.originalPrice}
+                  </span>
+                </>
+              ) : (
+                <span className="text-lg font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  {game.originalPrice === "0 GCoin" ? 'Free' : game.originalPrice}
+                </span>
+              )}
+            </div>
             <Link to={`/product/${game.id}`}>
               <motion.div 
                 whileHover={{ scale: 1.05 }} 
@@ -172,12 +187,14 @@ export default function GameGrid() {
         // Ánh xạ dữ liệu từ backend sang định dạng component GameCard
         const processedGames = topGamesData.map((g, index) => {
           const priceValue = g.gameBasicInfos?.price || 0;
-          // Giả định giá gốc (hoặc có thể lấy từ trường khác nếu API có)
-          const originalPriceValue = priceValue - (g.discount || 0);
+          const discountValue = g.discount || 0;
+          
+          // Tính giá sau giảm
+          const finalPriceValue = priceValue - discountValue;
 
-          // Định dạng tiền tệ
-          const formattedPrice = `${new Intl.NumberFormat("vi-VN").format(priceValue)} GCoin`;
-          const formattedOriginalPrice = `${new Intl.NumberFormat("vi-VN").format(originalPriceValue)} GCoin`;
+          // Định dạng tiền tệ - KHÔNG làm tròn
+          const formattedOriginalPrice = `${priceValue} GCoin`; // Giá gốc
+          const formattedFinalPrice = `${finalPriceValue} GCoin`; // Giá sau giảm
 
           return {
             id: g.id,
@@ -188,9 +205,9 @@ export default function GameGrid() {
               ? `${g.gameBasicInfos.thumbnail}`
               : "/placeholder.svg?height=200&width=300",
 
-            price: formattedPrice,
-            originalPrice: formattedOriginalPrice,
-            discount: g.discount || 0,
+            originalPrice: formattedOriginalPrice, // Giá gốc (để hiển thị gạch ngang)
+            finalPrice: formattedFinalPrice, // Giá sau giảm (để hiển thị lớn)
+            discount: discountValue,
 
             // Lấy rating và review count trực tiếp
             rating: (g.avgRating || 0).toFixed(1),

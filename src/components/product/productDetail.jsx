@@ -1,10 +1,19 @@
 // pages/ProductDetailPage.jsx
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { 
-  Download, ShoppingBag, Gift, CheckCircle, 
-  ChevronLeft, ChevronRight, Star, Heart, ShoppingCart, Loader2, 
-  Play, Gamepad2 
+import {
+  Download,
+  ShoppingBag,
+  Gift,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Heart,
+  ShoppingCart,
+  Loader2,
+  Play,
+  Gamepad2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -12,17 +21,21 @@ import { useCart } from "../../store/CartContext";
 import { useUser } from "../../store/UserContext";
 
 // 🔥 Import cả 2 API
-import { api } from "../../api/authApi"; 
-import adminGamesApi from "../../api/adminGames"; 
+import { api } from "../../api/authApi";
+import adminGamesApi from "../../api/adminGames";
 
 import GameReviews from "../review/GameReview";
 import SystemCompatibilityChecker from "../SystemCompatibilityChecker";
-import { getWishlist, createWishlist, updateWishlist } from "../../api/wishlist";
+import {
+  getWishlist,
+  createWishlist,
+  updateWishlist,
+} from "../../api/wishlist";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart, cart } = useCart(); 
+  const { addToCart, cart } = useCart();
   const { user, accessToken } = useUser();
 
   const [game, setGame] = useState(null);
@@ -35,26 +48,44 @@ export default function ProductDetailPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeTab, setActiveTab] = useState("about");
 
+  // 🔥 CHECK ROLE: Kiểm tra xem user có phải là Publisher không
+  const isPublisher =
+    user?.role === "PUBLISHER" || user?.role === "ROLE_PUBLISHER";
+
   // --- 1. HÀM HELPER XỬ LÝ MEDIA ---
   const getVideoInfo = (url) => {
     if (!url) return { type: null, src: null };
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const youtubeRegex =
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const ytMatch = url.match(youtubeRegex);
     if (ytMatch && ytMatch[1]) {
-      return { type: 'youtube', src: `https://www.youtube.com/embed/${ytMatch[1]}`, original: url };
+      return {
+        type: "youtube",
+        src: `https://www.youtube.com/embed/${ytMatch[1]}`,
+        original: url,
+      };
     }
-    if (url.match(/\.(mp4|webm|ogg)$/i) || !url.startsWith('http')) {
-        const src = url.startsWith('http') ? url : `http://localhost:8080/uploads/${url}`;
-        return { type: 'file', src: src };
+    if (url.match(/\.(mp4|webm|ogg)$/i) || !url.startsWith("http")) {
+      const src = url.startsWith("http")
+        ? url
+        : `http://localhost:8080/uploads/${url}`;
+      return { type: "file", src: src };
     }
-    return { type: 'iframe', src: url };
+    return { type: "iframe", src: url };
   };
 
   const getImageUrl = (imgData) => {
     if (!imgData) return "https://via.placeholder.com/600x400?text=No+Image";
-    const url = typeof imgData === 'object' ? imgData.url : imgData;
+    const url = typeof imgData === "object" ? imgData.url : imgData;
     if (url.startsWith("http")) return url;
-    return `http://localhost:8080/uploads/${url}`; 
+    return `http://localhost:8080/uploads/${url}`;
+  };
+
+  // 🔥 Hàm xử lý link download
+  const getFileUrl = (filePath) => {
+    if (!filePath) return null;
+    if (filePath.startsWith("http")) return filePath;
+    return `http://localhost:8080/uploads/${filePath}`;
   };
 
   // --- 2. FETCH DATA (KẾT HỢP 2 API) ---
@@ -66,36 +97,43 @@ export default function ProductDetailPage() {
 
         // BƯỚC 1: Gọi API User để lấy isOwned (Quan trọng nhất)
         const userApiPromise = api.get(`/api/games/${id}`, {
-             headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+          headers: accessToken
+            ? { Authorization: `Bearer ${accessToken}` }
+            : {},
         });
 
-        // BƯỚC 2: Gọi API Admin để lấy Trailer (Bắt lỗi riêng để không chặn trang web nếu API này lỗi)
-        const adminApiPromise = adminGamesApi.getGameDetail(id).catch(err => {
-            console.warn("Không lấy được trailer từ Admin API:", err);
-            return null; // Trả về null nếu lỗi để code không crash
+        // BƯỚC 2: Gọi API Admin để lấy Trailer
+        const adminApiPromise = adminGamesApi.getGameDetail(id).catch((err) => {
+          console.warn("Không lấy được trailer từ Admin API:", err);
+          return null;
         });
 
         // Chạy song song 2 request cho nhanh
-        const [userRes, adminRes] = await Promise.all([userApiPromise, adminApiPromise]);
-        
+        const [userRes, adminRes] = await Promise.all([
+          userApiPromise,
+          adminApiPromise,
+        ]);
+
         const userData = userRes.data || userRes;
-        const adminData = adminRes ? (adminRes.data || adminRes) : {};
+        const adminData = adminRes ? adminRes.data || adminRes : {};
 
         console.log("🔥 User Data (Ownership):", userData);
         console.log("🔥 Admin Data (Trailer):", adminData);
 
         // BƯỚC 3: Gộp dữ liệu (Ưu tiên User Data, bổ sung Trailer từ Admin Data)
         const mergedGameData = {
-            ...userData,
-            // Lấy trailer từ Admin API đắp vào
-            trailerUrl: adminData.trailerUrl || adminData.videoUrl || userData.trailerUrl || "",
-            // Lấy thêm các info khác nếu User API thiếu (ví dụ ageRating)
-            ageRating: userData.ageRating || adminData.ageRating || "12"
+          ...userData,
+          trailerUrl:
+            adminData.trailerUrl ||
+            adminData.videoUrl ||
+            userData.trailerUrl ||
+            "",
+          ageRating: userData.ageRating || adminData.ageRating || "12",
+          filePath: adminData.filePath || userData.filePath,
         };
-        
+
         setGame(mergedGameData);
         setIsOwnedState(userData.isOwned === true);
-
       } catch (error) {
         console.error("Lỗi tải chi tiết game:", error);
         setGame(null);
@@ -110,33 +148,50 @@ export default function ProductDetailPage() {
       fetchDetail();
     };
 
-    window.addEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+    window.addEventListener("purchasedGamesUpdated", handlePurchaseSuccess);
     return () => {
-      window.removeEventListener('purchasedGamesUpdated', handlePurchaseSuccess);
+      window.removeEventListener(
+        "purchasedGamesUpdated",
+        handlePurchaseSuccess
+      );
     };
   }, [id, accessToken]);
 
-  // --- 3. CHECK WISHLIST ---
+  // --- 3. CHECK WISHLIST (FIX FINAL) ---
   useEffect(() => {
     let isMounted = true;
+
     const checkFavoriteStatus = async () => {
-      if (user && accessToken && game?.id) {
-        try {
-          const myWishlist = await getWishlist();
-          if (isMounted && Array.isArray(myWishlist)) {
-            const found = myWishlist.some(item => {
-               const itemId = item.gameId || (item.game && item.game.id);
-               return String(itemId) === String(game.id);
-            });
-            setIsFavorite(found);
-          }
-        } catch (error) {
-          console.error("Lỗi check wishlist:", error);
+      if (!user || !accessToken || !game?.id) {
+        return;
+      }
+
+      try {
+        const response = await api.get("/api/wishlist", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        const data = response.data;
+        const wishlistArray = Array.isArray(data) ? data : data?.data || [];
+
+        if (isMounted) {
+          const found = wishlistArray.some((item) => {
+            const itemGameId = item.game?.id || item.gameId || item.id;
+            return String(itemGameId) === String(game.id);
+          });
+
+          setIsFavorite(found);
         }
+      } catch (error) {
+        console.error("Lỗi check wishlist:", error);
       }
     };
+
     checkFavoriteStatus();
-    return () => { isMounted = false; };
+
+    return () => {
+      isMounted = false;
+    };
   }, [user, game, accessToken]);
 
   // --- 4. CHECK CART ---
@@ -159,28 +214,40 @@ export default function ProductDetailPage() {
 
   // --- VARIABLES ---
   const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
-  
+
   const slides = game
     ? [
         { id: 0, image: getImageUrl(game.thumbnail) },
-        ...(game.previewImages || []).map((img, idx) => ({ id: idx + 1, image: getImageUrl(img) }))
+        ...(game.previewImages || []).map((img, idx) => ({
+          id: idx + 1,
+          image: getImageUrl(img),
+        })),
       ]
     : [];
-  const displaySlides = slides.length > 0 ? slides : [{ id: 1, image: fallbackImage }];
+  const displaySlides =
+    slides.length > 0 ? slides : [{ id: 1, image: fallbackImage }];
 
-  const gbi = game?.gameBasicInfo || game?.gameBasicInfos || game?.basicInfo || game;
-  const controllerSupport = game?.controllerSupport || gbi?.controllerSupport || "Có";
-  
-  // 🔥 Lấy Trailer từ biến đã merge (ưu tiên Admin API)
+  const gbi =
+    game?.gameBasicInfo || game?.gameBasicInfos || game?.basicInfo || game;
+  const price = gbi?.price ?? game?.price ?? 0;
+  const discount = game?.discount ?? 0; // Lấy discount từ API response
+  const controllerSupport =
+    game?.controllerSupport || gbi?.controllerSupport || "Có";
+
   const rawVideoUrl = game?.trailerUrl || game?.videoUrl || "";
   const videoData = getVideoInfo(rawVideoUrl);
-  
+
   const ageRating = game?.ageRating || game?.requiredAge || "12";
+  const downloadLink = game ? getFileUrl(game.filePath) : null;
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % displaySlides.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + displaySlides.length) % displaySlides.length);
+  const nextSlide = () =>
+    setCurrentSlide((prev) => (prev + 1) % displaySlides.length);
+  const prevSlide = () =>
+    setCurrentSlide(
+      (prev) => (prev - 1 + displaySlides.length) % displaySlides.length
+    );
 
-  // --- HANDLERS (Giữ nguyên) ---
+  // --- HANDLERS ---
   const handleAddToCart = async () => {
     if (!user || !accessToken) {
       toast.warning("Vui lòng đăng nhập để mua game.");
@@ -239,27 +306,27 @@ export default function ProductDetailPage() {
 
   const handleToggleFavorite = async () => {
     if (!user) {
-        toast.warning("Vui lòng đăng nhập.");
-        navigate("/login");
-        return;
+      toast.warning("Vui lòng đăng nhập.");
+      navigate("/login");
+      return;
     }
     try {
-        if (isFavorite) {
-            await updateWishlist(game.id);
-            setIsFavorite(false);
-            toast.info("Đã xóa khỏi yêu thích 💔");
-        } else {
-            try {
-                await createWishlist(game.id);
-                setIsFavorite(true);
-                toast.success("Đã thêm vào yêu thích ❤️");
-            } catch (err) {
-                setIsFavorite(true);
-                toast.success("Đã có trong danh sách yêu thích");
-            }
+      if (isFavorite) {
+        await updateWishlist(game.id);
+        setIsFavorite(false);
+        toast.info("Đã xóa khỏi yêu thích 💔");
+      } else {
+        try {
+          await createWishlist(game.id);
+          setIsFavorite(true);
+          toast.success("Đã thêm vào yêu thích ❤️");
+        } catch (err) {
+          setIsFavorite(true);
+          toast.success("Đã có trong danh sách yêu thích");
         }
+      }
     } catch (error) {
-        toast.error("Lỗi cập nhật yêu thích");
+      toast.error("Lỗi cập nhật yêu thích");
     }
   };
 
@@ -285,14 +352,13 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-purple-800 to-purple-900 font-sans">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
           {/* --- CỘT TRÁI (CONTENT) --- */}
           <div className="lg:col-span-2">
             <h1 className="text-4xl font-bold text-white mb-6">{game.name}</h1>
 
             <div className="relative bg-purple-950/50 rounded-xl overflow-hidden mb-6 shadow-2xl h-[400px] group border border-purple-600/40">
               <div className="absolute top-4 right-4 z-20 bg-red-600/90 border-2 border-white text-white font-extrabold w-12 h-12 flex items-center justify-center rounded-lg shadow-lg text-lg backdrop-blur-sm pointer-events-none">
-                 {ageRating}+
+                {ageRating}+
               </div>
 
               <AnimatePresence mode="wait">
@@ -308,15 +374,21 @@ export default function ProductDetailPage() {
                   onError={(e) => (e.currentTarget.src = fallbackImage)}
                 />
               </AnimatePresence>
-              
+
               {displaySlides.length > 1 && (
                 <>
-                    <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100">
-                        <ChevronLeft size={24} />
-                    </button>
-                    <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100">
-                        <ChevronRight size={24} />
-                    </button>
+                  <button
+                    onClick={prevSlide}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    onClick={nextSlide}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition opacity-0 group-hover:opacity-100"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
                 </>
               )}
             </div>
@@ -356,7 +428,13 @@ export default function ProductDetailPage() {
                 )}
 
                 {activeTab === "requirements" && (
-                  <motion.div key="requirements" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                  <motion.div
+                    key="requirements"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-6"
+                  >
                     <div>
                       <h3 className="text-2xl font-bold text-white mb-4">Cấu hình yêu cầu</h3>
                       <div className="bg-purple-900/50 p-6 rounded-xl border border-purple-600/30">
@@ -380,7 +458,7 @@ export default function ProductDetailPage() {
                     </div>
                   </motion.div>
                 )}
-                
+
                 {activeTab === "trailer" && (
                     <motion.div key="trailer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
                         <h3 className="text-2xl font-bold text-white mb-4">Trailer Game</h3>
@@ -406,13 +484,30 @@ export default function ProductDetailPage() {
                 )}
 
                 {activeTab === "reviews" && (
-                  <motion.div key="reviews" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <GameReviews gameId={game.id} isOwned={isOwned} accessToken={accessToken} userId={user?.id} />
+                  <motion.div
+                    key="reviews"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <GameReviews
+                      gameId={game.id}
+                      isOwned={isOwned}
+                      accessToken={accessToken}
+                      userId={user?.id}
+                    />
                   </motion.div>
                 )}
 
-                {activeTab === "download" && (
-                  <motion.div key="download" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                {/* 🔥 Chỉ render tab content Download nếu không phải Publisher */}
+                {activeTab === "download" && !isPublisher && (
+                  <motion.div
+                    key="download"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-6"
+                  >
                     {!isOwned ? (
                       <div className="text-center py-10 text-purple-300">
                         <p className="text-xl font-bold text-white mb-4">Bạn chưa sở hữu game này</p>
@@ -437,13 +532,22 @@ export default function ProductDetailPage() {
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-purple-900/50 p-6 rounded-xl border border-purple-600/30 space-y-3 text-sm text-purple-200 shadow-lg shadow-purple-900/30">
               <div className="flex justify-between">
-                <span>Nhà phát hành:</span> <span className="font-semibold text-white">{game.publisherName || "N/A"}</span>
+                <span>Nhà phát hành:</span>{" "}
+                <span className="font-semibold text-white">
+                  {game.publisherName || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span>Ngày phát hành:</span> <span className="font-semibold text-white">{game.releaseDate}</span>
+                <span>Ngày phát hành:</span>{" "}
+                <span className="font-semibold text-white">
+                  {game.releaseDate}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span>Thể loại:</span> <span className="font-semibold text-white">{game.categoryName}</span>
+                <span>Thể loại:</span>{" "}
+                <span className="font-semibold text-white">
+                  {game.categoryName}
+                </span>
               </div>
               <div className="flex justify-between">
               <span>Giá:</span> 
@@ -580,7 +684,7 @@ export default function ProductDetailPage() {
                   {isFavorite ? "Đã yêu thích" : "Yêu thích"}
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

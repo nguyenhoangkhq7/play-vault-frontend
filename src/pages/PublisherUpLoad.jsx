@@ -3,6 +3,8 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/home/navbar";
 import Footer from "../components/home/footer";
 import Sidebar from "../components/home/sidebar";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // ✅ Thêm service gọi API
 import { gameService } from "../api/gameService";
@@ -84,7 +86,7 @@ const onGalleryFiles = async (index, files) => {
   const f = files?.[0];
   if (!f) return;
   if (!f.type.startsWith("image/")) {
-    alert("Vui lòng chọn ảnh (JPG/PNG/WEBP/GIF)");
+    toast.error("🖼️ Vui lòng chọn ảnh (JPG/PNG/WEBP/GIF)");
     return;
   }
   try {
@@ -100,7 +102,7 @@ const onGalleryFiles = async (index, files) => {
     console.log("✅ Upload gallery image:", link);
   } catch (e) {
     console.error("❌ Upload gallery thất bại:", e);
-    alert("Upload ảnh gallery thất bại! Vui lòng thử lại.");
+    toast.error("❌ Upload ảnh gallery thất bại! Vui lòng thử lại.");
   }
 };
 
@@ -161,7 +163,7 @@ const categoryIdMapped = categoryMap[genre] || 1;
     const f = files?.[0];
     if (!f) return;
     if (!f.type.startsWith("image/")) {
-      alert("Vui lòng chọn ảnh (JPG/PNG)");
+      toast.error("🖼️ Vui lòng chọn ảnh (JPG/PNG)");
       return;
     }
     try {
@@ -172,7 +174,7 @@ const categoryIdMapped = categoryMap[genre] || 1;
       console.log("✅ Upload cover image:", link);
     } catch (e) {
       console.error("❌ Upload cover thất bại:", e);
-      alert("Upload ảnh bìa thất bại! Vui lòng thử lại.");
+      toast.error("❌ Upload ảnh bìa thất bại! Vui lòng thử lại.");
     }
   };
 
@@ -180,8 +182,8 @@ const categoryIdMapped = categoryMap[genre] || 1;
   const onBuildFiles = async (files) => {
     const f = files?.[0];
     if (!f) return;
-    if (!/(zip|7z|rar|exe)$/i.test(f.name)) {
-      alert("Chỉ nhận .zip, .7z, .rar, .exe");
+    if (!/(\.zip|\.7z|\.rar|\.exe)$/i.test(f.name)) {
+      toast.error("📦 Chỉ nhận file .zip, .7z, .rar, .exe");
       return;
     }
     // set tên build hiển thị
@@ -208,7 +210,7 @@ const categoryIdMapped = categoryMap[genre] || 1;
       console.log("✅ Upload thành công! FilePath:", filePath);
     } catch (e) {
       console.error("❌ Upload build thất bại:", e);
-      alert("Upload build thất bại! Vui lòng thử lại.");
+      toast.error("❌ Upload build thất bại! Vui lòng thử lại.");
     } finally {
       setIsUploading(false);
     }
@@ -235,7 +237,7 @@ const categoryIdMapped = categoryMap[genre] || 1;
       console.log("✅ Upload screenshot:", link);
     } catch (e) {
       console.error("❌ Upload screenshot thất bại:", e);
-      alert("Upload screenshot thất bại! Vui lòng thử lại.");
+      toast.error("❌ Upload screenshot thất bại! Vui lòng thử lại.");
     }
   };
 
@@ -266,47 +268,47 @@ const categoryIdMapped = categoryMap[genre] || 1;
 
       // ✅ Validate required fields
       if (!title || !summary || !buildUrl) {
-        alert("Vui lòng điền đầy đủ thông tin: Tên game, Mô tả, và File game!");
+        toast.error("⚠️ Vui lòng điền đầy đủ thông tin: Tên game, Mô tả, và File game!");
         return;
       }
 
       if (!coverUrl) {
-        alert("Vui lòng upload ảnh bìa game!");
+        toast.error("🖼️ Vui lòng upload ảnh bìa game!");
         return;
       }
 
       if (!notes || !notes.trim()) {
-        alert("Vui lòng nhập ghi chú phát hành!");
+        toast.error("📝 Vui lòng nhập ghi chú phát hành!");
         return;
       }
 
       if (!trailer || !trailer.trim()) {
-        alert("Vui lòng nhập link trailer YouTube!");
+        toast.error("🎥 Vui lòng nhập link trailer YouTube!");
         return;
       }
 
       // ✅ Validate gallery images (bắt buộc ít nhất 2 ảnh)
       const validGalleryCount = galleryUrls.filter(Boolean).length;
       if (validGalleryCount < 2) {
-        alert(`Vui lòng upload ít nhất 2 ảnh gallery! (Hiện tại: ${validGalleryCount}/4)`);
+        toast.error(`🖼️ Vui lòng upload ít nhất 2 ảnh gallery! (Hiện tại: ${validGalleryCount}/4)`);
         return;
       }
 
       // ✅ Validate system requirements (optional nhưng nếu nhập thì phải đúng format)
       if (cpu.trim() && cpu.trim().length < 3) {
-        alert("Yêu cầu CPU phải có ít nhất 3 ký tự!");
+        toast.error("💻 Yêu cầu CPU phải có ít nhất 3 ký tự!");
         return;
       }
       if (gpu.trim() && gpu.trim().length < 3) {
-        alert("Yêu cầu GPU phải có ít nhất 3 ký tự!");
+        toast.error("🎮 Yêu cầu GPU phải có ít nhất 3 ký tự!");
         return;
       }
       if (ram.trim() && !/^\d+\s*(GB|MB|gb|mb)$/i.test(ram.trim())) {
-        alert("RAM phải theo định dạng: 8 GB, 16GB, 512MB, v.v.");
+        toast.error("💾 RAM phải theo định dạng: 8 GB, 16GB, 512MB, v.v.");
         return;
       }
       if (storage.trim() && !/^\d+\s*(GB|MB|TB|gb|mb|tb)$/i.test(storage.trim())) {
-        alert("Dung lượng phải theo định dạng: 10 GB, 500MB, 1TB, v.v.");
+        toast.error("💿 Dung lượng phải theo định dạng: 10 GB, 500MB, 1TB, v.v.");
         return;
       }
 
@@ -347,23 +349,26 @@ const categoryIdMapped = categoryMap[genre] || 1;
       const response = await gameService.createPendingJson(payload, token);
       
       console.log("✅ Game submitted successfully:", response);
-      alert("Đã gửi duyệt game thành công! Vui lòng chờ admin phê duyệt.");
+      toast.success("🎉 Đã gửi duyệt game thành công! Chuyển đến trang quản lý...", {
+        autoClose: 2000,
+      });
       
-      resetForm();
-      // Có thể navigate về dashboard
-      // navigate("/publisher/dashboard");
+      setTimeout(() => {
+        resetForm();
+        navigate("/publisher/games");
+      }, 2000);
     } catch (e) {
       console.error("❌ Error submitting game:", e);
       console.error("Error response:", e.response?.data);
       
       if (e.response?.status === 401) {
-        alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
-        navigate("/login");
+        toast.error("🔒 Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
+        setTimeout(() => navigate("/login"), 2000);
       } else if (e.response?.status === 403) {
-        alert("Bạn không có quyền tạo game. Vui lòng đăng nhập với tài khoản Publisher!");
+        toast.error("⛔ Bạn không có quyền tạo game. Vui lòng đăng nhập với tài khoản Publisher!");
       } else {
         const errorMsg = e.response?.data?.message || e.message || "Lỗi không xác định";
-        alert(`Gửi duyệt thất bại: ${errorMsg}`);
+        toast.error(`❌ Gửi duyệt thất bại: ${errorMsg}`);
       }
     }
   };
@@ -382,6 +387,20 @@ const categoryIdMapped = categoryMap[genre] || 1;
   // ---------------------- Render ----------------------
   return (
     <div className="publisher-root" data-bs-theme="dark">
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+        style={{ zIndex: 9999 }}
+      />
       {/* Sidebar */}
       <Sidebar />
 

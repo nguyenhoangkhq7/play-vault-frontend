@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { toast } from 'react-toastify';
 
 export default function PublisherInfo() {
   
@@ -39,11 +40,11 @@ export default function PublisherInfo() {
 
   const validateFile = (file) => {
     if (!acceptTypes.test(file.type)) {
-      alert("Chỉ hỗ trợ PNG/JPG/WEBP/GIF");
+      toast.error("🖼️ Chỉ hỗ trợ PNG/JPG/WEBP/GIF");
       return false;
     }
     if (file.size > MAX_SIZE) {
-      alert("Ảnh không được vượt quá 7MB");
+      toast.error("⚠️ Ảnh không được vượt quá 7MB");
       return false;
     }
     return true;
